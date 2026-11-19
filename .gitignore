@@ -1,0 +1,23 @@
+# build
+dist/
+
+# dependências / caches
+node_modules/
+__pycache__/
+*.pyc
+
+# arquivo original da base (o conteúdo já está em src/ e docs/)
+*.zip
+
+# sistema / editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# Claude Code: só o launch.json é compartilhado
+.claude/*
+!.claude/launch.json

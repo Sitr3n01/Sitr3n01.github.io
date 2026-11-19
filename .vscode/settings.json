@@ -1,0 +1,6 @@
+{
+  "files.eol": "\n",
+  "files.exclude": { "dist": false },
+  "search.exclude": { "dist": true },
+  "files.readonlyInclude": { "dist/**": true }
+}
