@@ -50,11 +50,18 @@ function mount(root, options) {
 
   // valores aleatórios estáveis por elemento
   const R = rngFrom(2026);
-  const L = letters.map(() => ({
+  // título: as letras de uma palavra somem juntas (fade = início do sumiço da palavra, em ordem de leitura,
+  // com uma variação mínima por letra), para nunca sobrarem letras soltas formando outras palavras
+  const wordOf = new Map();
+  letters.forEach(el => { if (!wordOf.has(el.parentElement)) wordOf.set(el.parentElement, wordOf.size); });
+  const L = letters.map(el => ({
     ix: R.uniform(-420, 420), iy: R.uniform(-260, 260), ir: R.uniform(-50, 50), idel: R.uniform(0, 0.5),
-    sx: R.uniform(-140, 140), sy: R.uniform(-380, -60), sr: R.uniform(-30, 30), fade: R.uniform(0.05, 0.6),
+    sx: R.uniform(-140, 140), sy: R.uniform(-380, -60), sr: R.uniform(-30, 30),
+    fade: 0.03 + 0.025 * wordOf.get(el.parentElement) + R.uniform(0, 0.015),
   }));
-  const Wd = words.map((_, i) => ({ off: (i % 2 ? -1 : 1) * R.uniform(28, 96), d: 0.04 + 0.34 * i / Math.max(1, words.length - 1) + R.uniform(0, 0.05) }));
+  // manifesto: deslocamento em em, sempre menor que meia linha (a palavra nunca invade a linha vizinha), e as
+  // palavras entram em ordem de leitura (a variação aleatória é menor que o passo entre duas palavras)
+  const Wd = words.map((_, i) => ({ off: (i % 2 ? -1 : 1) * R.uniform(0.14, 0.3), d: 0.04 + 0.34 * i / Math.max(1, words.length - 1) + R.uniform(0, 0.01) }));
 
   const Ch = chips.map((_, i) => ({ a: i * 2.39996, rad: R.uniform(0.72, 1.18), lift: R.uniform(-0.35, 0.35), spd: R.uniform(0.08, 0.16), out: R.uniform(1.8, 3.4),
     ox: 0, oy: 0, w: 0, h: 0 }));
@@ -236,12 +243,14 @@ function mount(root, options) {
     }
 
     // ---------------- título: letras se montam na entrada e se dispersam no scroll
-    const p = clamp(st / (vh * 0.9), 0, 1);
+    // Entrada: a letra só aparece nos últimos 10% do caminho, já quase no lugar. Saída: a dispersão cresce com
+    // p³ (quase parada no começo) e a palavra inteira some até p ≈ 0,3, antes de as letras se afastarem.
+    const p = clamp(st / (vh * 0.9), 0, 1), p2 = p * p * p;
     letters.forEach((el, n) => {
       const d = L[n];
       const a = !on ? 1 : ease((ti - IN.ui - d.idel) / 1.1);
-      const x = d.ix * (1 - a) + d.sx * p, y = d.iy * (1 - a) + d.sy * p, r = d.ir * (1 - a) + d.sr * p;
-      const op = Math.min(a, 1 - smooth(d.fade, d.fade + 0.35, p));
+      const x = d.ix * (1 - a) + d.sx * p2, y = d.iy * (1 - a) + d.sy * p2, r = d.ir * (1 - a) + d.sr * p2;
+      const op = Math.min(on ? smooth(0.9, 1, a) : 1, 1 - smooth(d.fade, d.fade + 0.14, p));
       el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) rotate(${r.toFixed(1)}deg)`;
       el.style.opacity = op.toFixed(3);
     });
@@ -252,9 +261,10 @@ function mount(root, options) {
       const top = topOf(sec), h = sec.offsetHeight;
       const m = clamp((st - top + vh * 0.6) / Math.max(1, h - vh * 0.4), 0, 1);
       words.forEach((el, n) => {
+        // só aparece na segunda metade do caminho, já quase no lugar; a saída sobe o bloco todo junto
         const w = Wd[n], loc = reduce ? 1 : ease((m - w.d) / 0.26), exit = smooth(0.86, 1, m);
-        el.style.transform = `translate3d(0, ${((1 - loc) * w.off - exit * 40).toFixed(1)}px, 0)`;
-        el.style.opacity = (loc * (1 - exit)).toFixed(3);
+        el.style.transform = `translate3d(0, ${((1 - loc) * w.off - exit * 0.7).toFixed(3)}em, 0)`;
+        el.style.opacity = (smooth(0.5, 1, loc) * (1 - exit)).toFixed(3);
       });
     }
 
