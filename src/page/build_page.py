@@ -33,8 +33,9 @@ def words(text):
 def nav(base=''):
     spy = 'spy' if not base else 'links'
     return f'''
+<div class="sk-topblur" data-sk-ui="1" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
 <header data-sk-ui="1" style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
-<a class="sk-glass sk-logo" href="{base}#inicio" style="pointer-events: auto">SITR3N.</a>
+<a class="sk-logo" href="{base}#inicio" style="pointer-events: auto">SITR3N.</a>
 <nav aria-label="Seções" style="pointer-events: auto; display: flex; align-items: center; gap: 10px">
 <div class="sk-glass sk-track sk-navlinks" data-sk-glass="{spy}">
 <span class="sk-lens" aria-hidden="true"></span>
@@ -345,7 +346,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-glass{position:relative;border-radius:999px;background-color:rgba(229,228,224,.55);
   -webkit-backdrop-filter:blur(14px) saturate(1.25);backdrop-filter:blur(14px) saturate(1.25);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.7),inset 0 1px 3px rgba(29,29,29,.07),0 0 0 1px rgba(29,29,29,.06),0 1px 0 rgba(255,255,255,.8)}
-.sk-logo{display:inline-block;padding:10px 18px;font-size:15px;font-weight:700;letter-spacing:.013em;text-decoration:none;color:#1d1d1d}
+.sk-logo{display:inline-block;padding:10px 0;font-size:15px;font-weight:700;letter-spacing:.013em;text-decoration:none;color:#1d1d1d}
 .sk-track{display:inline-flex;align-items:center;gap:2px;padding:4px}
 .sk-track-lg{flex-wrap:wrap;max-width:100%;box-sizing:border-box}
 .sk-seg{position:relative;z-index:1;display:inline-block;padding:10px 18px;border-radius:999px;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
@@ -438,7 +439,18 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-next-t{display:inline-block;font-size:clamp(40px,6vw,96px);line-height:.9;letter-spacing:-.015em;transition:transform .5s cubic-bezier(.2,.7,.2,1)}
 .sk-next:hover .sk-next-t{transform:translateX(19px)}
 .sk-next-k{display:inline-block;font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif;font-size:clamp(60px,7vw,110px);line-height:1}
-@media (max-width:720px){.sk-tile{width:min(60vw,240px)}.sk-sec>h2{flex-basis:100%}}'''
+@media (max-width:720px){.sk-tile{width:min(60vw,240px)}.sk-sec>h2{flex-basis:100%}}
+
+/* ---- desfoque em gradiente atrás da toolbar: forte no topo, some para baixo ---- */
+.sk-topblur{position:absolute;top:0;left:0;right:0;height:168px;z-index:19;pointer-events:none;
+  background:linear-gradient(to bottom,rgba(229,228,224,.72) 0%,rgba(229,228,224,.38) 45%,rgba(229,228,224,0) 100%)}
+.sk-topblur i{position:absolute;inset:0}
+.sk-topblur i:nth-child(1){-webkit-backdrop-filter:blur(.6px);backdrop-filter:blur(.6px);-webkit-mask-image:linear-gradient(to bottom,#000 70%,transparent 100%);mask-image:linear-gradient(to bottom,#000 70%,transparent 100%)}
+.sk-topblur i:nth-child(2){-webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);-webkit-mask-image:linear-gradient(to bottom,#000 52%,transparent 82%);mask-image:linear-gradient(to bottom,#000 52%,transparent 82%)}
+.sk-topblur i:nth-child(3){-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);-webkit-mask-image:linear-gradient(to bottom,#000 36%,transparent 64%);mask-image:linear-gradient(to bottom,#000 36%,transparent 64%)}
+.sk-topblur i:nth-child(4){-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:linear-gradient(to bottom,#000 20%,transparent 46%);mask-image:linear-gradient(to bottom,#000 20%,transparent 46%)}
+.sk-topblur i:nth-child(5){-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);-webkit-mask-image:linear-gradient(to bottom,#000 6%,transparent 30%);mask-image:linear-gradient(to bottom,#000 6%,transparent 30%)}
+@media (max-width:720px){.sk-topblur{height:128px}}'''
 
 DC_PROPS = {
     "preset": {"editor": "enum", "options": ["kosa", "sanbon", "ogi", "itozakura", "koeda"], "default": "kosa", "section": "Sakura"},
