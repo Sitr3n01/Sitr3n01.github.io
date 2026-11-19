@@ -33,7 +33,7 @@ def words(text):
 def nav(base=''):
     spy = 'spy' if not base else 'links'
     return f'''
-<div class="sk-topblur" data-sk-ui="1" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+<div class="sk-topblur sk-blurfx" data-sk-ui="1" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
 <header data-sk-ui="1" style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
 <a class="sk-logo" href="{base}#inicio" style="pointer-events: auto">SITR3N.</a>
 <nav aria-label="Seções" style="pointer-events: auto; display: flex; align-items: center; gap: 10px">
@@ -193,10 +193,10 @@ CONTACT = f'''
 <a class="sk-seg" href="https://www.linkedin.com/in/sitr3n">LinkedIn <span class="sk-seg-sub">/in/sitr3n</span> ↗</a>
 <span class="sk-seg" tabindex="0">[SEU E-MAIL]</span>
 </div>
-<div class="sk-glass sk-bar">
+<footer class="sk-footblur">
+<div class="sk-blurfx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
 <span style="{CAP}">© 2026 Sitr3n</span>
-<span style="{CAP}">Fundo em ASCII · <span lang="ja">桜</span></span>
-</div>
+</footer>
 </section>'''
 
 # "Scroll" centralizado na base, com a seta descendo e subindo (para em prefers-reduced-motion)
@@ -310,10 +310,11 @@ def project_body(p, nxt):
 <span class="sk-next-t"><span style="display: inline-block; view-transition-name: sk-title-{ns}">{E(nxt['titulo'])}</span> →</span>
 <span class="sk-next-k" aria-hidden="true" style="view-transition-name: sk-glyph-{ns}">{nxt['kanji']}</span>
 </a>
-<div class="sk-glass sk-bar">
+<footer class="sk-footblur">
+<div class="sk-blurfx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
 <span style="{CAP}">© 2026 Sitr3n</span>
 <a class="sk-link" href="{base}#contato" style="{CAP}; text-decoration: none">Vamos conversar ↗</a>
-</div>
+</footer>
 </section>'''
 
 
@@ -361,8 +362,6 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-track-lg .sk-seg{padding:14px 24px;font-size:15px;letter-spacing:.013em;text-transform:none}
 .sk-seg-sub{color:#8a8986;transition:color .35s ease}.sk-seg.is-on .sk-seg-sub{color:#5f5f5d}
 .sk-seg:focus-visible,.sk-lens-btn:focus-visible,.sk-logo:focus-visible{outline:2px solid #1d1d1d;outline-offset:3px}
-.sk-bar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 19px;padding:12px 22px}
-.sk-bar .sk-cap,.sk-bar span{color:#1d1d1d}
 
 /* lente: corpo claro, borda grossa que refrata, reflexo quente no topo e brilho iridescente girando nos cantos */
 .sk-lens,.sk-lens-btn{--sx:1;--sy:1;border-radius:999px;
@@ -387,7 +386,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-lens::after,.sk-lens-btn::after{content:"";position:absolute;left:16%;right:16%;top:2px;height:4px;border-radius:4px;pointer-events:none;
   background:linear-gradient(90deg,rgba(255,246,220,0),rgba(255,246,220,.95) 22%,#fff 50%,rgba(255,246,220,.95) 78%,rgba(255,246,220,0));filter:blur(1.2px)}
 @media (max-width:720px){.sk-track-lg{flex-direction:column;align-items:stretch;align-self:stretch!important;border-radius:30px}
-  .sk-track-lg .sk-seg{padding:14px 20px}.sk-bar{border-radius:22px}}
+  .sk-track-lg .sk-seg{padding:14px 20px}}
 @media (prefers-reduced-motion:reduce){.sk-lens,.sk-lens-btn,.sk-seg{transition:none!important}}
 
 /* ---- abertura: a interface entra depois que a sakura floresce ---- */
@@ -450,13 +449,20 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 /* ---- desfoque em gradiente atrás da toolbar: forte no topo, some para baixo ---- */
 .sk-topblur{position:absolute;top:0;left:0;right:0;height:168px;z-index:19;pointer-events:none;
   background:linear-gradient(to bottom,rgba(229,228,224,.72) 0%,rgba(229,228,224,.38) 45%,rgba(229,228,224,0) 100%)}
-.sk-topblur i{position:absolute;inset:0}
-.sk-topblur i:nth-child(1){-webkit-backdrop-filter:blur(.6px);backdrop-filter:blur(.6px);-webkit-mask-image:linear-gradient(to bottom,#000 70%,transparent 100%);mask-image:linear-gradient(to bottom,#000 70%,transparent 100%)}
-.sk-topblur i:nth-child(2){-webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);-webkit-mask-image:linear-gradient(to bottom,#000 52%,transparent 82%);mask-image:linear-gradient(to bottom,#000 52%,transparent 82%)}
-.sk-topblur i:nth-child(3){-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);-webkit-mask-image:linear-gradient(to bottom,#000 36%,transparent 64%);mask-image:linear-gradient(to bottom,#000 36%,transparent 64%)}
-.sk-topblur i:nth-child(4){-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:linear-gradient(to bottom,#000 20%,transparent 46%);mask-image:linear-gradient(to bottom,#000 20%,transparent 46%)}
-.sk-topblur i:nth-child(5){-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);-webkit-mask-image:linear-gradient(to bottom,#000 6%,transparent 30%);mask-image:linear-gradient(to bottom,#000 6%,transparent 30%)}
-@media (max-width:720px){.sk-topblur{height:128px}.sk-logo{font-size:19px}}
+.sk-topblur{--dir:to bottom}
+.sk-blurfx i{position:absolute;inset:0}
+.sk-blurfx i:nth-child(1){-webkit-backdrop-filter:blur(.6px);backdrop-filter:blur(.6px);-webkit-mask-image:linear-gradient(var(--dir),#000 70%,transparent 100%);mask-image:linear-gradient(var(--dir),#000 70%,transparent 100%)}
+.sk-blurfx i:nth-child(2){-webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);-webkit-mask-image:linear-gradient(var(--dir),#000 52%,transparent 82%);mask-image:linear-gradient(var(--dir),#000 52%,transparent 82%)}
+.sk-blurfx i:nth-child(3){-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);-webkit-mask-image:linear-gradient(var(--dir),#000 36%,transparent 64%);mask-image:linear-gradient(var(--dir),#000 36%,transparent 64%)}
+.sk-blurfx i:nth-child(4){-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:linear-gradient(var(--dir),#000 20%,transparent 46%);mask-image:linear-gradient(var(--dir),#000 20%,transparent 46%)}
+.sk-blurfx i:nth-child(5){-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);-webkit-mask-image:linear-gradient(var(--dir),#000 6%,transparent 30%);mask-image:linear-gradient(var(--dir),#000 6%,transparent 30%)}
+/* rodapé: o mesmo desfoque, de baixo para cima, sangrando até as bordas da tela */
+.sk-footblur{--dir:to top;position:relative;margin:0 calc(-1 * clamp(19px,4vw,76px)) -30px;padding:0 clamp(19px,4vw,76px) 30px;min-height:168px;
+  display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 19px;box-sizing:border-box;
+  background:linear-gradient(to top,rgba(229,228,224,.72) 0%,rgba(229,228,224,.38) 45%,rgba(229,228,224,0) 100%)}
+.sk-footblur>.sk-blurfx{position:absolute;inset:0;pointer-events:none}
+.sk-footblur>:not(.sk-blurfx){position:relative}
+@media (max-width:720px){.sk-topblur{height:128px}.sk-logo{font-size:19px}.sk-footblur{min-height:128px}}
 
 /* ---- indicador de scroll: centro da base, seta animada ---- */
 .sk-hint{position:absolute;left:50%;width:120px;margin:0 0 0 -60px;bottom:22px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
