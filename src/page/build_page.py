@@ -211,6 +211,22 @@ HINT = f'''<div data-sk-hint="1" data-sk-ui="3" aria-hidden="true" class="sk-hin
 <svg class="sk-hint-arrow" width="14" height="22" viewBox="0 0 14 22" fill="none" stroke="{INK}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v19M1.5 14.5 7 20l5.5-5.5"/></svg>
 </div>'''
 
+# WhatsApp fixo no canto inferior direito (fora do scroller, como a nav), em vidro líquido. A logo é
+# monocromática, na tinta do site: a paleta não tem o verde da marca. Abre a conversa com a mensagem pronta.
+WA_PHONE = '5561996805059'
+WA_TEXT = 'Olá! Vi seu portfólio e quero conversar sobre um projeto.'
+WA_HREF = f'https://wa.me/{WA_PHONE}?text={urllib.parse.quote(WA_TEXT)}'
+# logo: anel com o rabicho numa peça só (contorno externo menos o círculo interno, sem emenda) e o fone no meio
+WA_RING = 'M2.1 21.9l1.35-5.05A9.9 9.9 0 1 1 7.2 20.55zM12 3.9a8.1 8.1 0 1 0 0 16.2a8.1 8.1 0 1 0 0-16.2z'
+WA_PHONE_ICON = ('M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20'
+                 'c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z')
+WA_ICON = (f'<svg class="sk-wa-i" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">'
+           f'<path d="{WA_RING}" fill="{INK}" fill-rule="evenodd"/>'
+           f'<path d="{WA_PHONE_ICON}" fill="{INK}" transform="translate(12 12) scale(0.44) translate(-12 -12)"/></svg>')
+# a entrada da interface (data-sk-ui) fica no invólucro: no próprio botão, a transição dela substituiria a do vidro
+WA = (f'<div class="sk-wa-wrap" data-sk-ui="2"><a class="sk-lens-btn sk-wa" href="{E(WA_HREF)}" target="_blank" rel="noopener" '
+      f'aria-label="Fale comigo no WhatsApp: orçamentos e contratações (abre em nova aba)">{WA_ICON}</a></div>')
+
 RINGS = f'''<svg data-sk-rings="1" aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none">
 <circle cx="0" cy="0" r="230" style="fill: none; stroke: {ASH}; stroke-width: 1"></circle>
 <circle cx="0" cy="0" r="360" style="fill: none; stroke: {ASH}; stroke-width: 1"></circle>
@@ -235,6 +251,7 @@ def body(ref=''):
 </div>
 {nav()}
 {HINT}
+{WA}
 </div>'''
 
 
@@ -292,13 +309,19 @@ def project_body(p, nxt):
     if p.get('site'):
         host = p['site'].split('//', 1)[-1].split('/', 1)[0]
         links.append(f'<a class="sk-seg" href="{E(p["site"])}" rel="noopener">Site <span class="sk-seg-sub">{E(host)}</span> ↗</a>')
-    links_html = (f'''<div class="sk-glass sk-track sk-track-lg" data-sk-glass="links" data-sk-glass-rest="0" data-sk-reveal="1" style="align-self: flex-start">
+    # um link só: botão de vidro avulso, que cresce e gira o reflexo no hover (num trilho, a lente já estaria parada
+    # nele e nada mudaria). A entrada (data-sk-reveal) fica no invólucro, para o transform dela não travar o hover.
+    if len(links) == 1:
+        solo = links[0].replace('class="sk-seg"', 'class="sk-lens-btn sk-lens-btn-lg"')
+        links_html = f'<div data-sk-reveal="1" style="align-self: flex-start">{solo}</div>'
+    else:
+        links_html = (f'''<div class="sk-glass sk-track sk-track-lg" data-sk-glass="links" data-sk-glass-rest="0" data-sk-reveal="1" style="align-self: flex-start">
 <span class="sk-lens" aria-hidden="true"></span>
 {''.join(links)}
 </div>''') if links else ''
     ns = nxt['slug']
     return f'''
-<section id="inicio" data-sk-view="proj" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 120px {PADX} 76px; box-sizing: border-box">
+<section id="inicio" data-sk-view="proj" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 120px {PADX} 150px; box-sizing: border-box">
 <div style="max-width: 1400px; width: 100%; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-end; justify-content: space-between">
 <div style="flex: 1 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 30px">
 <a class="sk-link" href="{base}#projetos" style="align-self: flex-start; {CAP}; color: {INK}; text-decoration: none; padding: 5px 0">← Todos os projetos</a>
@@ -320,7 +343,7 @@ def project_body(p, nxt):
 {links_html}
 </div>
 </section>
-<section id="proximo" data-sk-view="projnext" style="position: relative; min-height: 70vh; display: flex; flex-direction: column; justify-content: flex-end; gap: 46px; padding: 119px {PADX} 30px; box-sizing: border-box">
+<section id="proximo" data-sk-view="projnext" style="position: relative; display: flex; flex-direction: column; justify-content: flex-end; gap: 46px; padding: 30px {PADX} 30px; box-sizing: border-box">
 <a class="sk-next" href="../{ns}/">
 <span style="flex: 1 1 100%; {CAP}">Próximo projeto · {E(nxt['cap'])}</span>
 <span class="sk-next-t"><span style="display: inline-block; view-transition-name: sk-title-{ns}">{E(nxt['titulo'])}</span> →</span>
@@ -344,6 +367,7 @@ def project_root(p, nxt):
 </div>
 {nav('../../')}
 {HINT}
+{WA}
 </div>'''
 
 
@@ -374,7 +398,8 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   color:#5f5f5d;text-decoration:none;white-space:nowrap;transition:color .35s ease}
 .sk-seg.is-on,.sk-seg:hover{color:#1d1d1d}
 .sk-track-lg .sk-seg{padding:14px 24px;font-size:15px;letter-spacing:.013em;text-transform:none}
-.sk-seg-sub{color:#8a8986;transition:color .35s ease}.sk-seg.is-on .sk-seg-sub{color:#5f5f5d}
+.sk-seg-sub{color:#8a8986;transition:color .35s ease}
+.sk-lens-btn.sk-lens-btn-lg{padding:18px 28px;font-size:15px;letter-spacing:.013em;text-transform:none}.sk-seg.is-on .sk-seg-sub{color:#5f5f5d}
 .sk-seg:focus-visible,.sk-lens-btn:focus-visible,.sk-logo:focus-visible{outline:2px solid #1d1d1d;outline-offset:3px}
 
 /* lente: corpo claro, borda grossa que refrata, reflexo quente no topo e brilho iridescente girando nos cantos */
@@ -497,6 +522,15 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-footblur>.sk-blurfx{position:absolute;inset:0;pointer-events:none}
 .sk-footblur>:not(.sk-blurfx){position:relative}
 @media (max-width:720px){.sk-topblur{height:128px}.sk-logo{font-size:19px}.sk-footblur{min-height:128px}}
+
+/* ---- WhatsApp: só a logo, num círculo de vidro de 64 px no canto inferior direito, alinhado à margem do site e
+   acima da linha do rodapé (o topo das páginas de projeto termina a 150 px da base para o quadro ASCII não ficar por
+   baixo dele). Abaixo de 1024 px o título ocupa a largura toda: o botão desce para a linha do "Scroll", com 56 px,
+   e o rodapé reserva a largura dele à direita ---- */
+.sk-wa-wrap{position:absolute;right:clamp(19px,4vw,76px);bottom:73px;z-index:21}
+.sk-wa{display:inline-flex;align-items:center;justify-content:center;padding:17px;color:#1d1d1d;text-decoration:none}
+.sk-wa-i{flex:0 0 auto;display:block;width:30px;height:30px}
+@media (max-width:1023px){.sk-wa-wrap{bottom:22px}.sk-wa{padding:13px}.sk-footblur{padding-right:calc(clamp(19px,4vw,76px) + 76px)}}
 
 /* ---- indicador de scroll: centro da base, seta animada ---- */
 .sk-hint{position:absolute;left:50%;width:120px;margin:0 0 0 -60px;bottom:22px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
