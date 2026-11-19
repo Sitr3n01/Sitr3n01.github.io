@@ -32,7 +32,7 @@ def nav(base=''):
     spy = 'spy' if not base else 'links'
     return f'''
 <div class="sk-topblur sk-blurfx" data-sk-ui="1" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-<header data-sk-ui="1" style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
+<header class="sk-toolbar" data-sk-ui="1" style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
 <a class="sk-logo" href="{base}#inicio" style="pointer-events: auto">SITR3N.</a>
 <nav aria-label="Seções" style="pointer-events: auto; display: flex; align-items: center; gap: 10px">
 <div class="sk-glass sk-track sk-navlinks" data-sk-glass="{spy}">
@@ -389,10 +389,11 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-row .sk-row-t{{transition:transform .45s cubic-bezier(.2,.7,.2,1)}}.sk-row:hover .sk-row-t{{transform:translateX(19px)}}
 @media (max-width:720px){{.sk-navlinks{{display:none!important}}}}
 @media (prefers-reduced-motion:reduce){{[data-sk-scroller]{{scroll-behavior:auto!important}}}}''' + '''
-/* ---- vidro líquido: trilho fosco + lente refrativa (nav e contato) ---- */
+/* ---- vidro líquido: trilho fosco + lente refrativa ---- */
 @property --rim{syntax:'<angle>';inherits:true;initial-value:0deg}
-.sk-glass{position:relative;border-radius:999px;background-color:rgba(229,228,224,.55);
-  -webkit-backdrop-filter:blur(14px) saturate(1.25);backdrop-filter:blur(14px) saturate(1.25);
+.sk-toolbar{--sk-track-tint:.55;--sk-track-blur:14px;--sk-lens-center:.92;--sk-lens-mid:.75}
+.sk-glass{position:relative;border-radius:999px;background-color:rgba(229,228,224,var(--sk-track-tint,.44));
+  -webkit-backdrop-filter:blur(var(--sk-track-blur,9px)) saturate(1.25);backdrop-filter:blur(var(--sk-track-blur,9px)) saturate(1.25);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.7),inset 0 1px 3px rgba(29,29,29,.07),0 0 0 1px rgba(29,29,29,.06),0 1px 0 rgba(255,255,255,.8)}
 .sk-logo{display:inline-block;padding:12px 0;font-size:22px;font-weight:700;line-height:1;letter-spacing:-.02em;text-decoration:none;color:#1d1d1d}
 .sk-track{display:inline-flex;align-items:center;gap:2px;padding:4px}
@@ -401,13 +402,13 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   color:#5f5f5d;text-decoration:none;white-space:nowrap;transition:color .35s ease}
 .sk-seg.is-on,.sk-seg:hover{color:#1d1d1d}
 .sk-track-lg .sk-seg{padding:14px 24px;font-size:15px;letter-spacing:.013em;text-transform:none}
-.sk-seg-sub{color:#8a8986;transition:color .35s ease}
-.sk-lens-btn.sk-lens-btn-lg{padding:18px 28px;font-size:15px;letter-spacing:.013em;text-transform:none}.sk-seg.is-on .sk-seg-sub{color:#5f5f5d}
+.sk-seg-sub{color:#5f5f5d;transition:color .35s ease}
+.sk-lens-btn.sk-lens-btn-lg{padding:18px 28px;font-size:15px;letter-spacing:.013em;text-transform:none}
 .sk-seg:focus-visible,.sk-lens-btn:focus-visible,.sk-logo:focus-visible{outline:2px solid #1d1d1d;outline-offset:3px}
 
 /* lente: corpo claro, borda grossa que refrata, reflexo quente no topo e brilho iridescente girando nos cantos */
 .sk-lens,.sk-lens-btn{--sx:1;--sy:1;border-radius:999px;
-  background:radial-gradient(120% 90% at 50% 50%,rgba(236,235,232,.92) 55%,rgba(250,250,248,.75) 78%,rgba(255,255,255,.95) 100%);
+  background:radial-gradient(120% 90% at 50% 50%,rgba(236,235,232,var(--sk-lens-center,.76)) 55%,rgba(250,250,248,var(--sk-lens-mid,.63)) 78%,rgba(255,255,255,.95) 100%);
   -webkit-backdrop-filter:blur(2px) saturate(1.8) brightness(1.05);backdrop-filter:blur(2px) saturate(1.8) brightness(1.05);
   box-shadow:inset 0 0 0 1px #fff,inset 0 0 2px 3px rgba(255,255,255,.8),inset 0 0 6px 5px rgba(29,29,29,.07),
     inset 0 5px 6px -3px #fff,inset 0 -6px 8px -4px rgba(29,29,29,.2),
@@ -521,7 +522,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 /* rodapé: o mesmo desfoque, de baixo para cima, sangrando até as bordas da tela */
 .sk-footblur{--dir:to top;position:relative;margin:0 calc(-1 * clamp(19px,4vw,76px)) -30px;padding:0 clamp(19px,4vw,76px) 30px;min-height:168px;
   display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 19px;box-sizing:border-box;
-  background:linear-gradient(to top,rgba(229,228,224,.72) 0%,rgba(229,228,224,.38) 45%,rgba(229,228,224,0) 100%)}
+  background:linear-gradient(to top,rgba(229,228,224,.60) 0%,rgba(229,228,224,.31) 45%,rgba(229,228,224,0) 100%)}
 .sk-footblur>.sk-blurfx{position:absolute;inset:0;pointer-events:none}
 .sk-footblur>:not(.sk-blurfx){position:relative}
 @media (max-width:720px){.sk-topblur{height:128px}.sk-logo{font-size:19px}.sk-footblur{min-height:128px}}
@@ -541,8 +542,8 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-hint:focus-visible{outline:2px solid #1d1d1d;outline-offset:6px;border-radius:10px}
 .sk-hint:hover .sk-hint-arrow{animation-duration:.9s}
 .sk-hint::before{content:"";position:absolute;inset:-26px -34px -14px;z-index:-1;border-radius:50%;
-  background:radial-gradient(closest-side,rgba(229,228,224,.92) 35%,rgba(229,228,224,0));
-  -webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);
+  background:radial-gradient(closest-side,rgba(229,228,224,.78) 35%,rgba(229,228,224,0));
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
   -webkit-mask-image:radial-gradient(closest-side,#000 45%,transparent);mask-image:radial-gradient(closest-side,#000 45%,transparent)}
 .sk-hint-arrow{display:block;animation:sk-bob 1.6s cubic-bezier(.45,0,.55,1) infinite}
 @keyframes sk-bob{0%,100%{transform:translateY(-3px)}50%{transform:translateY(5px)}}
