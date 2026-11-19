@@ -1,6 +1,17 @@
 // ------------------------------------------------------------------ controlador do site (dinâmicas do scroll)
 const ease = t => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
 const lerp = (a, b, t) => a + (b - a) * t;
+const inOut = t => { t = clamp(t, 0, 1); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
+
+// abertura completa: semente (contador e barra de progresso na grade) → explosão (as células da barra viram
+// faíscas) → florescer (cada faísca pousa numa flor, na ordem em que a árvore cresce a partir do tronco).
+// Versão curta (mesma sessão): a câmera recua de uma flor enquanto a árvore cresce. Tempos em segundos.
+const INTRO = {
+  full:  { band: [0.15, 1.15], burst: 1.3, grow: 1.3, growDur: 1.5, ui: 2.3, end: 3.1 },
+  short: { zoom: [0, 0.95], grow: 0, growDur: 0.9, ui: 0.3, z0: 2.6, end: 0.95 },
+};
+const BUD_AT = [0.74, 0.34]; // versão curta: flor de onde a câmera recua (fração da largura/altura na vista inicial)
+const BAND_CH = ':+*';
 
 const VIEWS = {
   //        câmera (z, foco no centro das flores → posição na tela sx/sy)      zona de respiro                         opacidade
@@ -31,8 +42,6 @@ function mount(root, options) {
   const chips = $$('[data-sk-chip]');
   const orbit = $('[data-sk-orbit]'), orbitLabels = $$('[data-sk-orbit-label]');
   const rings = $('[data-sk-rings]'), hint = $('[data-sk-hint]');
-  const loader = $('[data-sk-loader]'), lBar = $('[data-sk-loader-bar]'), lDot = $('[data-sk-loader-dot]'),
-    lIri = $('[data-sk-loader-iri]'), lMark = $('[data-sk-loader-mark]'), lCount = $('[data-sk-count]');
 
   // valores aleatórios estáveis por elemento
   const R = rngFrom(2026);
@@ -44,8 +53,57 @@ function mount(root, options) {
   const Ch = chips.map((_, i) => ({ a: i * 2.39996, rad: R.uniform(0.72, 1.18), lift: R.uniform(-0.35, 0.35), spd: R.uniform(0.08, 0.16), out: R.uniform(1.8, 3.4) }));
 
   const t0 = performance.now();
-  let introFired = reduce, loaderDone = reduce, raf = 0, dead = false;
-  if (reduce && loader) loader.style.display = 'none';
+  let raf = 0, dead = false;
+
+  // primeira visita da sessão: abertura completa; depois, só o recuo curto. ?intro=full força a completa.
+  let seen = false;
+  try { seen = sessionStorage.getItem('sk-intro') === '1'; sessionStorage.setItem('sk-intro', '1'); } catch (e) { /* sem storage */ }
+  if (typeof location !== 'undefined' && /[?&]intro=full\b/.test(location.search)) seen = false;
+  const IN = reduce ? null : (seen ? INTRO.short : INTRO.full);
+  const bud = IN && IN.zoom ? engine.pickBud(BUD_AT[0], BUD_AT[1]) : null;
+  const on = !!IN && (!IN.zoom || !!bud);
+  let skew = 0, grown = false, burstDone = false, bandOff = false, uiShown = !on;
+  if (on) root.setAttribute('data-sk-intro', 'on');
+  const skip = () => {
+    if (!on || uiShown) return;
+    const ti = (performance.now() - t0) / 1000 - skew;
+    if (ti < IN.end) skew -= IN.end - ti;
+    engine.skipIntro(); grown = true; burstDone = true;
+  };
+
+  // barra de progresso na grade; ao completar, as células explodem em faíscas
+  function band(ti) {
+    const g = engine.grid, cx = Math.floor(g.cols / 2), cy = Math.floor(g.rows / 2), hw = Math.max(6, Math.min(15, cx - 3));
+    const c0 = cx - hw, n = 2 * hw + 1;
+    const p = ease((ti - IN.band[0]) / (IN.band[1] - IN.band[0]));
+    const fill = c0 + Math.round(p * n) - 1;
+    const colAt = c => engine.gradAt(0.72 - 0.67 * (c - c0) / (n - 1));
+    if (!burstDone && ti >= IN.burst) {
+      burstDone = true;
+      const cells = []; for (let c = c0; c < c0 + n; c++) cells.push([c, cy, colAt(c)]);
+      engine.burst(cells);
+    }
+    const fadeIn = ease(ti / 0.3), out = ease((ti - IN.burst) / 0.25);
+    const scr = Math.max(1 - fadeIn, out) * 0.9, a = fadeIn * (1 - out);
+    const items = [
+      { c: c0, r: cy - 2, s: '桜 開花', a, scr },
+      { c: c0 + n - 3, r: cy - 2, s: String(Math.round(100 * p)).padStart(3, '0'), a, scr },
+      { c: c0, r: cy + 2, s: 'SITR3N', a: 0.45 * a, scr },
+    ];
+    if (!burstDone) {
+      const charge = smooth(IN.band[1], IN.burst, ti); // barra cheia "vibra" antes de explodir
+      for (let c = c0; c <= fill; c++) {
+        const col = colAt(c);
+        items.push({ c, r: cy, s: BAND_CH[(hash2(c, 3) * 3) | 0], sq: col, sqA: 0.85, col: mixc(col, [29, 29, 29], 0.55), a: 1,
+          scr: c > fill - 2 ? 0.9 : 0.1 + 0.5 * charge });
+      }
+      if (fill < c0 + n - 1) items.push({ c: fill + 1, r: cy, s: '·'.repeat(c0 + n - 1 - fill), a: 0.35 * a });
+    }
+    return items;
+  }
+  const skipEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
+  skipEvents.forEach(ev => window.addEventListener(ev, skip, { passive: true }));
+
   if (!reduce) {
     reveals.forEach(el => { el.style.opacity = '0'; el.style.transform = 'translate3d(0,40px,0)'; });
   }
@@ -58,19 +116,8 @@ function mount(root, options) {
     const t = (now - t0) / 1000;
     const st = scroller.scrollTop, vh = scroller.clientHeight, vw = scroller.clientWidth;
 
-    // ---------------- loader: "T." vira "+." → ponto iridescente → abre a cena
-    if (!loaderDone && loader) {
-      const c = Math.round(100 * ease(t / 1.3));
-      if (lCount) lCount.setAttribute('data-n', String(c).padStart(3, '0'));
-      if (lBar) lBar.style.transform = `scaleY(${lerp(0.625, 1, ease((t - 0.15) / 1.0))})`;
-      if (lIri) lIri.style.opacity = String(ease((t - 1.25) / 0.45));
-      const out = ease((t - 1.8) / 0.7);
-      if (lMark) { lMark.style.opacity = String(1 - out); lMark.style.transform = `scale(${1 - 0.15 * out})`; }
-      if (lDot) lDot.style.transform = `scale(${1 + 26 * ease((t - 1.75) / 0.9)})`;
-      loader.style.opacity = String(1 - ease((t - 2.05) / 0.55));
-      if (!introFired && t > 1.9) { engine.replayIntro(); introFired = true; }
-      if (t > 2.7) { loader.style.display = 'none'; loaderDone = true; }
-    }
+    const ti = t - skew; // relógio da abertura (avança de uma vez quando o visitante pula)
+    const zooming = on && IN.zoom && ti < IN.zoom[1];
 
     // ---------------- câmera: mistura a vista da seção atual com a próxima
     const tops = sections.map(topOf);
@@ -107,7 +154,21 @@ function mount(root, options) {
       orbitLabels.forEach(el => { el.style.opacity = String(1 - e); });
     }
 
-    engine.setCamera(cam); engine.setSafe(safe); engine.setAlpha(alpha);
+    // ---------------- abertura
+    if (on) {
+      if (!grown && ti >= IN.grow) { engine.replayIntro(IN.growDur); grown = true; }
+      if (!uiShown && ti >= IN.ui) { uiShown = true; root.setAttribute('data-sk-intro', 'off'); }
+      if (IN.band && !bandOff) {
+        if (ti < IN.burst + 0.3) engine.setOverlay(band(ti)); else { engine.setOverlay([]); bandOff = true; }
+      }
+    }
+    if (zooming) {
+      const size = engine.size, ez = inOut((ti - IN.zoom[0]) / (IN.zoom[1] - IN.zoom[0]));
+      engine.setCamera({ z: Math.pow(IN.z0, 1 - ez), fx: bud.x, fy: bud.y, sx: lerp(0.5, bud.x * size.H / size.W, ez), sy: lerp(0.5, bud.y, ez) }, true);
+      const hs = VIEWS.hero.safe; engine.setSafe({ ...hs, s: hs.s * ez }); engine.setAlpha(1);
+    } else {
+      engine.setCamera(cam); engine.setSafe(safe); engine.setAlpha(alpha);
+    }
 
     // ---------------- anéis concêntricos seguem o foco da câmera
     if (rings) {
@@ -120,7 +181,7 @@ function mount(root, options) {
     const p = clamp(st / (vh * 0.9), 0, 1);
     letters.forEach((el, n) => {
       const d = L[n];
-      const a = reduce ? 1 : ease((t - 2.0 - d.idel) / 1.1);
+      const a = !on ? 1 : ease((ti - IN.ui - d.idel) / 1.1);
       const x = d.ix * (1 - a) + d.sx * p, y = d.iy * (1 - a) + d.sy * p, r = d.ir * (1 - a) + d.sr * p;
       const op = Math.min(a, 1 - smooth(d.fade, d.fade + 0.35, p));
       el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) rotate(${r.toFixed(1)}deg)`;
@@ -164,6 +225,9 @@ function mount(root, options) {
   return {
     engine,
     update(n) { Object.assign(o, n); engine.setOptions({ preset: o.preset, kanji: o.kanji, wind: o.wind }); },
-    destroy() { dead = true; cancelAnimationFrame(raf); glass.destroy(); engine.destroy(); },
+    destroy() {
+      dead = true; cancelAnimationFrame(raf); glass.destroy(); engine.destroy();
+      skipEvents.forEach(ev => window.removeEventListener(ev, skip));
+    },
   };
 }

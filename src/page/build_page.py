@@ -29,7 +29,7 @@ def words(text):
 
 
 NAV = f'''
-<header style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
+<header data-sk-ui="1" style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
 <a class="sk-glass sk-logo" href="#inicio" style="pointer-events: auto">SITR3N.</a>
 <nav aria-label="Seções" style="pointer-events: auto; display: flex; align-items: center; gap: 10px">
 <div class="sk-glass sk-track sk-navlinks" data-sk-glass="spy">
@@ -49,7 +49,7 @@ HERO = f'''
 <span aria-hidden="true" style="display: block; margin-left: 42%; margin-top: 0.62em">{letters("JOGOS")}</span>
 <span aria-hidden="true" style="display: block; margin-left: 14%; margin-top: 0.62em">{letters("& IMAGEM.")}</span>
 </h1>
-<p style="position: absolute; left: {PADX}; bottom: 30px; margin: 0; {CAP}; color: {INK}">Portfólio · Desenvolvimento full-stack, jogos e fotografia</p>
+<p data-sk-ui="2" style="position: absolute; left: {PADX}; bottom: 30px; margin: 0; {CAP}; color: {INK}">Portfólio · Desenvolvimento full-stack, jogos e fotografia</p>
 </section>'''
 
 MANIFESTO = f'''
@@ -200,20 +200,6 @@ CONTACT = f'''
 </div>
 </section>'''
 
-LOADER = f'''
-<div data-sk-loader="1" aria-hidden="true" style="position: absolute; inset: 0; z-index: 50; background-color: {PARCH}; display: flex; align-items: center; justify-content: center">
-<div style="position: relative; width: 132px; height: 120px">
-<div data-sk-loader-mark="1" style="position: absolute; left: 0; top: 0; width: 96px; height: 96px">
-<div style="position: absolute; left: 0; top: 34px; width: 96px; height: 14px; background-color: {INK}"></div>
-<div data-sk-loader-bar="1" style="position: absolute; left: 41px; top: 0; width: 14px; height: 96px; background-color: {INK}; transform-origin: 50% 100%; transform: scaleY(0.625)"></div>
-</div>
-<div data-sk-loader-dot="1" style="position: absolute; left: 106px; top: 78px; width: 18px; height: 18px; border-radius: 50%; background-color: {INK}; overflow: hidden">
-<div data-sk-loader-iri="1" style="position: absolute; inset: 0; border-radius: 50%; opacity: 0; background-image: linear-gradient(255deg, rgb(250, 203, 14), rgb(240, 107, 168) 30%, rgb(120, 186, 230) 65%, rgb(255, 255, 255))"></div>
-</div>
-<p style="position: absolute; left: 0; top: 112px; margin: 0; white-space: nowrap; font-family: {MONO}; font-size: 11px; letter-spacing: 0.05em; color: {INK}">CARREGANDO <span data-sk-count="1" data-n="000"></span></p>
-</div>
-</div>'''
-
 RINGS = f'''<svg data-sk-rings="1" aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none">
 <circle cx="0" cy="0" r="230" style="fill: none; stroke: {ASH}; stroke-width: 1"></circle>
 <circle cx="0" cy="0" r="360" style="fill: none; stroke: {ASH}; stroke-width: 1"></circle>
@@ -237,8 +223,7 @@ def body(ref=''):
 </main>
 </div>
 {NAV}
-<p data-sk-hint="1" aria-hidden="true" style="position: absolute; right: 30px; bottom: 30px; margin: 0; z-index: 20; {CAP}; color: {INK}; pointer-events: none">Scroll ↓</p>
-{LOADER}
+<p data-sk-hint="1" data-sk-ui="3" aria-hidden="true" style="position: absolute; right: 30px; bottom: 30px; margin: 0; z-index: 20; {CAP}; color: {INK}; pointer-events: none">Scroll ↓</p>
 </div>'''
 
 
@@ -248,7 +233,6 @@ FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;70
 CSS = f'''body{{margin:0;background:{PARCH}}}
 a{{color:{INK}}}a:hover{{color:{INK}}}
 a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
-[data-sk-count]::after{{content:attr(data-n)}}
 [data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}}
 .sk-link:hover{{text-decoration:underline;text-underline-offset:4px}}
 .sk-pill{{transition:background-color .25s ease,color .25s ease}}.sk-pill:hover{{background-color:{INK};color:{PARCH}}}
@@ -300,7 +284,14 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   background:linear-gradient(90deg,rgba(255,246,220,0),rgba(255,246,220,.95) 22%,#fff 50%,rgba(255,246,220,.95) 78%,rgba(255,246,220,0));filter:blur(1.2px)}
 @media (max-width:720px){.sk-track-lg{flex-direction:column;align-items:stretch;align-self:stretch!important;border-radius:30px}
   .sk-track-lg .sk-seg{padding:14px 20px}.sk-bar{border-radius:22px}}
-@media (prefers-reduced-motion:reduce){.sk-lens,.sk-lens-btn,.sk-seg{transition:none!important}}'''
+@media (prefers-reduced-motion:reduce){.sk-lens,.sk-lens-btn,.sk-seg{transition:none!important}}
+
+/* ---- abertura: a interface entra depois que a sakura floresce ---- */
+[data-sk-ui]{transition:opacity .9s ease,transform 1s cubic-bezier(.2,.7,.2,1)}
+[data-sk-ui="2"]{transition-delay:.15s}[data-sk-ui="3"]{transition-delay:.3s}
+[data-sk-intro="on"] [data-sk-ui]{opacity:0!important;transform:translate3d(0,-10px,0);transition:none}
+[data-sk-rings]{transition:opacity 1.4s ease}
+[data-sk-intro="on"] [data-sk-rings]{opacity:0;transition:none}'''
 
 DC_PROPS = {
     "preset": {"editor": "enum", "options": ["kosa", "sanbon", "ogi", "itozakura", "koeda"], "default": "kosa", "section": "Sakura"},

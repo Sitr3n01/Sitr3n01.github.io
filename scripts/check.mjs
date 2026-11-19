@@ -28,7 +28,7 @@ ok(S.PRESETS && ['kosa', 'sanbon', 'ogi', 'itozakura', 'koeda'].every((p) => p i
 
 for (const v of ['hero', 'manifesto', 'about', 'work', 'areas', 'path', 'contact'])
   ok(html1.includes(`data-sk-view="${v}"`), `seção data-sk-view="${v}"`);
-for (const h of ['data-sk-root', 'data-sk-canvas', 'data-sk-scroller', 'data-sk-rings', 'data-sk-loader', 'data-sk-hint'])
+for (const h of ['data-sk-root', 'data-sk-canvas', 'data-sk-scroller', 'data-sk-rings', 'data-sk-hint', 'data-sk-ui'])
   ok(html1.includes(h), `gancho ${h}`);
 ok(!html1.includes('\r\n') && !js1.includes('\r\n'), 'saída só com LF');
 

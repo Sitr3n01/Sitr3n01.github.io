@@ -21,9 +21,11 @@ function createSakuraBackground(canvas, options) {
   const ctx = canvas.getContext('2d');
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   let W = 0, H = 0, dpr = 1, cols = 0, rows = 0, cw = opts.cell, chh = opts.cell;
-  let scene = null, att = null, prevGrid = null, settle = null;
+  let scene = null, att = null, prevGrid = null;
   let particles = [], blocks = [], nextBlock = 0, gust = 0, gustBoost = 0, gustPlan = null;
-  let t0 = performance.now(), introStart = opts.holdIntro ? Infinity : 0, last = 0, raf = 0, running = true, destroyed = false;
+  let t0 = performance.now(), growStart = opts.holdIntro ? Infinity : 0, growDur = 1.6, last = 0, raf = 0, running = true, destroyed = false;
+  // abertura: crescimento a partir do tronco, faíscas que viram flores, flor-broto (versão curta) e texto na grade
+  let budTarget = null, bud = null, overlay = [];
   const cam = { z: 1, fx: 0, fy: 0, sx: 0, sy: 0 }, camT = { z: 1, fx: 0, fy: 0, sx: 0, sy: 0 };
   const safe = { x: 0.5, y: 0.5, rx: 0.3, ry: 0.3, s: 0 }, safeT = { x: 0.5, y: 0.5, rx: 0.3, ry: 0.3, s: 0 };
   let alpha = 1, alphaT = 1, camSnap = true;
@@ -33,7 +35,9 @@ function createSakuraBackground(canvas, options) {
   let pmin = 0, pmax = 1, drift = 0;
 
   function irid(px, py) {
-    let t = (px * gdx + py * gdy - pmin) / (pmax - pmin || 1) + drift;
+    return gradAt((px * gdx + py * gdy - pmin) / (pmax - pmin || 1) + drift);
+  }
+  function gradAt(t) {
     t = clamp(t, 0, 1);
     const S = opts.stops;
     for (let i = 1; i < S.length; i++) if (t <= S[i][0]) {
@@ -51,13 +55,91 @@ function createSakuraBackground(canvas, options) {
     cols = Math.ceil(W / cw); rows = Math.ceil(H / chh);
     att = new Float32Array(cols * rows);
     prevGrid = new Uint32Array(cols * rows);
-    settle = new Float32Array(cols * rows);
-    const rr = rngFrom(99);
-    for (let r2 = 0; r2 < rows; r2++) for (let c = 0; c < cols; c++)
-      settle[r2 * cols + c] = 0.10 + 1.15 * (c / cols) + rr.uniform(0, 0.35);
     scene = generate(opts.preset, opts.seed, W / H);
+    growthOrder();
+    if (budTarget) pickBud(budTarget[0], budTarget[1]);
     particles = []; blocks = [];
     for (let i = 0; i < scene.ambient; i++) spawnAmbient(true);
+  }
+
+  // ordem de nascimento: distância ao longo da árvore a partir da base do tronco (0 → 1)
+  function growthOrder() {
+    const br = scene.branches; let M = 1;
+    for (const b of br) {
+      const g0 = b.parent < 0 ? 0 : br[b.parent].g[b.attach], n = b.xs.length;
+      b.g = new Float32Array(n);
+      for (let k = 0; k < n; k++) { b.g[k] = g0 + k; if (b.g[k] > M) M = b.g[k]; }
+    }
+    for (const b of br) for (let k = 0; k < b.g.length; k++) b.g[k] /= M;
+    for (const f of scene.flowers) f.g = Math.min(0.97, scene.branches[f.b].g[f.k] + 0.02);
+    bud = null;
+  }
+  // escolhe a flor mais próxima do alvo (fração da tela na vista inicial) e faz o cacho dela abrir antes de tudo
+  function pickBud(tx, ty) {
+    budTarget = [tx, ty];
+    let best = null, bd = Infinity;
+    scene.flowers.forEach((f, i) => {
+      const b = scene.branches[f.b], wx = b.xs[f.k] + f.ox, wy = b.ys[f.k] + f.oy;
+      // prefere flores de frente (tilt perto de 1), que leem melhor como sakura quando ampliadas
+      const d = Math.hypot(wx * H / W - tx, wy - ty) + 0.12 * (1 - f.tilt);
+      if (d < bd) { bd = d; best = { i, x: wx, y: wy }; }
+    });
+    if (!best) return null;
+    scene.flowers[best.i].g = -1;
+    bud = best;
+    return best;
+  }
+  let sparks = [];
+  const inOut3 = u => { u = clamp(u, 0, 1); return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2; };
+  function burst(cells, extra) {
+    const t = (performance.now() - t0) / 1000;
+    const zH = H * cam.z, ox = cam.sx * W - cam.fx * zH, oy = cam.sy * H - cam.fy * zH;
+    const vis = [];
+    scene.flowers.forEach((f, i) => {
+      const b = scene.branches[f.b], x = (b.xs[f.k] + f.ox) * zH + ox, y = (b.ys[f.k] + f.oy) * zH + oy;
+      if (f.g >= 0 && x > -cw && x < W + cw && y > -chh && y < H + chh) vis.push(i);
+    });
+    let gmax = 0; for (const i of vis) gmax = Math.max(gmax, scene.flowers[i].g);
+    const sc = clamp(Math.min(W, H * 1.6) / 1440, 0.45, 1.3);
+    const mk = fi => {
+      const [c, r, col] = cells[(Math.random() * cells.length) | 0];
+      const a = Math.random() * 6.2832, sp = (340 + Math.random() * 1400) * sc;
+      return { x: (c + Math.random()) * cw, y: (r + 0.5) * chh, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.8 - 140 * sc,
+        col, f: fi, ph: Math.random(), dx: null, dy: null, ldx: null, ldy: null, sp: 0, pc: -1, pr: -1 };
+    };
+    sparks = [];
+    for (const i of vis) {
+      const f = scene.flowers[i], k = mk(i);
+      k.ta = t + 0.42 + 1.1 * (gmax ? f.g / gmax : 0) + Math.random() * 0.3; // chega na ordem do crescimento
+      k.th = Math.max(t + 0.22, k.ta - 0.5 - Math.random() * 0.3);           // começa a ser atraída pela flor
+      f.bt = k.ta;
+      sparks.push(k);
+    }
+    for (let n = 0; n < (extra ?? 70); n++) { const k = mk(-1); k.ta = t + 0.7 + Math.random() * 1.0; k.th = Infinity; sparks.push(k); }
+  }
+  function stepSparks(dt, t, P) {
+    if (!sparks.length) return;
+    sparks = sparks.filter(k => t < k.ta);
+    const damp = Math.exp(-2.3 * dt);
+    for (const k of sparks) {
+      k.vx = k.vx * damp + 60 * gust * dt; k.vy = k.vy * damp + 70 * dt;
+      k.x += k.vx * dt; k.y += k.vy * dt;
+      let x = k.x, y = k.y, col = k.col, a = 1;
+      if (k.f >= 0 && t > k.th) {
+        const [wx, wy] = flowerPos(scene.flowers[k.f], t), tx = P.X(wx), ty = P.Y(wy);
+        const u = inOut3((t - k.th) / (k.ta - k.th));
+        x += (tx - x) * u; y += (ty - y) * u; col = mixc(col, irid(tx, ty), u);
+      } else if (k.f < 0) a = 1 - smooth(k.ta - 0.6, k.ta, t);
+      k.ldx = k.dx ?? x; k.ldy = k.dy ?? y;
+      k.dx = x; k.dy = y; k.dc = col; k.da = a;
+      k.sp = Math.hypot(x - k.ldx, y - k.ldy) / Math.max(dt, 1e-3);
+    }
+  }
+
+  function growth(t) {
+    if (!opts.intro || reduce) return 1;
+    const u = (t - growStart) / growDur;
+    return u <= 0 ? 0 : u >= 1 ? 1 : 1 - Math.pow(1 - u, 2.2);
   }
 
   function updateAtt() {
@@ -143,12 +225,14 @@ function createSakuraBackground(canvas, options) {
 
   // ---------------------------------------------------------------- cobertura analítica por célula
   const LX = -0.51, LY = -0.86;
-  function splatBark(cb, hl, thinPx, P) {
+  function splatBark(cb, hl, thinPx, P, G, fr) {
     const soft = 0.5 * Math.sqrt(cw * chh);
     for (const b of scene.branches) {
       const n = b.xs.length;
       for (let k = 2; k < n; k += 2) {
-        const r = b.rs[k] * P.zH; if (r < thinPx) continue;
+        const age = G - b.g[k]; if (age <= 0) continue;
+        const r = b.rs[k] * P.zH * (G < 1 ? 0.45 + 0.55 * smooth(0, 0.06, age) : 1); if (r < thinPx) continue;
+        const fresh = G < 1 ? 1 - smooth(0, 0.05, age) : 0;
         const ax = P.X(b.ax[k - 2]), ay = P.Y(b.ay[k - 2]), bx = P.X(b.ax[k]), by = P.Y(b.ay[k]);
         if (Math.max(ax, bx) + r < 0 || Math.min(ax, bx) - r > W || Math.max(ay, by) + r < 0 || Math.min(ay, by) - r > H) continue;
         const ex = bx - ax, ey = by - ay, el = ex * ex + ey * ey || 1;
@@ -163,6 +247,7 @@ function createSakuraBackground(canvas, options) {
             const cov = (r - d) / soft + 0.5;
             if (cov <= 0) continue;
             const id = rr * cols + cc, cv = cov > 1 ? 1 : cov;
+            if (fresh > fr[id]) fr[id] = fresh;
             if (cv > cb[id]) {
               cb[id] = cv;
               const lit = d > 1e-6 ? (qx * LX + qy * LY) / d * Math.min(1, d / r) : 0;
@@ -173,35 +258,42 @@ function createSakuraBackground(canvas, options) {
       }
     }
   }
-  function splatFlowers(cp, cc, t, P) {
+  function splatFlowers(cp, cc, t, P, G, fr) {
     let lo = Infinity, hi = -Infinity;
     for (const f of scene.flowers) {
+      const bloom = f.bt != null ? smooth(f.bt, f.bt + 0.35, t) : G >= 1 ? 1 : smooth(0, 0.1, G - f.g); if (bloom <= 0) continue;
       const [wx, wy] = flowerPos(f, t);
-      const fx = P.X(wx), fy = P.Y(wy), R = f.R * P.zH;
+      const fx = P.X(wx), fy = P.Y(wy), R = f.R * P.zH * (0.25 + 0.75 * bloom), fresh = 1 - bloom;
       if (fx + R < 0 || fx - R > W || fy + R < 0 || fy - R > H) continue;
       const pr = fx * gdx + fy * gdy; if (pr < lo) lo = pr; if (pr > hi) hi = pr;
       const c0 = Math.max(0, Math.floor((fx - R) / cw)), c1 = Math.min(cols - 1, Math.floor((fx + R) / cw));
       const r0 = Math.max(0, Math.floor((fy - R) / chh)), r1 = Math.min(rows - 1, Math.floor((fy + R) / chh));
       const ct = Math.cos(f.tdir), st = Math.sin(f.tdir), it = 1 / f.tilt;
+      const big = smooth(3, 8, R / cw); // 0 na escala normal; 1 quando a flor é grande (abertura, zoom)
       for (let rr = r0; rr <= r1; rr++) for (let col = c0; col <= c1; col++) {
-        let pet = 0, cen = 0;
+        let pet = 0, cen = 0, dsum = 0;
         for (let sy = 0; sy < 2; sy++) for (let sx = 0; sx < 2; sx++) {
           const px = (col + 0.25 + 0.5 * sx) * cw - fx, py = (rr + 0.25 + 0.5 * sy) * chh - fy;
           const a = px * ct + py * st, bb = (-px * st + py * ct) * it;
           const d = Math.sqrt(a * a + bb * bb) / R;
           if (d > 1) continue;
           const th0 = Math.atan2(bb, a) - f.rot + f.tdir;
-          const prof = 0.80 + 0.20 * Math.cos(5 * th0);
-          if (d < 0.22) cen++; else if (d < prof) pet++;
+          const lob = Math.cos(5 * th0);
+          const prof = 0.80 + 0.20 * lob - 0.2 * big * Math.pow(lob > 0 ? lob : 0, 14);
+          if (d < 0.22) cen++; else if (d < prof) { pet++; dsum += d; }
         }
         if (pet || cen) {
           const id = rr * cols + col;
-          if (pet / 4 > cp[id]) cp[id] = pet / 4;
+          if (fresh > fr[id]) fr[id] = fresh;
+          const shade = pet ? 1 - 0.62 * big * Math.pow(dsum / pet, 1.6) : 1;
+          if (pet / 4 * shade > cp[id]) cp[id] = pet / 4 * shade;
           if (cen / 4 > cc[id]) cc[id] = cen / 4;
         }
       }
     }
     // o gradiente cobre só a área onde há flores visíveis (como o disco da esfera)
+    const span = 0.75 * Math.max(W, H); // na vista inicial as flores já cobrem mais que isso: nada muda lá
+    if (lo < hi && hi - lo < span) { const m = (lo + hi) / 2; lo = m - span / 2; hi = m + span / 2; }
     if (lo < hi) { pmin += (lo - pmin) * 0.15; pmax += (hi - pmax) * 0.15; }
     else { pmin = Math.min(0, W * gdx, H * gdy, W * gdx + H * gdy); pmax = Math.max(0, W * gdx, H * gdy, W * gdx + H * gdy); }
   }
@@ -223,16 +315,17 @@ function createSakuraBackground(canvas, options) {
     const zH = H * cam.z, ox = cam.sx * W - cam.fx * zH, oy = cam.sy * H - cam.fy * zH;
     const P = { zH, X: wx => wx * zH + ox, Y: wy => wy * zH + oy };
     if (!reduce) stepParticles(dt, t, P);
-    const N = cols * rows;
-    const cb = new Float32Array(N), hl = new Float32Array(N), cp = new Float32Array(N), cc = new Float32Array(N);
+    const N = cols * rows, G = growth(t);
+    const cb = new Float32Array(N), hl = new Float32Array(N), cp = new Float32Array(N), cc = new Float32Array(N), fr = new Float32Array(N);
     const thinPx = 0.35 * cw;
-    splatBark(cb, hl, thinPx, P);
-    splatFlowers(cp, cc, reduce ? 0 : t, P);
+    splatBark(cb, hl, thinPx, P, G, fr);
+    splatFlowers(cp, cc, reduce ? 0 : t, P, G, fr);
+    stepSparks(dt, t, P);
     const twig = new Int8Array(N).fill(-1);
     for (const b of scene.branches) {
       const n = b.xs.length;
       for (let k2 = 1; k2 < n; k2 += 2) {
-        if (b.rs[k2] * zH >= thinPx) continue;
+        if (b.rs[k2] * zH >= thinPx || b.g[k2] >= G) continue;
         const k3 = Math.min(k2 + 1, n - 1);
         const x0 = P.X(b.ax[k2 - 1]) / cw, y0 = P.Y(b.ay[k2 - 1]) / chh, x1 = P.X(b.ax[k3]) / cw, y1 = P.Y(b.ay[k3]) / chh;
         if ((x0 < -2 && x1 < -2) || (x0 > cols + 2 && x1 > cols + 2) || (y0 < -2 && y1 < -2) || (y0 > rows + 2 && y1 > rows + 2)) continue;
@@ -249,7 +342,7 @@ function createSakuraBackground(canvas, options) {
       const c = Math.floor(p.x * H / cw), r = Math.floor(p.y * H / chh);
       if (c >= 0 && r >= 0 && c < cols && r < rows) loose[r * cols + c] = i;
     });
-    if (opts.glitch && !reduce && t > nextBlock && flowerCells.length) {
+    if (opts.glitch && !reduce && G >= 1 && t > nextBlock && flowerCells.length) {
       const id = flowerCells[Math.floor(Math.random() * flowerCells.length)];
       const w = 2 + Math.floor(Math.random() * 6), h = 1 + Math.floor(Math.random() * 3);
       blocks.push({ c: (id % cols) - (w >> 1), r: Math.floor(id / cols) - (h >> 1), w, h, until: t + 0.12 + Math.random() * 0.35 });
@@ -259,7 +352,7 @@ function createSakuraBackground(canvas, options) {
     const inBlock = new Uint8Array(N);
     for (const b of blocks) for (let r = b.r; r < b.r + b.h; r++) for (let c = b.c; c < b.c + b.w; c++)
       if (r >= 0 && c >= 0 && r < rows && c < cols) inBlock[r * cols + c] = 1;
-    draw(t, { cb, hl, cp, cc, twig, loose, inBlock });
+    draw(t, { cb, hl, cp, cc, twig, loose, inBlock, fr, G });
   }
 
   // ---------------------------------------------------------------- desenho
@@ -268,12 +361,10 @@ function createSakuraBackground(canvas, options) {
   const q8 = v => (Math.round(v / 6) * 6) | 0;
   const rgba = (c, a) => `rgba(${q8(c[0])},${q8(c[1])},${q8(c[2])},${Math.round(clamp(a, 0, 1) * 16) / 16})`;
 
-  function motion(id, ch, cjk, t, kind) {
+  function motion(id, ch, cjk, t, kind, fresh) {
     const code = ch ? ch.charCodeAt(0) : 0;
-    const ti = t - introStart;
-    if (opts.intro && !reduce && ti < settle[id]) {
+    if (fresh > 0 && !reduce && Math.random() < 0.15 + 0.75 * fresh) {
       prevGrid[id] = code;
-      if (ti < settle[id] - 0.8) return ['', false];
       return [SCRAMBLE[(Math.random() * SCRAMBLE.length) | 0], false];
     }
     if (opts.scramble && !reduce && !cjk && prevGrid[id] && prevGrid[id] !== code && kind !== 'loose' && Math.random() < 0.22) {
@@ -285,7 +376,7 @@ function createSakuraBackground(canvas, options) {
   }
 
   function draw(t, L) {
-    const { cb, hl, cp, cc, twig, loose, inBlock } = L;
+    const { cb, hl, cp, cc, twig, loose, inBlock, fr, G } = L;
     glyphs.text.clear(); glyphs.rect.clear(); glyphs.cjk.clear();
     const ink = opts.ink;
     const pr = pointer.active ? 4.5 : 0, pcx = pointer.x * H / cw, pcy = pointer.y * H / chh;
@@ -305,7 +396,7 @@ function createSakuraBackground(canvas, options) {
         else { kind = 'petal'; val = clamp(cp[id] * 0.95 + cc[id] * 0.5, 0, 1); }
       } else if (cb[id] > 0.06) { kind = cb[id] > 0.88 ? 'bark' : 'edge'; val = cb[id]; }
       else if (twig[id] >= 0) { kind = 'twig'; ch = TWIG[twig[id]]; val = 1; }
-      else if (loose[id] >= 0) {
+      else if (loose[id] >= 0 && G > 0.85) {
         const p = particles[loose[id]]; kind = 'loose';
         const ph = Math.floor((t * p.spin + p.ph) * 1.3) % 5;
         if (opts.kanji) { ch = p.kind < 0.78 ? KANA[ph % 3] : KANA[3 + Math.floor((p.kind - 0.78) / 0.22 * 3) % 3]; cjk = true; } else ch = LOOSE[ph];
@@ -328,10 +419,32 @@ function createSakuraBackground(canvas, options) {
       } else if (kind === 'edge') { sq = ink; sqA = 0.05 * val; colA = 0.3 + 0.45 * val; ch = val < 0.3 ? '' : val < 0.6 ? '.' : ':'; }
       else if (kind === 'twig') { colA = 0.78; }
       if (near) { sqA += 0.18 * near; if (Math.random() < 0.35 * near && !cjk) ch = SCRAMBLE[(Math.random() * SCRAMBLE.length) | 0]; }
-      const m = motion(id, ch, cjk, t, kind); ch = m[0]; cjk = m[1];
-      if (!ch && opts.intro && (t - introStart) < settle[id] - 0.8) continue;
+      const m = motion(id, ch, cjk, t, kind, fr[id]); ch = m[0]; cjk = m[1];
       if (sq && sqA > 0.01) push(glyphs.rect, rgba(sq, sqA * A), x + 1, y + 1, cw - 2, chh - 2);
       if (ch && ch !== ' ') push(cjk ? glyphs.cjk : glyphs.text, rgba(col, colA * A), ch, cx, cy, 0);
+    }
+    for (const k of sparks) {
+      if (k.dx == null) continue;
+      const c = Math.floor(k.dx / cw), r = Math.floor(k.dy / chh);
+      if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+      if (k.pc >= 0 && (k.pc !== c || k.pr !== r)) push(glyphs.rect, rgba(k.dc, 0.3 * k.da), k.pc * cw + 1, k.pr * chh + 1, cw - 2, chh - 2);
+      push(glyphs.rect, rgba(k.dc, 0.9 * k.da), c * cw + 1, r * chh + 1, cw - 2, chh - 2);
+      const kana = k.f < 0 && k.sp < 140;
+      const ch = kana ? KANA[(k.ph * 3) | 0] : k.sp > 700 ? '*' : k.sp > 360 ? '+' : k.sp > 140 ? ':' : '.';
+      push(kana ? glyphs.cjk : glyphs.text, rgba(mixc(k.dc, ink, 0.55), k.da), ch, c * cw + cw / 2, r * chh + chh / 2, 0);
+      k.pc = c; k.pr = r;
+    }
+    // texto da abertura, desenhado na mesma grade (uma letra por célula)
+    for (const o of overlay) {
+      const s = Array.from(o.s), col = o.col || ink;
+      for (let i = 0; i < s.length; i++) {
+        const c = o.c + i, cx = c * cw + cw / 2, cy = o.r * chh + chh / 2;
+        if (c < 0 || c >= cols || o.r < 0 || o.r >= rows || s[i] === ' ') continue;
+        if (o.sq) push(glyphs.rect, rgba(o.sq, o.sqA ?? 0.08), c * cw + 1, o.r * chh + 1, cw - 2, chh - 2);
+        let ch = s[i], cj = ch.charCodeAt(0) > 0x2e80;
+        if (o.scr && !reduce && Math.random() < o.scr) { ch = SCRAMBLE[(Math.random() * SCRAMBLE.length) | 0]; cj = false; }
+        push(cj ? glyphs.cjk : glyphs.text, rgba(col, o.a ?? 1), ch, cx, cy, 0);
+      }
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
@@ -383,7 +496,15 @@ function createSakuraBackground(canvas, options) {
     setAlpha(a) { alphaT = a; },
     setOptions(o) { const regen = ('preset' in o && o.preset !== opts.preset) || ('seed' in o && o.seed !== opts.seed);
       Object.assign(opts, o); if (regen) layout(); if (reduce) frame(performance.now()); },
-    replayIntro() { introStart = (performance.now() - t0) / 1000; gustPlan = null; },
+    replayIntro(dur) { growStart = (performance.now() - t0) / 1000; if (dur) growDur = dur; gustPlan = null; },
+    skipIntro() { growStart = -1e9; sparks = []; for (const f of scene.flowers) f.bt = undefined; },
+    burst(cells, extra) { burst(cells, extra); },
+    gradAt(u) { return gradAt(u); },
+    get growth() { return growth((performance.now() - t0) / 1000); },
+    pickBud(tx, ty) { return pickBud(tx, ty); },
+    get bud() { return bud; },
+    setOverlay(items) { overlay = items || []; },
+    get grid() { return { cols, rows, cw, chh }; },
     renderNow() { frame(performance.now()); },
     get camera() { return { ...cam }; },
     get size() { return { W, H }; },
