@@ -54,19 +54,21 @@ function mountGlass(root, scroller) {
     on(btn, 'pointerenter', () => spin(140)); on(btn, 'pointerleave', () => spin(-140));
   });
 
-  // scroll spy: a seção que cruza 40% da altura da tela é a ativa
+  // scroll spy contínuo: vale o último destino da nav que já passou de 40% da tela. Seções sem botão
+  // (manifesto, áreas) continuam no item anterior; um destino fora do trilho (o botão Contato) apaga a lente.
   const spies = tracks.filter(t => t.spy);
+  const idOf = a => { const h = a.getAttribute('href') || ''; return h.startsWith('#') && h.length > 1 ? h.slice(1) : null; };
   let sraf = 0;
   const spyNow = () => {
     sraf = 0;
     const probe = scroller.scrollTop + scroller.clientHeight * 0.4;
+    let last = null, lastTop = -Infinity;
+    for (const a of root.querySelectorAll('header a[href^="#"]')) {
+      const id = idOf(a), target = id && root.querySelector('#' + CSS.escape(id));
+      if (target && target.offsetTop <= probe && target.offsetTop >= lastTop) { last = id; lastTop = target.offsetTop; }
+    }
     for (const t of spies) {
-      let found = null;
-      for (const seg of t.segs) {
-        const href = seg.getAttribute('href') || '';
-        const target = href.startsWith('#') && href.length > 1 ? root.querySelector(href) : null;
-        if (target && target.offsetTop <= probe && probe < target.offsetTop + target.offsetHeight) found = seg;
-      }
+      const found = last ? t.segs.find(seg => idOf(seg) === last) || null : null;
       if (found !== t.rest) { t.rest = found; t.settle(); }
     }
   };

@@ -39,6 +39,7 @@ def nav(base=''):
 <nav aria-label="Seções" style="pointer-events: auto; display: flex; align-items: center; gap: 10px">
 <div class="sk-glass sk-track sk-navlinks" data-sk-glass="{spy}">
 <span class="sk-lens" aria-hidden="true"></span>
+<a class="sk-seg" href="{base}#inicio">Início</a>
 <a class="sk-seg" href="{base}#sobre">Sobre</a>
 <a class="sk-seg" href="{base}#projetos">Projetos</a>
 <a class="sk-seg" href="{base}#trajetoria">Trajetória</a>
@@ -54,7 +55,6 @@ HERO = f'''
 <span aria-hidden="true" style="display: block; margin-left: 42%; margin-top: 0.62em">{letters("JOGOS")}</span>
 <span aria-hidden="true" style="display: block; margin-left: 14%; margin-top: 0.62em">{letters("& IMAGEM.")}</span>
 </h1>
-<p data-sk-ui="2" style="position: absolute; left: {PADX}; bottom: 30px; margin: 0; {CAP}; color: {INK}">Portfólio · Desenvolvimento full-stack, jogos e fotografia</p>
 </section>'''
 
 MANIFESTO = f'''
@@ -199,6 +199,12 @@ CONTACT = f'''
 </div>
 </section>'''
 
+# "Scroll" centralizado na base, com a seta descendo e subindo (para em prefers-reduced-motion)
+HINT = f'''<div data-sk-hint="1" data-sk-ui="3" aria-hidden="true" class="sk-hint">
+<span style="{CAP}; color: {INK}">Scroll</span>
+<svg class="sk-hint-arrow" width="14" height="22" viewBox="0 0 14 22" fill="none" stroke="{INK}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v19M1.5 14.5 7 20l5.5-5.5"/></svg>
+</div>'''
+
 RINGS = f'''<svg data-sk-rings="1" aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none">
 <circle cx="0" cy="0" r="230" style="fill: none; stroke: {ASH}; stroke-width: 1"></circle>
 <circle cx="0" cy="0" r="360" style="fill: none; stroke: {ASH}; stroke-width: 1"></circle>
@@ -222,7 +228,7 @@ def body(ref=''):
 </main>
 </div>
 {nav()}
-<p data-sk-hint="1" data-sk-ui="3" aria-hidden="true" style="position: absolute; right: 30px; bottom: 30px; margin: 0; z-index: 20; {CAP}; color: {INK}; pointer-events: none">Scroll ↓</p>
+{HINT}
 </div>'''
 
 
@@ -321,7 +327,7 @@ def project_root(p, nxt):
 </main>
 </div>
 {nav('../../')}
-<p data-sk-hint="1" data-sk-ui="3" aria-hidden="true" style="position: absolute; right: 30px; bottom: 30px; margin: 0; z-index: 20; {CAP}; color: {INK}; pointer-events: none">Scroll ↓</p>
+{HINT}
 </div>'''
 
 
@@ -346,7 +352,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-glass{position:relative;border-radius:999px;background-color:rgba(229,228,224,.55);
   -webkit-backdrop-filter:blur(14px) saturate(1.25);backdrop-filter:blur(14px) saturate(1.25);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.7),inset 0 1px 3px rgba(29,29,29,.07),0 0 0 1px rgba(29,29,29,.06),0 1px 0 rgba(255,255,255,.8)}
-.sk-logo{display:inline-block;padding:10px 0;font-size:15px;font-weight:700;letter-spacing:.013em;text-decoration:none;color:#1d1d1d}
+.sk-logo{display:inline-block;padding:12px 0;font-size:22px;font-weight:700;line-height:1;letter-spacing:-.02em;text-decoration:none;color:#1d1d1d}
 .sk-track{display:inline-flex;align-items:center;gap:2px;padding:4px}
 .sk-track-lg{flex-wrap:wrap;max-width:100%;box-sizing:border-box}
 .sk-seg{position:relative;z-index:1;display:inline-block;padding:10px 18px;border-radius:999px;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
@@ -450,7 +456,17 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-topblur i:nth-child(3){-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);-webkit-mask-image:linear-gradient(to bottom,#000 36%,transparent 64%);mask-image:linear-gradient(to bottom,#000 36%,transparent 64%)}
 .sk-topblur i:nth-child(4){-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:linear-gradient(to bottom,#000 20%,transparent 46%);mask-image:linear-gradient(to bottom,#000 20%,transparent 46%)}
 .sk-topblur i:nth-child(5){-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);-webkit-mask-image:linear-gradient(to bottom,#000 6%,transparent 30%);mask-image:linear-gradient(to bottom,#000 6%,transparent 30%)}
-@media (max-width:720px){.sk-topblur{height:128px}}'''
+@media (max-width:720px){.sk-topblur{height:128px}.sk-logo{font-size:19px}}
+
+/* ---- indicador de scroll: centro da base, seta animada ---- */
+.sk-hint{position:absolute;left:50%;width:120px;margin:0 0 0 -60px;bottom:22px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.sk-hint::before{content:"";position:absolute;inset:-26px -34px -14px;z-index:-1;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(229,228,224,.92) 35%,rgba(229,228,224,0));
+  -webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);
+  -webkit-mask-image:radial-gradient(closest-side,#000 45%,transparent);mask-image:radial-gradient(closest-side,#000 45%,transparent)}
+.sk-hint-arrow{display:block;animation:sk-bob 1.6s cubic-bezier(.45,0,.55,1) infinite}
+@keyframes sk-bob{0%,100%{transform:translateY(-3px)}50%{transform:translateY(5px)}}
+@media (prefers-reduced-motion:reduce){.sk-hint-arrow{animation:none}}'''
 
 DC_PROPS = {
     "preset": {"editor": "enum", "options": ["kosa", "sanbon", "ogi", "itozakura", "koeda"], "default": "kosa", "section": "Sakura"},
