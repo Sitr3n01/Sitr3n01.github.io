@@ -197,7 +197,7 @@ CONTACT = f'''
 <span class="sk-lens" aria-hidden="true"></span>
 <a class="sk-seg" href="https://github.com/Sitr3n01">GitHub <span class="sk-seg-sub">Sitr3n01</span> ↗</a>
 <a class="sk-seg" href="https://www.linkedin.com/in/sitr3n">LinkedIn <span class="sk-seg-sub">/in/sitr3n</span> ↗</a>
-<span class="sk-seg" tabindex="0">[SEU E-MAIL]</span>
+<a class="sk-seg" href="mailto:zegilfarias@outlook.com">E-mail <span class="sk-seg-sub">zegilfarias@outlook.com</span></a>
 </div>
 <footer class="sk-footblur">
 <div class="sk-blurfx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
@@ -324,7 +324,6 @@ def project_body(p, nxt):
 <a class="sk-next" href="../{ns}/">
 <span style="flex: 1 1 100%; {CAP}">Próximo projeto · {E(nxt['cap'])}</span>
 <span class="sk-next-t"><span style="display: inline-block; view-transition-name: sk-title-{ns}">{E(nxt['titulo'])}</span> →</span>
-<span class="sk-next-k" aria-hidden="true" style="view-transition-name: sk-glyph-{ns}">{nxt['kanji']}</span>
 </a>
 <footer class="sk-footblur">
 <div class="sk-blurfx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
@@ -424,6 +423,8 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 
 /* ---- cards da home viram links ---- */
 .sk-card{position:relative}
+/* a coluna com parallax sobe por cima do botão "Todos no GitHub": a margem vazia dela não pega o mouse, só os cards */
+[data-sk-parallax]{pointer-events:none}[data-sk-parallax]>*{pointer-events:auto}
 .sk-card-link{color:inherit;text-decoration:none}
 .sk-card-link::after{content:"";position:absolute;inset:0;z-index:2}
 .sk-card-link:focus-visible{outline:none}
@@ -477,7 +478,6 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-next{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:19px;padding:30px 0;border-top:1px solid #bfbebe;border-bottom:1px solid #bfbebe;color:#1d1d1d;text-decoration:none}
 .sk-next-t{display:inline-block;font-size:clamp(40px,6vw,96px);line-height:.9;letter-spacing:-.015em;transition:transform .5s cubic-bezier(.2,.7,.2,1)}
 .sk-next:hover .sk-next-t{transform:translateX(19px)}
-.sk-next-k{display:inline-block;font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif;font-size:clamp(60px,7vw,110px);line-height:1}
 @media (max-width:720px){.sk-tile{width:min(60vw,240px)}.sk-sec>h2{flex-basis:100%}}
 
 /* ---- desfoque em gradiente atrás da toolbar: forte no topo, some para baixo ---- */

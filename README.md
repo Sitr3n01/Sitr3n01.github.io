@@ -85,4 +85,4 @@ Pages (Settings → Pages → Source: GitHub Actions). Também dá para rodar ma
 
 ## Pendências
 
-Ver o fim de [docs/MOTION.md](docs/MOTION.md) — principalmente trocar `[SEU E-MAIL]` no contato.
+Ver o fim de [docs/MOTION.md](docs/MOTION.md).

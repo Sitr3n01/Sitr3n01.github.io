@@ -68,7 +68,6 @@ blocos de glitch nas flores e caracteres que se embaralham perto do cursor.
 
 ## Pendências
 
-- Trocar `[SEU E-MAIL]` e conferir os textos.
 - Licenciar a Ataero Retina ou manter a Inter.
-- Os kanji ainda aparecem no link "Próximo projeto" e no quadro de vídeo vazio das páginas de projeto.
+- Os kanji ainda aparecem no quadro de vídeo vazio das páginas de projeto (o link "Próximo projeto" já não tem).
 - Celular em pé: a composição da sakura fica mais esparsa, porque a cena é gerada para a proporção da tela.
