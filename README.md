@@ -73,7 +73,11 @@ faltam e textos com `[preencher]`.
 
 ## Publicar
 
-`dist/` é um site estático pronto: serve em GitHub Pages, Netlify, Vercel, Cloudflare Pages etc.
+No ar em **https://sitr3n01.github.io/**. Cada push na `main` dispara o workflow
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml), que roda o `check`, gera o `dist/` e publica no GitHub
+Pages (Settings → Pages → Source: GitHub Actions). Também dá para rodar manualmente na aba Actions.
+
+`dist/` é um site estático com caminhos relativos, então também serve em Netlify, Vercel, Cloudflare Pages etc.
 (comando de build `npm run build`, pasta de saída `dist`).
 
 ## Pendências
