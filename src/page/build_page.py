@@ -257,16 +257,26 @@ def video_block(p, base):
 </figure>'''
 
 
+def grid_attrs(n):
+    """Células por linha de uma grade de fatos/números: todas numa linha só até 4, senão duas linhas
+    equilibradas (5 → 3 + 2, 6 → 3 + 3). Com pouco espaço, só contagens pares passam por 2 por linha,
+    para nenhuma célula ficar sozinha e esticada."""
+    per_row = n if n <= 4 else -(-n // 2)
+    pair = ' data-pair' if n % 2 == 0 and per_row > 2 else ''
+    return f'data-c="{per_row}"{pair}'
+
+
 def project_body(p, nxt):
     slug, base = p['slug'], '../../'
     facts = [('Papel', p.get('papel', '')), ('Período', p.get('periodo', '')), ('Status', p.get('status', '')), ('Stack', ', '.join(p['stack']))]
+    facts = [(k, v) for k, v in facts if v]
     facts_html = '\n'.join(f'<div class="sk-fact"><span style="{CAP}; color: #5f5f5d">{k}</span><span class="sk-fact-v">{inline(v)}</span></div>'
-                           for k, v in facts if v)
+                           for k, v in facts)
     secs = []
     for sec in p['sections']:
         if 'stats' in sec:
-            inner = '<div class="sk-stats">' + ''.join(
-                f'<div class="sk-stat"><span class="sk-stat-v">{E(v)}</span><span style="{CAP}">{inline(l)}</span></div>' for v, l in sec['stats']) + '</div>'
+            inner = f'<div class="sk-cq"><div class="sk-stats" {grid_attrs(len(sec["stats"]))}>' + ''.join(
+                f'<div class="sk-stat"><span class="sk-stat-v">{E(v)}</span><span style="{CAP}">{inline(l)}</span></div>' for v, l in sec['stats']) + '</div></div>'
         else:
             inner = f'<div class="sk-prose">{sec["html"]}</div>'
         secs.append(f'<div class="sk-sec" data-sk-reveal="1"><h2>{E(sec["title"])}</h2><div>{inner}</div></div>')
@@ -297,9 +307,9 @@ def project_body(p, nxt):
 <section id="detalhes" data-sk-view="projbody" style="position: relative; padding: 46px {PADX} 119px">
 <div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 76px">
 {video_block(p, base)}
-<div class="sk-facts" data-sk-reveal="1">
+<div class="sk-cq" data-sk-reveal="1"><div class="sk-facts" {grid_attrs(len(facts))}>
 {facts_html}
-</div>
+</div></div>
 {''.join(secs)}
 {links_html}
 </div>
@@ -413,10 +423,19 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-lead{max-width:34em;font-size:clamp(18px,1.6vw,22px);line-height:1.4;letter-spacing:.006em}
 .sk-lead p{margin:0}
 .sk-tile{flex:0 0 auto;width:clamp(180px,24vw,340px);aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:1px solid #bfbebe;box-sizing:border-box}
-.sk-facts,.sk-stats{display:grid;gap:1px;background-color:#bfbebe;border:1px solid #bfbebe}
-.sk-facts{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
-.sk-stats{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
-.sk-fact,.sk-stat{background-color:#fff;padding:19px;display:flex;flex-direction:column;justify-content:space-between;gap:19px;box-sizing:border-box}
+/* flex com quebra: cada linha estica as células até fechar a largura, então o fundo (as linhas de 1px)
+   nunca aparece como célula vazia. data-c = células por linha com espaço (grid_attrs); a largura do
+   contêiner (.sk-cq) decide entre 1, 2 (só contagens pares, data-pair) e data-c por linha */
+.sk-cq{container-type:inline-size}
+.sk-facts,.sk-stats{display:flex;flex-wrap:wrap;gap:1px;background-color:#bfbebe;border:1px solid #bfbebe}
+.sk-fact,.sk-stat{flex:1 1 100%}
+@container (min-width:400px){.sk-stats[data-pair]>.sk-stat{flex-basis:calc((100% - 2px) / 2)}}
+@container (min-width:480px){.sk-facts[data-pair]>.sk-fact{flex-basis:calc((100% - 2px) / 2)}}
+@container (min-width:560px){.sk-stats[data-c="2"]>.sk-stat{flex-basis:calc((100% - 2px) / 2)}.sk-stats[data-c="3"]>.sk-stat{flex-basis:calc((100% - 3px) / 3)}}
+@container (min-width:740px){.sk-facts[data-c="2"]>.sk-fact{flex-basis:calc((100% - 2px) / 2)}.sk-facts[data-c="3"]>.sk-fact{flex-basis:calc((100% - 3px) / 3)}}
+@container (min-width:780px){.sk-stats[data-c="4"]>.sk-stat{flex-basis:calc((100% - 4px) / 4)}}
+@container (min-width:980px){.sk-facts[data-c="4"]>.sk-fact{flex-basis:calc((100% - 4px) / 4)}}
+.sk-fact,.sk-stat{min-width:0;background-color:#fff;padding:19px;display:flex;flex-direction:column;justify-content:space-between;gap:19px;box-sizing:border-box}
 .sk-fact{min-height:112px}.sk-stat{min-height:150px}
 .sk-fact-v{font-size:18px;line-height:1.3}
 .sk-stat-v{font-size:clamp(30px,3vw,46px);line-height:1;letter-spacing:-.01em}
