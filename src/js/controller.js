@@ -19,6 +19,7 @@ function mount(root, options) {
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canvas = $('[data-sk-canvas]'), scroller = $('[data-sk-scroller]') || document.scrollingElement;
   const engine = createSakuraBackground(canvas, { preset: o.preset, kanji: o.kanji, wind: o.wind, holdIntro: !reduce });
+  const glass = mountGlass(root, scroller);
   const F = engine.focus;
   const camOf = v => v.cam.id ? { z: 1, fx: 0, fy: 0, sx: 0, sy: 0 } : { z: v.cam.z, fx: F[0], fy: F[1], sx: v.cam.sx, sy: v.cam.sy };
 
@@ -163,6 +164,6 @@ function mount(root, options) {
   return {
     engine,
     update(n) { Object.assign(o, n); engine.setOptions({ preset: o.preset, kanji: o.kanji, wind: o.wind }); },
-    destroy() { dead = true; cancelAnimationFrame(raf); engine.destroy(); },
+    destroy() { dead = true; cancelAnimationFrame(raf); glass.destroy(); engine.destroy(); },
   };
 }

@@ -13,6 +13,10 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
 - **Tipografia:** uma família só. Inter substitui a Ataero Retina, que é proprietária. Títulos em caixa alta
   com `line-height: 0.8`; rótulos em 11px com `letter-spacing: 0.05em`; corpo em 15/18px alinhado à esquerda.
 - **Formas e superfícies:** cards e células com raio 0; links e pílulas com raio 10px; sem sombras.
+- **Exceção — vidro líquido (nav e contato):** o logo, o trilho de navegação, o botão "Contato +", os links de
+  contato e a barra do rodapé são cápsulas de vidro (raio total, `backdrop-filter` desfocando a sakura). A lente
+  que marca o item ativo é o único elemento com sombra, e seus reflexos de borda reutilizam as cores do gradiente
+  das flores, em pontos pequenos. Fora desses elementos, valem as regras acima.
 - **Única fonte monoespaçada:** a arte ASCII do canvas (JetBrains Mono + Noto Sans JP para os kanji).
 
 ## Estrutura
@@ -45,6 +49,7 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
 | 11 | Anéis finos ao redor do objeto | SVG com 3 círculos em `#bfbebe`, transladado para o foco da câmera e escalado com o zoom | `data-sk-rings` |
 | 12 | "SCROLL" some ao rolar | Opacidade = 1 − scroll/140 | `data-sk-hint` |
 | 13 | Lista de prêmios com linhas finas | Lista com hairlines; no hover o título desliza 19px | `.sk-row` |
+| 14 | Navegação em vidro líquido (segmented control com lente) | Trilho fosco com uma lente que desliza até o item ativo (mola `cubic-bezier(.3,1.45,.5,1)` em 0,62 s), estica no sentido do movimento por 170 ms e gira o reflexo iridescente da borda (`--rim`). Na nav, a lente segue a seção que cruza 40% da tela; no contato, descansa no primeiro link | `data-sk-glass`, `.sk-lens`, `.sk-seg`, `.sk-lens-btn`; `src/js/glass.js` |
 
 Além da referência, a sakura também tem: vento com rajadas, pétalas que se soltam (kana ヽゝ゜さくら),
 blocos de glitch nas flores e caracteres que se embaralham perto do cursor.

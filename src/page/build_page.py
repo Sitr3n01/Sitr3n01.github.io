@@ -30,14 +30,15 @@ def words(text):
 
 NAV = f'''
 <header style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
-<a href="#inicio" style="pointer-events: auto; font-size: 15px; font-weight: 700; letter-spacing: 0.013em; text-decoration: none; color: {INK}; border-radius: 10px; padding: 5px 0">SITR3N.</a>
-<nav aria-label="Seções" style="pointer-events: auto; display: flex; align-items: center; gap: 19px">
-<div class="sk-navlinks" style="display: flex; gap: 19px">
-<a class="sk-link" href="#sobre" style="{CAP}; color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">Sobre +</a>
-<a class="sk-link" href="#projetos" style="{CAP}; color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">Projetos +</a>
-<a class="sk-link" href="#trajetoria" style="{CAP}; color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">Trajetória +</a>
+<a class="sk-glass sk-logo" href="#inicio" style="pointer-events: auto">SITR3N.</a>
+<nav aria-label="Seções" style="pointer-events: auto; display: flex; align-items: center; gap: 10px">
+<div class="sk-glass sk-track sk-navlinks" data-sk-glass="spy">
+<span class="sk-lens" aria-hidden="true"></span>
+<a class="sk-seg" href="#sobre">Sobre</a>
+<a class="sk-seg" href="#projetos">Projetos</a>
+<a class="sk-seg" href="#trajetoria">Trajetória</a>
 </div>
-<a class="sk-pill" href="#contato" style="{CAP}; color: {INK}; text-decoration: none; border: 1px solid {INK}; border-radius: 10px; padding: 8px 19px">Contato +</a>
+<a class="sk-lens-btn" href="#contato">Contato +</a>
 </nav>
 </header>'''
 
@@ -187,12 +188,13 @@ PATH = f'''
 CONTACT = f'''
 <section id="contato" data-sk-view="contact" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; gap: 46px; padding: 119px {PADX} 30px; box-sizing: border-box">
 <h2 data-sk-reveal="1" style="margin: 0; font-weight: 400; font-size: clamp(56px, 7.4vw, 112px); line-height: 0.8; letter-spacing: -0.015em; text-transform: uppercase">Vamos<br>conversar.</h2>
-<div style="display: flex; flex-wrap: wrap; gap: 19px 46px; align-items: center">
-<a class="sk-link" href="https://github.com/Sitr3n01" style="font-size: 18px; color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">GitHub — Sitr3n01 ↗</a>
-<a class="sk-link" href="https://www.linkedin.com/in/sitr3n" style="font-size: 18px; color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">LinkedIn — /in/sitr3n ↗</a>
-<span style="font-size: 18px">[SEU E-MAIL]</span>
+<div class="sk-glass sk-track sk-track-lg" data-sk-glass="links" data-sk-glass-rest="0" style="align-self: flex-start">
+<span class="sk-lens" aria-hidden="true"></span>
+<a class="sk-seg" href="https://github.com/Sitr3n01">GitHub <span class="sk-seg-sub">Sitr3n01</span> ↗</a>
+<a class="sk-seg" href="https://www.linkedin.com/in/sitr3n">LinkedIn <span class="sk-seg-sub">/in/sitr3n</span> ↗</a>
+<span class="sk-seg" tabindex="0">[SEU E-MAIL]</span>
 </div>
-<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 19px; padding-top: 19px; border-top: 1px solid {ASH}">
+<div class="sk-glass sk-bar">
 <span style="{CAP}">© 2026 Sitr3n</span>
 <span style="{CAP}">Fundo em ASCII · <span lang="ja">桜</span></span>
 </div>
@@ -256,7 +258,49 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-cap{{color:#5f5f5d}}.sk-cell:hover .sk-cap{{color:{ASH}}}
 .sk-row .sk-row-t{{transition:transform .45s cubic-bezier(.2,.7,.2,1)}}.sk-row:hover .sk-row-t{{transform:translateX(19px)}}
 @media (max-width:720px){{.sk-navlinks{{display:none!important}}}}
-@media (prefers-reduced-motion:reduce){{[data-sk-scroller]{{scroll-behavior:auto!important}}}}'''
+@media (prefers-reduced-motion:reduce){{[data-sk-scroller]{{scroll-behavior:auto!important}}}}''' + '''
+/* ---- vidro líquido: trilho fosco + lente refrativa (nav e contato) ---- */
+@property --rim{syntax:'<angle>';inherits:true;initial-value:0deg}
+.sk-glass{position:relative;border-radius:999px;background-color:rgba(229,228,224,.55);
+  -webkit-backdrop-filter:blur(14px) saturate(1.25);backdrop-filter:blur(14px) saturate(1.25);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.7),inset 0 1px 3px rgba(29,29,29,.07),0 0 0 1px rgba(29,29,29,.06),0 1px 0 rgba(255,255,255,.8)}
+.sk-logo{display:inline-block;padding:10px 18px;font-size:15px;font-weight:700;letter-spacing:.013em;text-decoration:none;color:#1d1d1d}
+.sk-track{display:inline-flex;align-items:center;gap:2px;padding:4px}
+.sk-track-lg{flex-wrap:wrap;max-width:100%;box-sizing:border-box}
+.sk-seg{position:relative;z-index:1;display:inline-block;padding:10px 18px;border-radius:999px;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
+  color:#5f5f5d;text-decoration:none;white-space:nowrap;transition:color .35s ease}
+.sk-seg.is-on,.sk-seg:hover{color:#1d1d1d}
+.sk-track-lg .sk-seg{padding:14px 24px;font-size:15px;letter-spacing:.013em;text-transform:none}
+.sk-seg-sub{color:#8a8986;transition:color .35s ease}.sk-seg.is-on .sk-seg-sub{color:#5f5f5d}
+.sk-seg:focus-visible,.sk-lens-btn:focus-visible,.sk-logo:focus-visible{outline:2px solid #1d1d1d;outline-offset:3px}
+.sk-bar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 19px;padding:12px 22px}
+.sk-bar .sk-cap,.sk-bar span{color:#1d1d1d}
+
+/* lente: corpo claro, borda grossa que refrata, reflexo quente no topo e brilho iridescente girando nos cantos */
+.sk-lens,.sk-lens-btn{--sx:1;--sy:1;border-radius:999px;
+  background:radial-gradient(120% 90% at 50% 50%,rgba(236,235,232,.92) 55%,rgba(250,250,248,.75) 78%,rgba(255,255,255,.95) 100%);
+  -webkit-backdrop-filter:blur(2px) saturate(1.8) brightness(1.05);backdrop-filter:blur(2px) saturate(1.8) brightness(1.05);
+  box-shadow:inset 0 0 0 1px #fff,inset 0 0 2px 3px rgba(255,255,255,.8),inset 0 0 6px 5px rgba(29,29,29,.07),
+    inset 0 5px 6px -3px #fff,inset 0 -6px 8px -4px rgba(29,29,29,.2),
+    inset 7px 0 9px -7px rgba(29,29,29,.16),inset -7px 0 9px -7px rgba(29,29,29,.16),
+    0 0 0 1px rgba(29,29,29,.05),0 1px 1px rgba(29,29,29,.08),0 8px 18px -8px rgba(29,29,29,.3)}
+.sk-lens{position:absolute;left:0;top:0;z-index:0;pointer-events:none;width:var(--w,0);height:var(--h,0);
+  transform:translate3d(var(--x,0),var(--y,0),0) scale(var(--sx),var(--sy));
+  transition:transform .62s cubic-bezier(.3,1.45,.5,1),width .62s cubic-bezier(.3,1.35,.5,1),height .62s cubic-bezier(.3,1.35,.5,1),opacity .3s ease,--rim .9s cubic-bezier(.3,1,.4,1)}
+.sk-lens.is-off{opacity:0;transform:translate3d(var(--x,0),var(--y,0),0) scale(.6,.6)}
+.sk-lens.no-anim{transition:none}
+.sk-lens-btn{position:relative;display:inline-block;padding:13px 22px;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
+  color:#1d1d1d;text-decoration:none;white-space:nowrap;transition:transform .5s cubic-bezier(.3,1.5,.5,1),--rim .9s cubic-bezier(.3,1,.4,1)}
+.sk-lens-btn:hover{transform:scale(1.04)}.sk-lens-btn:active{transform:scale(.97)}
+.sk-lens::before,.sk-lens-btn::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:2.5px;pointer-events:none;
+  background:conic-gradient(from var(--rim),rgba(255,255,255,0) 18deg,rgba(250,203,14,.55) 30deg,rgba(240,107,168,.5) 38deg,rgba(120,186,230,.6) 46deg,rgba(255,255,255,0) 58deg,
+    rgba(255,255,255,0) 198deg,rgba(120,186,230,.5) 210deg,rgba(240,107,168,.45) 218deg,rgba(250,203,14,.5) 226deg,rgba(255,255,255,0) 238deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;filter:blur(.7px)}
+.sk-lens::after,.sk-lens-btn::after{content:"";position:absolute;left:16%;right:16%;top:2px;height:4px;border-radius:4px;pointer-events:none;
+  background:linear-gradient(90deg,rgba(255,246,220,0),rgba(255,246,220,.95) 22%,#fff 50%,rgba(255,246,220,.95) 78%,rgba(255,246,220,0));filter:blur(1.2px)}
+@media (max-width:720px){.sk-track-lg{flex-direction:column;align-items:stretch;align-self:stretch!important;border-radius:30px}
+  .sk-track-lg .sk-seg{padding:14px 20px}.sk-bar{border-radius:22px}}
+@media (prefers-reduced-motion:reduce){.sk-lens,.sk-lens-btn,.sk-seg{transition:none!important}}'''
 
 DC_PROPS = {
     "preset": {"editor": "enum", "options": ["kosa", "sanbon", "ogi", "itozakura", "koeda"], "default": "kosa", "section": "Sakura"},

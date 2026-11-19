@@ -29,6 +29,7 @@ src/
   page/build_page.py   marcação + CSS da página (conteúdo: STACK, PROJECTS, CHIPS, PATH_ROWS…)
   js/core.js           presets e geração da árvore (galhos, flores)
   js/engine.js         motor ASCII: renderização, vento, pétalas, glitch, câmera
+  js/glass.js          vidro líquido: lente deslizante da nav e do contato
   js/controller.js     dinâmicas de scroll por seção (tabela VIEWS) e mount()
   assets/              imagens/arquivos estáticos → copiados para dist/assets/
 scripts/
@@ -39,8 +40,8 @@ docs/MOTION.md         especificação de design e movimento
 dist/                  saída gerada (não versionada, não editar)
 ```
 
-`dist/sakura-site.js` é a concatenação de `core.js` → `engine.js` → `controller.js` dentro de um IIFE que
-expõe `window.SakuraSite = { mount, createSakuraBackground, PRESETS }`. Os três arquivos compartilham o mesmo
+`dist/sakura-site.js` é a concatenação de `core.js` → `engine.js` → `glass.js` → `controller.js` dentro de um IIFE que
+expõe `window.SakuraSite = { mount, createSakuraBackground, PRESETS }`. Os arquivos compartilham o mesmo
 escopo, então a ordem importa e nomes de topo não podem colidir.
 
 ### Variante para o canvas de Design

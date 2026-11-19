@@ -13,7 +13,7 @@ export const SRC = join(ROOT, 'src');
 export const DIST = join(ROOT, 'dist');
 
 // Ordem importa: os arquivos compartilham o mesmo escopo dentro do IIFE.
-const JS_PARTS = ['core.js', 'engine.js', 'controller.js'];
+const JS_PARTS = ['core.js', 'engine.js', 'glass.js', 'controller.js'];
 
 const HEADER = `/*!
  * sakura-site.js — fundo de sakura em ASCII + dinâmicas de scroll do portfólio (sem dependências)
