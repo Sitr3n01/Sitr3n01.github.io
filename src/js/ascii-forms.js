@@ -150,7 +150,7 @@ function ascCase(env) {
   for (const fz of [-0.36, -0.13, 0.1]) { const c = [0.055, -0.157, fz]; m.part(ascFanAlb('y', c, 0.1, 5)); ascDisk(m, 'y', c, 0.1, 28); }
   m.part((x, y, z, nx) => Math.abs(nx) > 0.7 && Math.abs(z) < 0.32 && fract(z / 0.08) < 0.5 ? 0.9 : 0.4); ascBox(m, 0, -0.41, 0, 0.44, 0.18, 0.94);
   for (const fy of [0.3, 0.07, -0.16]) { const c = [0, fy, 0.44]; m.part(ascFanAlb('z', c, 0.1, 5)); ascDisk(m, 'z', c, 0.1, 28); }
-  return ascShape(ascSampleMesh(m, env.N, env.rnd), env.rnd, { view: { tilt: 0.28, spin: 0.5, light: 0.45, face: 0.55 } });
+  return ascShape(ascSampleMesh(m, env.N, env.rnd), env.rnd, { view: { tilt: 0.28, spin: 0.5, light: 0.45, face: 1.35 } }); // frente = lateral de vidro (componentes à mostra), puxando para a frente do gabinete, nunca para a traseira
 }
 
 function ascGpu(env) {
