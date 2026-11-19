@@ -9,6 +9,7 @@ const inOut = t => { t = clamp(t, 0, 1); return t < 0.5 ? 4 * t * t * t : 1 - Ma
 const INTRO = {
   full:  { band: [0.15, 1.15], burst: 1.3, grow: 1.3, growDur: 1.5, ui: 2.3, end: 3.1 },
   short: { zoom: [0, 0.95], grow: 0, growDur: 0.9, ui: 0.3, z0: 2.6, end: 0.95 },
+  page:  { grow: 0, growDur: 1.1, ui: 0.1, end: 1.1 }, // páginas de projeto, âncoras e "voltar": só a árvore crescendo
 };
 const BUD_AT = [0.74, 0.34]; // versão curta: flor de onde a câmera recua (fração da largura/altura na vista inicial)
 const BAND_CH = ':+*';
@@ -22,6 +23,10 @@ const VIEWS = {
   areas:     { cam: { z: 1.05, sx: 0.50, sy: 0.50 },  safe: { x: 0.18, y: 0.86, rx: 0.26, ry: 0.16, s: 0.75 }, alpha: 0.95 },
   path:      { cam: { z: 1.60, sx: 0.12, sy: 0.88 },  safe: { x: 0.62, y: 0.50, rx: 0.50, ry: 0.62, s: 0.92 }, alpha: 0.90 },
   contact:   { cam: { id: true },                     safe: { x: 0.40, y: 0.55, rx: 0.48, ry: 0.42, s: 0.88 }, alpha: 1.00 },
+  // páginas de projeto
+  proj:      { cam: { z: 1.55, sx: 0.80, sy: 0.42 },  safe: { x: 0.34, y: 0.62, rx: 0.48, ry: 0.46, s: 0.86 }, alpha: 0.95 },
+  projbody:  { cam: { z: 2.40, sx: 1.02, sy: 0.22 },  safe: { x: 0.45, y: 0.52, rx: 0.72, ry: 0.70, s: 0.96 }, alpha: 0.50 },
+  projnext:  { cam: { id: true },                     safe: { x: 0.40, y: 0.60, rx: 0.52, ry: 0.40, s: 0.80 }, alpha: 1.00 },
 };
 
 function mount(root, options) {
@@ -30,7 +35,7 @@ function mount(root, options) {
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canvas = $('[data-sk-canvas]'), scroller = $('[data-sk-scroller]') || document.scrollingElement;
   const engine = createSakuraBackground(canvas, { preset: o.preset, kanji: o.kanji, wind: o.wind, holdIntro: !reduce });
-  const glass = mountGlass(root, scroller);
+  const glass = mountGlass(root, scroller), videos = mountVideos(root);
   const F = engine.focus;
   const camOf = v => v.cam.id ? { z: 1, fx: 0, fy: 0, sx: 0, sy: 0 } : { z: v.cam.z, fx: F[0], fy: F[1], sx: v.cam.sx, sy: v.cam.sy };
 
@@ -55,11 +60,27 @@ function mount(root, options) {
   const t0 = performance.now();
   let raf = 0, dead = false;
 
-  // primeira visita da sessão: abertura completa; depois, só o recuo curto. ?intro=full força a completa.
-  let seen = false;
-  try { seen = sessionStorage.getItem('sk-intro') === '1'; sessionStorage.setItem('sk-intro', '1'); } catch (e) { /* sem storage */ }
-  if (typeof location !== 'undefined' && /[?&]intro=full\b/.test(location.search)) seen = false;
-  const IN = reduce ? null : (seen ? INTRO.short : INTRO.full);
+  // home: primeira visita da sessão → abertura completa; depois → recuo curto. ?intro=full força a completa.
+  // Páginas de projeto, chegada por âncora (#projetos) ou botão "voltar" → só a árvore crescendo.
+  const store = (k, v) => { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { /* sem storage */ } return null; };
+  const navType = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0] || {}).type;
+  const scrollKey = 'sk-scroll:' + location.pathname, saved = navType === 'back_forward' ? store(scrollKey) : null;
+  const hashEl = location.hash.length > 1 ? root.querySelector('#' + CSS.escape(decodeURIComponent(location.hash.slice(1)))) : null;
+  let mode = o.intro === undefined ? 'home' : o.intro;
+  if (mode === 'home') {
+    const seen = store('sk-intro') === '1' && !/[?&]intro=full\b/.test(location.search);
+    store('sk-intro', '1');
+    mode = saved != null || hashEl ? 'page' : seen ? 'short' : 'full';
+  }
+  const IN = reduce || mode === false ? null : INTRO[mode];
+  // posição de rolagem: volta para onde estava; âncora vai direto (sem rolagem suave)
+  if (saved != null || hashEl) {
+    const prev = scroller.style.scrollBehavior; scroller.style.scrollBehavior = 'auto';
+    scroller.scrollTop = saved != null ? Number(saved) : hashEl.offsetTop;
+    requestAnimationFrame(() => { scroller.style.scrollBehavior = prev; });
+  }
+  const onHide = () => store(scrollKey, String(scroller.scrollTop));
+  window.addEventListener('pagehide', onHide);
   const bud = IN && IN.zoom ? engine.pickBud(BUD_AT[0], BUD_AT[1]) : null;
   const on = !!IN && (!IN.zoom || !!bud);
   let skew = 0, grown = false, burstDone = false, bandOff = false, uiShown = !on;
@@ -228,6 +249,7 @@ function mount(root, options) {
     destroy() {
       dead = true; cancelAnimationFrame(raf); glass.destroy(); engine.destroy();
       skipEvents.forEach(ev => window.removeEventListener(ev, skip));
+      window.removeEventListener('pagehide', onHide); videos.destroy();
     },
   };
 }

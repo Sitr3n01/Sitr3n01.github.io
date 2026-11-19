@@ -32,10 +32,26 @@ for (const h of ['data-sk-root', 'data-sk-canvas', 'data-sk-scroller', 'data-sk-
   ok(html1.includes(h), `gancho ${h}`);
 ok(!html1.includes('\r\n') && !js1.includes('\r\n'), 'saída só com LF');
 
+// páginas de projeto: uma por card, com as seções que o controlador espera
+const slugs = [...html1.matchAll(/href="projetos\/([a-z0-9-]+)\/"/g)].map((m) => m[1]);
+ok(slugs.length >= 1, `${slugs.length} cards com link para página de projeto`);
+const pend = [];
+for (const slug of slugs) {
+  let page = '';
+  try { page = read(`projetos/${slug}/index.html`); } catch { /* falta */ }
+  ok(page.includes('data-sk-view="proj"') && page.includes('data-sk-view="projbody"') && page.includes('data-sk-video'),
+    `projetos/${slug}/ existe e tem hero, corpo e vídeo`);
+  ok(page.includes(`view-transition-name: sk-glyph-${slug}`) && html1.includes(`view-transition-name: sk-glyph-${slug}`),
+    `transição do kanji de ${slug} nos dois lados`);
+  if (page.includes('sk-video-empty')) pend.push(`${slug}: sem vídeo (src/assets/projetos/${slug}/apresentacao.mp4)`);
+  if (page.includes('class="sk-pending"')) pend.push(`${slug}: texto com [preencher]`);
+}
+
 build();
 ok(read('sakura-site.js') === js1 && read('index.html') === html1, 'build determinístico');
 
 if (html1.includes('[SEU E-MAIL]')) console.log('! pendência: [SEU E-MAIL] ainda está no contato');
+for (const p of pend) console.log(`! pendência: ${p}`);
 
 if (fails.length) { console.error(`\n${fails.length} falha(s)`); process.exit(1); }
 console.log('\ntudo certo');

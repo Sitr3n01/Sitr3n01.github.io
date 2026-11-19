@@ -12,7 +12,9 @@ Portfólio estático (pt-BR) com fundo de sakura em ASCII. Sem dependências de 
 
 - **Fonte da verdade é `src/`.** Nunca edite `dist/` (é regenerado e não é versionado).
 - Marcação, CSS e textos ficam em `src/page/build_page.py` (f-strings com estilos inline; listas `STACK`,
-  `PROJECTS`, `CHIPS`, `PATH_ROWS` guardam o conteúdo). Escape texto com `E()`.
+  `CHIPS`, `PATH_ROWS` guardam o conteúdo). Escape texto com `E()`.
+- Projetos vêm de `src/content/projetos/*.md` (ver README, seção Projetos): um arquivo gera o card da home e a
+  página `projetos/<slug>/`. Não invente fatos sobre os projetos; use `[preencher]` quando faltar informação.
 - `src/js/*.js` são concatenados em um IIFE na ordem core → engine → glass → controller (`scripts/build.mjs`).
   Não use `import`/`export` neles; tudo de topo é compartilhado entre eles.
 - O JS se liga à marcação por atributos `data-sk-*`. Ao renomear/remover um, atualize os dois lados e o

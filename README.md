@@ -26,12 +26,16 @@ Se o Python não se chamar `python`/`python3`, defina `PYTHON` com o caminho.
 
 ```
 src/
-  page/build_page.py   marcação + CSS da página (conteúdo: STACK, PROJECTS, CHIPS, PATH_ROWS…)
+  page/build_page.py   marcação + CSS da home e das páginas de projeto (STACK, CHIPS, PATH_ROWS…)
+  page/content.py      lê src/content/projetos/*.md (front matter + Markdown simples)
+  content/projetos/    um .md por projeto: card da home + página do projeto
   js/core.js           presets e geração da árvore (galhos, flores)
   js/engine.js         motor ASCII: renderização, vento, pétalas, glitch, câmera
   js/glass.js          vidro líquido: lente deslizante da nav e do contato
+  js/video.js          player do vídeo de apresentação (local ou YouTube)
   js/controller.js     dinâmicas de scroll por seção (tabela VIEWS) e mount()
   assets/              imagens/arquivos estáticos → copiados para dist/assets/
+    projetos/<slug>/   apresentacao.mp4 (ou .webm) e poster.jpg de cada projeto
 scripts/
   build.mjs            src/ → dist/
   dev.mjs              servidor local com live reload
@@ -51,6 +55,21 @@ node scripts/build.mjs --dc ./sakura-site.js
 ```
 
 Gera também `dist/Main.dc.html` (artboard com propriedades `preset`, `kanji` e `wind`).
+
+## Projetos
+
+Cada projeto é um arquivo em `src/content/projetos/` (a ordem vem do campo `ordem`). Ele gera o card da home e a
+página `projetos/<slug>/`. O front matter tem `slug`, `ordem`, `kanji`, `sakura` (preset da árvore da página),
+`categoria`, `titulo`, `card` (texto curto do card), `tags`, `papel`, `periodo`, `status`, `stack` (separada por
+vírgulas), `repo`, `site` e, opcionalmente, `youtube` (ID do vídeo). O corpo é Markdown: o texto antes da primeira
+`## seção` vira o lead; a seção `## Em números` vira uma grade de destaques (`- **valor** rótulo`).
+
+**Vídeo de apresentação:** coloque `src/assets/projetos/<slug>/apresentacao.mp4` (ou `.webm`) e, se quiser, uma capa
+`poster.jpg`. Sem arquivo, a página mostra um quadro "em produção". Para usar o YouTube, preencha `youtube:` no front
+matter; o player só carrega (youtube-nocookie) depois do clique. Prefira H.264 em 1080p com `-movflags +faststart`.
+
+Marque o que falta com `[preencher]` (aparece destacado na página). O `npm run check` lista as pendências: vídeos que
+faltam e textos com `[preencher]`.
 
 ## Publicar
 

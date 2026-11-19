@@ -13,7 +13,7 @@ export const SRC = join(ROOT, 'src');
 export const DIST = join(ROOT, 'dist');
 
 // Ordem importa: os arquivos compartilham o mesmo escopo dentro do IIFE.
-const JS_PARTS = ['core.js', 'engine.js', 'glass.js', 'controller.js'];
+const JS_PARTS = ['core.js', 'engine.js', 'glass.js', 'video.js', 'controller.js'];
 
 const HEADER = `/*!
  * sakura-site.js — fundo de sakura em ASCII + dinâmicas de scroll do portfólio (sem dependências)
@@ -39,7 +39,7 @@ export function buildJs() {
 }
 
 export function buildHtml(dcUrl) {
-  const args = [join(SRC, 'page', 'build_page.py'), '--out', DIST];
+  const args = ['-B', join(SRC, 'page', 'build_page.py'), '--out', DIST]; // -B: sem __pycache__ (não dispara o watcher)
   if (dcUrl) args.push('--dc', dcUrl);
   const r = spawnSync(python(), args, { encoding: 'utf8' });
   if (r.error) throw new Error(`não consegui rodar "${python()}" (${r.error.message}). Defina a variável PYTHON.`);

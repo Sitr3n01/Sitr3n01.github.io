@@ -63,7 +63,8 @@ function mountGlass(root, scroller) {
     for (const t of spies) {
       let found = null;
       for (const seg of t.segs) {
-        const target = root.querySelector(seg.getAttribute('href'));
+        const href = seg.getAttribute('href') || '';
+        const target = href.startsWith('#') && href.length > 1 ? root.querySelector(href) : null;
         if (target && target.offsetTop <= probe && probe < target.offsetTop + target.offsetHeight) found = seg;
       }
       if (found !== t.rest) { t.rest = found; t.settle(); }

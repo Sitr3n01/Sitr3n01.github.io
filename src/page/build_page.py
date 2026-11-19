@@ -1,8 +1,10 @@
-"""Gera a página do portfólio em dois formatos a partir da mesma marcação:
-   - Main.dc.html  (artboard do canvas de Design)
-   - index.html    (página standalone / harness de teste)
+"""Gera o site a partir da mesma marcação:
+   - index.html                    (página inicial)
+   - projetos/<slug>/index.html    (uma página por projeto, de src/content/projetos/*.md)
+   - Main.dc.html                  (artboard do canvas de Design, opcional)
 """
 import html, json, urllib.parse
+from content import inline, load_projects
 
 INK, PARCH, PAPER, ASH = '#1d1d1d', '#e5e4e0', '#ffffff', '#bfbebe'
 SANS = "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
@@ -28,17 +30,19 @@ def words(text):
                     for w in text.split())
 
 
-NAV = f'''
+def nav(base=''):
+    spy = 'spy' if not base else 'links'
+    return f'''
 <header data-sk-ui="1" style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
-<a class="sk-glass sk-logo" href="#inicio" style="pointer-events: auto">SITR3N.</a>
+<a class="sk-glass sk-logo" href="{base}#inicio" style="pointer-events: auto">SITR3N.</a>
 <nav aria-label="Seções" style="pointer-events: auto; display: flex; align-items: center; gap: 10px">
-<div class="sk-glass sk-track sk-navlinks" data-sk-glass="spy">
+<div class="sk-glass sk-track sk-navlinks" data-sk-glass="{spy}">
 <span class="sk-lens" aria-hidden="true"></span>
-<a class="sk-seg" href="#sobre">Sobre</a>
-<a class="sk-seg" href="#projetos">Projetos</a>
-<a class="sk-seg" href="#trajetoria">Trajetória</a>
+<a class="sk-seg" href="{base}#sobre">Sobre</a>
+<a class="sk-seg" href="{base}#projetos">Projetos</a>
+<a class="sk-seg" href="{base}#trajetoria">Trajetória</a>
 </div>
-<a class="sk-lens-btn" href="#contato">Contato +</a>
+<a class="sk-lens-btn" href="{base}#contato">Contato +</a>
 </nav>
 </header>'''
 
@@ -87,39 +91,33 @@ ABOUT = f'''
 </div>
 </section>'''
 
-PROJECTS = [
-    ('知', '01 — IA local', 'IA_local_server', 'RAG, servidores MCP, inferência local e agentes de IA.', 'RAG · MCP · LLM local'),
-    ('報', '02 — Web', 'kelly_sys', 'Portal de notícias no ar para um cliente desde junho de 2026.', 'Em produção'),
-    ('獣', '03 — Jogo', 'ExoBeast', 'Jogo multiplayer em Unity 6 com Netcode for GameObjects e Epic Online Services.', 'Unity 6 · NGO · EOS'),
-    ('輪', '04 — Jogo', 'Loopia', 'Jogo feito em equipe no Brasília Game Hub.', 'Unity · Equipe'),
-    ('光', '05 — Desktop', 'LUMINA', 'App desktop com back-end em FastAPI e interface em React no Electron.', 'FastAPI · React · Electron'),
-    ('使', '06 — IA', 'Hermes', 'Sistema de agentes de IA para o Discord, com doze personas em arquivos SOUL.md.', 'Agentes · Discord'),
-]
+PROJECTS = load_projects()
 
 
-def card(k, cap, title, desc, tags):
+def card(p):
+    slug = p['slug']
     return f'''<article class="sk-card" data-sk-reveal="1" style="background-color: {PAPER}; background-image: linear-gradient(to right, {PARCH} 1px, transparent 1px), linear-gradient(to bottom, {PARCH} 1px, transparent 1px); background-size: 24px 24px; min-height: 560px; padding: 30px; box-sizing: border-box; display: flex; flex-direction: column; gap: 19px">
 <div style="display: flex; justify-content: space-between; align-items: center">
-<span style="{CAP}">{E(cap)}</span>
-<span class="sk-plus" aria-hidden="true" style="font-size: 24px; line-height: 1; display: inline-block">+</span>
+<span style="{CAP}">{E(p['cap'])}</span>
+<span class="sk-open" aria-hidden="true" style="{CAP}; display: inline-flex; align-items: center; gap: 10px">Ver projeto <span class="sk-plus" style="font-size: 24px; line-height: 1; display: inline-block">+</span></span>
 </div>
 <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 220px">
-<span class="sk-glyph" aria-hidden="true" style="font-family: {JP}; font-size: clamp(120px, 13vw, 210px); line-height: 1; color: {INK}; display: inline-block">{k}</span>
+<span class="sk-glyph" aria-hidden="true" style="font-family: {JP}; font-size: clamp(120px, 13vw, 210px); line-height: 1; color: {INK}; display: inline-block; view-transition-name: sk-glyph-{slug}">{p['kanji']}</span>
 </div>
-<h3 style="margin: 0; font-weight: 400; font-size: clamp(34px, 3.2vw, 46px); line-height: 1; letter-spacing: 0.006em">{E(title)}</h3>
-<p style="margin: 0; font-size: 15px; line-height: 1.4; max-width: 34em">{E(desc)}</p>
-<p style="margin: 0; {CAP}">{E(tags)}</p>
+<h3 style="margin: 0; font-weight: 400; font-size: clamp(34px, 3.2vw, 46px); line-height: 1; letter-spacing: 0.006em"><a class="sk-card-link" href="projetos/{slug}/" data-sk-project="{slug}"><span style="display: inline-block; view-transition-name: sk-title-{slug}">{E(p['titulo'])}</span></a></h3>
+<p style="margin: 0; font-size: 15px; line-height: 1.4; max-width: 34em">{E(p['card'])}</p>
+<p style="margin: 0; {CAP}">{E(p['tags'])}</p>
 </article>'''
 
 
-colA = '\n'.join(card(*p) for p in PROJECTS[0::2])
-colB = '\n'.join(card(*p) for p in PROJECTS[1::2])
+colA = '\n'.join(card(p) for p in PROJECTS[0::2])
+colB = '\n'.join(card(p) for p in PROJECTS[1::2])
 WORK = f'''
 <section id="projetos" data-sk-view="work" style="position: relative; padding: 119px {PADX} 160px">
 <div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 46px">
 <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 19px">
 <h2 style="margin: 0; font-weight: 400; {CAP}">Projetos em destaque</h2>
-<a class="sk-pill" href="https://github.com/Sitr3n01" style="{CAP}; color: {INK}; text-decoration: none; border: 1px solid {INK}; border-radius: 10px; padding: 8px 19px">Todos no GitHub +</a>
+<a class="sk-lens-btn" href="https://github.com/Sitr3n01" rel="noopener">Todos no GitHub +</a>
 </div>
 <div style="display: flex; flex-wrap: wrap; gap: 19px; align-items: flex-start">
 <div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 19px">
@@ -222,7 +220,106 @@ def body(ref=''):
 {CONTACT}
 </main>
 </div>
-{NAV}
+{nav()}
+<p data-sk-hint="1" data-sk-ui="3" aria-hidden="true" style="position: absolute; right: 30px; bottom: 30px; margin: 0; z-index: 20; {CAP}; color: {INK}; pointer-events: none">Scroll ↓</p>
+</div>'''
+
+
+GRID_BG = f"background-color: {PAPER}; background-image: linear-gradient(to right, {PARCH} 1px, transparent 1px), linear-gradient(to bottom, {PARCH} 1px, transparent 1px); background-size: 24px 24px"
+
+
+def video_block(p, base):
+    title = E(p['titulo'])
+    attrs, play = '', ''
+    if p['video']:
+        poster = f' poster="{base}{p["poster"]}"' if p['poster'] else ''
+        media = f'<video class="sk-video-media" preload="metadata" playsinline{poster} src="{base}{p["video"]}" aria-label="Vídeo de apresentação: {title}"></video>'
+        play = '<div class="sk-play-wrap"><button type="button" class="sk-lens-btn" data-sk-play="1">▶ Assistir apresentação</button></div>'
+    elif p['youtube']:
+        yt = E(p['youtube'])
+        thumb = f'{base}{p["poster"]}' if p['poster'] else f'https://i.ytimg.com/vi/{yt}/hqdefault.jpg'
+        media = f'<img class="sk-video-media" src="{thumb}" alt="" loading="lazy">'
+        play = '<div class="sk-play-wrap"><button type="button" class="sk-lens-btn" data-sk-play="1">▶ Assistir apresentação</button></div>'
+        attrs = f' data-sk-youtube="{yt}"'
+    else:
+        media = (f'<div class="sk-video-empty"><span class="sk-video-k" aria-hidden="true">{p["kanji"]}</span>'
+                 f'<p style="margin: 0; {CAP}; color: #5f5f5d">Vídeo de apresentação em produção</p></div>')
+    return f'''<figure class="sk-video" data-sk-video="1" data-sk-reveal="1" data-sk-title="{title}"{attrs}>
+<div class="sk-video-frame" style="{GRID_BG}">{media}{play}</div>
+<figcaption style="{CAP}">Apresentação — {title}</figcaption>
+</figure>'''
+
+
+def project_body(p, nxt):
+    slug, base = p['slug'], '../../'
+    facts = [('Papel', p.get('papel', '')), ('Período', p.get('periodo', '')), ('Status', p.get('status', '')), ('Stack', ', '.join(p['stack']))]
+    facts_html = '\n'.join(f'<div class="sk-fact"><span style="{CAP}; color: #5f5f5d">{k}</span><span class="sk-fact-v">{inline(v)}</span></div>'
+                           for k, v in facts if v)
+    secs = []
+    for sec in p['sections']:
+        if 'stats' in sec:
+            inner = '<div class="sk-stats">' + ''.join(
+                f'<div class="sk-stat"><span class="sk-stat-v">{E(v)}</span><span style="{CAP}">{inline(l)}</span></div>' for v, l in sec['stats']) + '</div>'
+        else:
+            inner = f'<div class="sk-prose">{sec["html"]}</div>'
+        secs.append(f'<div class="sk-sec" data-sk-reveal="1"><h2>{E(sec["title"])}</h2><div>{inner}</div></div>')
+    links = []
+    if p.get('repo'):
+        links.append(f'<a class="sk-seg" href="{E(p["repo"])}" rel="noopener">Repositório <span class="sk-seg-sub">GitHub</span> ↗</a>')
+    if p.get('site'):
+        host = p['site'].split('//', 1)[-1].split('/', 1)[0]
+        links.append(f'<a class="sk-seg" href="{E(p["site"])}" rel="noopener">Site <span class="sk-seg-sub">{E(host)}</span> ↗</a>')
+    links_html = (f'''<div class="sk-glass sk-track sk-track-lg" data-sk-glass="links" data-sk-glass-rest="0" data-sk-reveal="1" style="align-self: flex-start">
+<span class="sk-lens" aria-hidden="true"></span>
+{''.join(links)}
+</div>''') if links else ''
+    ns = nxt['slug']
+    return f'''
+<section id="inicio" data-sk-view="proj" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 120px {PADX} 76px; box-sizing: border-box">
+<div style="max-width: 1400px; width: 100%; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-end; justify-content: space-between">
+<div style="flex: 1 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 30px">
+<a class="sk-link" href="{base}#projetos" style="align-self: flex-start; {CAP}; color: {INK}; text-decoration: none; padding: 5px 0">← Todos os projetos</a>
+<p style="margin: 0; {CAP}">{E(p['cap'])} · {inline(p.get('status', ''))}</p>
+<h1 style="margin: 0; font-weight: 400; font-size: clamp(44px, 7.4vw, 120px); line-height: 0.9; letter-spacing: -0.015em; overflow-wrap: anywhere"><span style="display: inline-block; view-transition-name: sk-title-{slug}">{E(p['titulo'])}</span></h1>
+<div class="sk-lead">{p['lead']}</div>
+<p style="margin: 0; {CAP}">{E(p['tags'])}</p>
+</div>
+<div class="sk-tile" style="{GRID_BG}" aria-hidden="true"><span style="font-family: {JP}; font-size: clamp(110px, 13vw, 210px); line-height: 1; display: inline-block; view-transition-name: sk-glyph-{slug}">{p['kanji']}</span></div>
+</div>
+</section>
+<section id="detalhes" data-sk-view="projbody" style="position: relative; padding: 46px {PADX} 119px">
+<div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 76px">
+{video_block(p, base)}
+<div class="sk-facts" data-sk-reveal="1">
+{facts_html}
+</div>
+{''.join(secs)}
+{links_html}
+</div>
+</section>
+<section id="proximo" data-sk-view="projnext" style="position: relative; min-height: 70vh; display: flex; flex-direction: column; justify-content: flex-end; gap: 46px; padding: 119px {PADX} 30px; box-sizing: border-box">
+<a class="sk-next" href="../{ns}/">
+<span style="flex: 1 1 100%; {CAP}">Próximo projeto · {E(nxt['cap'])}</span>
+<span class="sk-next-t"><span style="display: inline-block; view-transition-name: sk-title-{ns}">{E(nxt['titulo'])}</span> →</span>
+<span class="sk-next-k" aria-hidden="true" style="view-transition-name: sk-glyph-{ns}">{nxt['kanji']}</span>
+</a>
+<div class="sk-glass sk-bar">
+<span style="{CAP}">© 2026 Sitr3n</span>
+<a class="sk-link" href="{base}#contato" style="{CAP}; text-decoration: none">Vamos conversar ↗</a>
+</div>
+</section>'''
+
+
+def project_root(p, nxt):
+    return f'''<div data-sk-root="1" style="position: relative; height: 100vh; overflow: hidden; background-color: {PARCH}; color: {INK}; font-family: {SANS}">
+{RINGS}
+<canvas data-sk-canvas="1" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block"></canvas>
+<div data-sk-scroller="1" style="position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth">
+<main>
+{project_body(p, nxt)}
+</main>
+</div>
+{nav('../../')}
 <p data-sk-hint="1" data-sk-ui="3" aria-hidden="true" style="position: absolute; right: 30px; bottom: 30px; margin: 0; z-index: 20; {CAP}; color: {INK}; pointer-events: none">Scroll ↓</p>
 </div>'''
 
@@ -291,7 +388,57 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 [data-sk-ui="2"]{transition-delay:.15s}[data-sk-ui="3"]{transition-delay:.3s}
 [data-sk-intro="on"] [data-sk-ui]{opacity:0!important;transform:translate3d(0,-10px,0);transition:none}
 [data-sk-rings]{transition:opacity 1.4s ease}
-[data-sk-intro="on"] [data-sk-rings]{opacity:0;transition:none}'''
+[data-sk-intro="on"] [data-sk-rings]{opacity:0;transition:none}
+
+/* ---- transição entre páginas: kanji e título do card voam até a página do projeto ---- */
+@view-transition{navigation:auto}
+::view-transition-group(*){animation-duration:.6s;animation-timing-function:cubic-bezier(.2,.7,.2,1)}
+@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
+
+/* ---- cards da home viram links ---- */
+.sk-card{position:relative}
+.sk-card-link{color:inherit;text-decoration:none}
+.sk-card-link::after{content:"";position:absolute;inset:0;z-index:2}
+.sk-card-link:focus-visible{outline:none}
+.sk-card:has(.sk-card-link:focus-visible){outline:2px solid #1d1d1d;outline-offset:3px}
+.sk-card .sk-open{color:#5f5f5d;transition:color .3s ease}.sk-card:hover .sk-open{color:#1d1d1d}
+
+/* ---- página de projeto ---- */
+.sk-lead{max-width:34em;font-size:clamp(18px,1.6vw,22px);line-height:1.4;letter-spacing:.006em}
+.sk-lead p{margin:0}
+.sk-tile{flex:0 0 auto;width:clamp(180px,24vw,340px);aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:1px solid #bfbebe;box-sizing:border-box}
+.sk-facts,.sk-stats{display:grid;gap:1px;background-color:#bfbebe;border:1px solid #bfbebe}
+.sk-facts{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.sk-stats{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
+.sk-fact,.sk-stat{background-color:#fff;padding:19px;display:flex;flex-direction:column;justify-content:space-between;gap:19px;box-sizing:border-box}
+.sk-fact{min-height:112px}.sk-stat{min-height:150px}
+.sk-fact-v{font-size:18px;line-height:1.3}
+.sk-stat-v{font-size:clamp(30px,3vw,46px);line-height:1;letter-spacing:-.01em}
+.sk-sec{display:flex;flex-wrap:wrap;gap:19px;align-items:flex-start;padding-top:30px;border-top:1px solid #bfbebe}
+.sk-sec>h2{flex:0 0 200px;margin:0;font-weight:400;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase}
+.sk-sec>div{flex:1 1 560px;min-width:0;max-width:820px}
+.sk-prose{font-size:18px;line-height:1.5;letter-spacing:.006em}
+.sk-prose p{margin:0 0 .9em}.sk-prose p:last-child{margin-bottom:0}
+.sk-prose ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.7em}
+.sk-prose li{position:relative;padding-left:1.4em}.sk-prose li::before{content:"+";position:absolute;left:0;color:#5f5f5d}
+.sk-prose strong{font-weight:700}
+.sk-prose code,.sk-lead code{font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:.82em;padding:1px 5px;background-color:rgba(29,29,29,.06)}
+.sk-pending{background-color:rgba(240,107,168,.2);color:inherit;padding:0 4px}
+.sk-video{margin:0;display:flex;flex-direction:column;gap:12px}
+.sk-video-frame{position:relative;aspect-ratio:16/9;overflow:hidden;border:1px solid #bfbebe}
+.sk-video-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;background-color:#1d1d1d}
+.sk-video.is-playing video.sk-video-media{object-fit:contain}
+.sk-video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.sk-play-wrap{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center}
+.sk-video.is-playing .sk-play-wrap{display:none}
+.sk-play-wrap .sk-lens-btn{padding:18px 30px;font-size:12px}
+.sk-video-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:19px}
+.sk-video-k{font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif;font-size:clamp(90px,12vw,190px);line-height:1;color:rgba(29,29,29,.13)}
+.sk-next{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:19px;padding:30px 0;border-top:1px solid #bfbebe;border-bottom:1px solid #bfbebe;color:#1d1d1d;text-decoration:none}
+.sk-next-t{display:inline-block;font-size:clamp(40px,6vw,96px);line-height:.9;letter-spacing:-.015em;transition:transform .5s cubic-bezier(.2,.7,.2,1)}
+.sk-next:hover .sk-next-t{transform:translateX(19px)}
+.sk-next-k{display:inline-block;font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif;font-size:clamp(60px,7vw,110px);line-height:1}
+@media (max-width:720px){.sk-tile{width:min(60vw,240px)}.sk-sec>h2{flex-basis:100%}}'''
 
 DC_PROPS = {
     "preset": {"editor": "enum", "options": ["kosa", "sanbon", "ogi", "itozakura", "koeda"], "default": "kosa", "section": "Sakura"},
@@ -341,14 +488,15 @@ def build_dc(script_url):
 '''
 
 
-def build_standalone(script_src, inline=None):
-    sc = f'<script>\n{inline}\n</script>' if inline else f'<script src="{script_src}"></script>'
+def build_standalone(script_src, body_html=None, title='Sitr3n — portfólio com sakura em ASCII', desc=None, opts="{ preset: 'kosa' }"):
+    sc = f'<script src="{script_src}"></script>'
+    meta = f'\n<meta name="description" content="{E(desc)}">' if desc else ''
     return f'''<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sitr3n — portfólio com sakura em ASCII</title>
+<title>{E(title)}</title>{meta}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 {FONTS}
@@ -357,9 +505,9 @@ def build_standalone(script_src, inline=None):
 </style>
 </head>
 <body>
-{body()}
+{body_html or body()}
 {sc}
-<script>window.__site = SakuraSite.mount(document.querySelector('[data-sk-root]'), {{ preset: 'kosa' }});</script>
+<script>window.__site = SakuraSite.mount(document.querySelector('[data-sk-root]'), {opts});</script>
 </body>
 </html>
 '''
@@ -373,12 +521,19 @@ def write(path, text):
 
 if __name__ == '__main__':
     import argparse, os
-    ap = argparse.ArgumentParser(description='Gera index.html (e opcionalmente Main.dc.html).')
+    ap = argparse.ArgumentParser(description='Gera index.html, as páginas de projeto e, opcionalmente, Main.dc.html.')
     ap.add_argument('--out', default='.', help='diretório de saída (padrão: diretório atual)')
     ap.add_argument('--dc', metavar='SCRIPT_URL', help='também gera Main.dc.html apontando para SCRIPT_URL')
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     write(os.path.join(args.out, 'index.html'), build_standalone('sakura-site.js'))
+    for i, p in enumerate(PROJECTS):
+        nxt = PROJECTS[(i + 1) % len(PROJECTS)]
+        folder = os.path.join(args.out, 'projetos', p['slug'])
+        os.makedirs(folder, exist_ok=True)
+        opts = "{ preset: '%s', intro: 'page' }" % p.get('sakura', 'kosa')
+        write(os.path.join(folder, 'index.html'),
+              build_standalone('../../sakura-site.js', project_root(p, nxt), f"{p['titulo']} — Sitr3n", p['card'], opts))
     if args.dc:
         write(os.path.join(args.out, 'Main.dc.html'), build_dc(args.dc))
     print('ok')
