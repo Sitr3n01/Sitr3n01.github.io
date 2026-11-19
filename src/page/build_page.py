@@ -60,13 +60,15 @@ HERO = f'''
 MANIFESTO = f'''
 <section id="manifesto" data-sk-view="manifesto" style="position: relative; height: 1700px">
 <div style="position: sticky; top: 0; height: 100vh; display: flex; align-items: center; padding: 0 {PADX}; box-sizing: border-box">
-<p style="margin: 0; max-width: 17em; font-size: clamp(30px, 3.6vw, 54px); line-height: 1; letter-spacing: 0.006em; text-transform: uppercase; color: {INK}">{words("Do banco de dados à interface + da Unity ao multiplayer: código com olhar de fotógrafo.")}</p>
+<p style="margin: 0; max-width: 17em; font-size: clamp(30px, 3.6vw, 54px); line-height: 1; letter-spacing: 0.006em; text-transform: uppercase; color: {INK}">{words("Do sistema invisível à interface que encanta. Engenharia, design e movimento em cada detalhe.")}</p>
 </div>
 </section>'''
 
-STACK = [('Python', 'Back-end'), ('Django', 'Back-end'), ('FastAPI', 'Back-end'), ('React 18', 'Front-end'), ('PostgreSQL', 'Dados'),
-         ('Docker', 'Infra'), ('Unity 6', 'Jogos'), ('C#', 'Jogos'), ('Electron', 'Desktop'), ('Netcode (NGO)', 'Multiplayer')]
-cells = '\n'.join(f'''<div class="sk-cell" style="background-color: {PAPER}; min-height: 112px; padding: 19px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box">
+# cada item precisa aparecer em algum projeto do site; 10 itens = 2 linhas de 5 (ou 5 de 2), ver .sk-stack
+STACK = [('Python', 'Back-end'), ('Django + Wagtail', 'Web e CMS'), ('PostgreSQL', 'Dados'), ('Go', 'Servidores'),
+         ('llama.cpp + MCP', 'IA local'), ('C#', 'Jogos e desktop'), ('Unity 6', 'Jogos'), ('Netcode + EOS', 'Multiplayer'),
+         ('three.js + GSAP', 'Movimento'), ('Docker + CI', 'Infra')]
+cells = '\n'.join(f'''<div class="sk-cell" style="background-color: {PAPER}; min-width: 0; min-height: 112px; padding: 19px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box">
 <span style="font-size: 18px; line-height: 1.2">{E(n)}</span>
 <span class="sk-cap" style="{CAP}">{E(c)}</span>
 </div>''' for n, c in STACK)
@@ -76,17 +78,19 @@ ABOUT = f'''
 <div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 119px">
 <div data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-start">
 <div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 19px">
-<p style="margin: 0; font-size: 15px; line-height: 1.4; letter-spacing: 0.013em; text-transform: uppercase; max-width: 26em">Desenvolvedor full-stack e estudante de Jogos Digitais no IESB, em Brasília.</p>
+<p style="margin: 0; font-size: 15px; line-height: 1.4; letter-spacing: 0.013em; text-transform: uppercase; max-width: 26em">Desenvolvedor full-stack e formado em Jogos Digitais no IESB, em Brasília.</p>
 <a class="sk-link" href="https://github.com/Sitr3n01" style="align-self: flex-start; font-size: 15px; color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">GitHub ↗</a>
 </div>
 <div style="flex: 1 1 420px; max-width: 640px">
-<p style="margin: 0; font-size: 18px; line-height: 1.4; letter-spacing: 0.013em">Trabalho com Python, Django e FastAPI no back-end, React no front-end, PostgreSQL e Docker na base, e Unity com C# nos jogos. Passei seis meses no Brasília Game Hub, nos projetos Loopia e ExoBeast. Fora do código, fotografo.</p>
+<p style="margin: 0; font-size: 18px; line-height: 1.4; letter-spacing: 0.013em">Da lógica que sustenta um sistema à interface que o torna intuitivo, desenvolvo produtos digitais com atenção à técnica e à experiência. Atuo com web, desktop e jogos, com experiência nos projetos Loopia e ExoBeast durante seis meses no Brasília Game Hub. A fotografia amplia minha perspectiva sobre estética, composição e comunicação visual.</p>
 </div>
 </div>
 <div data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 19px; align-items: flex-start">
 <p style="flex: 0 0 140px; margin: 0; {CAP}">Stack<br>de trabalho</p>
-<div style="flex: 1 1 560px; min-width: 0; max-width: 1200px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 1px; background-color: {ASH}; border: 1px solid {ASH}">
+<div class="sk-cq" style="flex: 1 1 560px; min-width: 0; max-width: 1200px">
+<div class="sk-stack" style="display: flex; flex-wrap: wrap; gap: 1px; background-color: {ASH}; border: 1px solid {ASH}">
 {cells}
+</div>
 </div>
 </div>
 </div>
@@ -163,7 +167,7 @@ AREAS = f'''
 
 PATH_ROWS = [
     ('01', 'Brasília Game Hub', ['6 meses', 'Loopia', 'ExoBeast']),
-    ('02', 'IESB', ['Tecnólogo em Jogos Digitais', 'Conclusão prevista: 2027']),
+    ('02', 'IESB', ['Tecnólogo em Jogos Digitais', 'Concluído em 2026']),
     ('03', 'Game jams', ['2 participações']),
     ('04', 'IESB pittyday', ['2 edições', 'Várias categorias']),
     ('05', 'kelly_sys', ['Portal de notícias', 'No ar desde jun. 2026']),
@@ -435,6 +439,10 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 @container (min-width:740px){.sk-facts[data-c="2"]>.sk-fact{flex-basis:calc((100% - 2px) / 2)}.sk-facts[data-c="3"]>.sk-fact{flex-basis:calc((100% - 3px) / 3)}}
 @container (min-width:780px){.sk-stats[data-c="4"]>.sk-stat{flex-basis:calc((100% - 4px) / 4)}}
 @container (min-width:980px){.sk-facts[data-c="4"]>.sk-fact{flex-basis:calc((100% - 4px) / 4)}}
+/* stack de trabalho: 10 células em 1, 2 ou 5 por linha, sempre linhas cheias */
+.sk-stack>.sk-cell{flex:1 1 100%}
+@container (min-width:420px){.sk-stack>.sk-cell{flex-basis:calc((100% - 2px) / 2)}}
+@container (min-width:840px){.sk-stack>.sk-cell{flex-basis:calc((100% - 5px) / 5)}}
 .sk-fact,.sk-stat{min-width:0;background-color:#fff;padding:19px;display:flex;flex-direction:column;justify-content:space-between;gap:19px;box-sizing:border-box}
 .sk-fact{min-height:112px}.sk-stat{min-height:150px}
 .sk-fact-v{font-size:18px;line-height:1.3}
