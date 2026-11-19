@@ -6,7 +6,7 @@ sakura: koeda
 categoria: IA privada
 titulo: Local AI Provider
 card: Assistentes de programação com IA rodando no próprio computador. Código, conversas e senhas não saem da máquina.
-tags: IA privada · RAG · MCP
+tags: IA privada · MCP · LLM local
 papel: Projeto pessoal · arquitetura e desenvolvimento
 periodo: 2026
 status: Canary v2

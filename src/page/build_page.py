@@ -16,13 +16,11 @@ E = html.escape
 
 
 def letters(text):
-    out = []
-    for ch in text:
-        if ch == ' ':
-            out.append('<span style="display: inline-block; width: 0.28em"></span>')
-        else:
-            out.append(f'<span data-sk-letter="1" style="display: inline-block; will-change: transform">{E(ch)}</span>')
-    return ''.join(out)
+    """Uma letra por span (animadas uma a uma); as palavras ficam inteiras e separadas por espaço de verdade,
+    para a linha poder quebrar entre palavras em telas estreitas."""
+    letter = '<span data-sk-letter="1" style="display: inline-block; will-change: transform">{}</span>'
+    return ' '.join(f'<span style="display: inline-block; white-space: nowrap">{"".join(letter.format(E(ch)) for ch in w)}</span>'
+                    for w in text.split())
 
 
 def words(text):
@@ -49,11 +47,10 @@ def nav(base=''):
 </header>'''
 
 HERO = f'''
-<section id="inicio" data-sk-view="hero" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 96px {PADX} 76px; box-sizing: border-box">
-<h1 aria-label="Código, jogos e imagem." style="margin: 0; font-weight: 400; font-size: clamp(48px, 7.4vw, 112px); line-height: 0.8; letter-spacing: -0.015em; text-transform: uppercase; color: {INK}">
-<span aria-hidden="true" style="display: block; margin-left: 2%">{letters("CÓDIGO,")}</span>
-<span aria-hidden="true" style="display: block; margin-left: 42%; margin-top: 0.62em">{letters("JOGOS")}</span>
-<span aria-hidden="true" style="display: block; margin-left: 14%; margin-top: 0.62em">{letters("& IMAGEM.")}</span>
+<section id="inicio" data-sk-view="hero" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 96px {PADX} 96px; box-sizing: border-box">
+<h1 aria-label="Penso como artista. Construo como engenheiro." style="margin: 0; font-weight: 400; font-size: clamp(36px, 5.4vw, 96px); line-height: 0.96; letter-spacing: -0.015em; text-transform: uppercase; color: {INK}">
+<span aria-hidden="true" style="display: block">{letters("PENSO COMO ARTISTA.")}</span>
+<span aria-hidden="true" style="display: block">{letters("CONSTRUO COMO ENGENHEIRO.")}</span>
 </h1>
 </section>'''
 
@@ -135,16 +132,17 @@ WORK = f'''
 </div>
 </section>'''
 
-CHIPS = ['async def', 'SELECT *', 'useEffect()', 'docker compose up', 'FastAPI', 'Django ORM', 'React 18', 'PostgreSQL',
-         'NetworkObject', 'Unity 6', 'C#', 'EOS', 'RAG', 'MCP', 'embeddings', 'LLM local', 'Electron', 'SOUL.md',
-         'f/2.8', '1/250 s', 'ISO 400', '35 mm', '知', '獣', '光', '輪']
+# termos que aparecem nos projetos do site (web, IA local, XGB, jogos) + fotografia; a órbita espalha pelo
+# índice (ângulo áureo), então grupos vizinhos na lista não ficam juntos na tela
+CHIPS = ['Django 5.2', 'Go', 'Unity 6', 'WPF', 'f/2.8',
+         'Wagtail 7.4', 'llama.cpp', 'C#', 'DualSense', '1/250 s',
+         'SELECT *', 'MCP', 'NetworkObject', 'steam://', 'ISO 400',
+         'PostgreSQL', 'LLM local', 'EOS', 'HTMX', '35 mm',
+         'Django ORM', '127.0.0.1', 'FMOD', 'three.js', 'GSAP',
+         'docker compose up', '/v1/messages', 'NavMesh', 'CodeQL']
 
 
 def chip(t):
-    if len(t) == 1:
-        return (f'<span data-sk-chip="1" aria-hidden="true" style="position: absolute; left: 0; top: 0; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; '
-                f'background-color: {PAPER}; background-image: linear-gradient(to right, {PARCH} 1px, transparent 1px), linear-gradient(to bottom, {PARCH} 1px, transparent 1px); background-size: 8px 8px; '
-                f'border: 1px solid {ASH}; font-family: {JP}; font-size: 30px; color: {INK}">{t}</span>')
     return (f'<span data-sk-chip="1" aria-hidden="true" style="position: absolute; left: 0; top: 0; display: block; padding: 8px 12px; background-color: {PAPER}; border: 1px solid {ASH}; '
             f'font-family: {MONO}; font-size: 12px; line-height: 1.2; white-space: nowrap; color: {INK}">{E(t)}</span>')
 
@@ -169,8 +167,7 @@ PATH_ROWS = [
     ('01', 'Brasília Game Hub', ['6 meses', 'Loopia', 'ExoBeast']),
     ('02', 'IESB', ['Tecnólogo em Jogos Digitais', 'Concluído em 2026']),
     ('03', 'Game jams', ['2 participações']),
-    ('04', 'IESB pittyday', ['2 edições', 'Várias categorias']),
-    ('05', 'kelly_sys', ['Portal de notícias', 'No ar desde jun. 2026']),
+    ('04', 'Komuniki e Blog da Kelly', ['Dois sites para um cliente real', 'No ar desde jun. 2026']),
 ]
 rows = '\n'.join(f'''<li class="sk-row" data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 8px 19px; align-items: flex-start; padding: 30px 0; border-top: 1px solid {ASH}">
 <span style="flex: 0 0 48px; {CAP}">{n}</span>

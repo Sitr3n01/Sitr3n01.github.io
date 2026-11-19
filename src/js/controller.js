@@ -16,7 +16,7 @@ const BAND_CH = ':+*';
 
 const VIEWS = {
   //        câmera (z, foco no centro das flores → posição na tela sx/sy)      zona de respiro                         opacidade
-  hero:      { cam: { id: true },                     safe: { x: 0.40, y: 0.52, rx: 0.40, ry: 0.36, s: 0.42 }, alpha: 1.00 },
+  hero:      { cam: { id: true },                     safe: { x: 0.40, y: 0.78, rx: 0.44, ry: 0.22, s: 0.42 }, alpha: 1.00 },
   manifesto: { cam: { z: 1.75, sx: 0.80, sy: 0.50 },  safe: { x: 0.34, y: 0.50, rx: 0.40, ry: 0.36, s: 0.90 }, alpha: 1.00 },
   about:     { cam: { z: 2.20, sx: 0.96, sy: 0.40 },  safe: { x: 0.40, y: 0.52, rx: 0.62, ry: 0.56, s: 0.93 }, alpha: 0.85 },
   work:      { cam: { z: 1.35, sx: 0.28, sy: 0.55 },  safe: { x: 0.50, y: 0.50, rx: 0.60, ry: 0.60, s: 0.45 }, alpha: 0.70 },
@@ -55,7 +55,13 @@ function mount(root, options) {
     sx: R.uniform(-140, 140), sy: R.uniform(-380, -60), sr: R.uniform(-30, 30), fade: R.uniform(0.05, 0.6),
   }));
   const Wd = words.map((_, i) => ({ off: (i % 2 ? -1 : 1) * R.uniform(28, 96), d: 0.04 + 0.34 * i / Math.max(1, words.length - 1) + R.uniform(0, 0.05) }));
-  const Ch = chips.map((_, i) => ({ a: i * 2.39996, rad: R.uniform(0.72, 1.18), lift: R.uniform(-0.35, 0.35), spd: R.uniform(0.08, 0.16), out: R.uniform(1.8, 3.4) }));
+
+  const Ch = chips.map((_, i) => ({ a: i * 2.39996, rad: R.uniform(0.72, 1.18), lift: R.uniform(-0.35, 0.35), spd: R.uniform(0.08, 0.16), out: R.uniform(1.8, 3.4),
+    ox: 0, oy: 0, w: 0, h: 0 }));
+  // tamanhos dos chips (sem transform), lidos uma vez e de novo quando as fontes carregam
+  const sizeChips = () => chips.forEach((el, n) => { Ch[n].w = el.offsetWidth; Ch[n].h = el.offsetHeight; });
+  let orbitT = 0;
+  if (chips.length && document.fonts && document.fonts.ready) document.fonts.ready.then(sizeChips);
 
   const t0 = performance.now();
   let raf = 0, dead = false;
@@ -167,16 +173,42 @@ function mount(root, options) {
       const inView = st + vh > top && st < top + h;
       if (inView) cam.z = lerp(cam.z, 2.7, e);
       const rx = Math.min(vw * 0.38, 620), ry = rx * 0.46, spin = reduce ? 0 : t;
-      chips.forEach((el, n) => {
-        const c = Ch[n], a = c.a + spin * c.spd + q * 1.4;
-        const z = Math.sin(a), depth = (z + 1) / 2;
-        const out = 1 + e * c.out;
-        const x = Math.cos(a) * rx * c.rad * out, y = (z * ry * 0.55 + c.lift * ry) * c.rad * out;
-        const sc = (0.78 + 0.62 * depth) * (1 + 0.6 * e);
-        el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%) scale(${sc.toFixed(3)})`;
-        el.style.opacity = String(((0.55 + 0.45 * depth) * (1 - e)).toFixed(3));
-        el.style.zIndex = String(Math.round(depth * 100));
-      });
+      if (inView) {
+        if (!Ch[0].w) sizeChips();
+        // posição da órbita + um desvio (ox, oy) que afasta chips sobrepostos: a cada quadro, cada par que se
+        // toca é separado pelo eixo mais curto (metade para cada um, em duas passadas, para resolver grupos), com
+        // no máximo 240 px/s de deslocamento para não dar salto; o desvio volta devagar a zero (1% a cada 1/60 s)
+        // quando fica livre. Medido em tempo, não em quadros, para valer igual em qualquer fps.
+        const dt = clamp(t - orbitT, 0, 0.1);
+        orbitT = t;
+        const maxMove = 240 * dt, keep = Math.pow(0.99, dt * 60);
+        const P = chips.map((el, n) => {
+          const c = Ch[n], a = c.a + spin * c.spd + q * 1.4;
+          const z = Math.sin(a), depth = (z + 1) / 2, out = 1 + e * c.out;
+          const sc = (0.78 + 0.62 * depth) * (1 + 0.6 * e);
+          return { x: Math.cos(a) * rx * c.rad * out, y: (z * ry * 0.55 + c.lift * ry) * c.rad * out, sc, depth,
+            hw: c.w * sc / 2 + 6, hh: c.h * sc / 2 + 6 };
+        });
+        for (let pass = 0; pass < 2; pass++) {
+          for (let i = 0; i < P.length; i++) {
+            for (let j = i + 1; j < P.length; j++) {
+              const A = P[i], B = P[j], ci = Ch[i], cj = Ch[j];
+              const dx = (B.x + cj.ox) - (A.x + ci.ox), dy = (B.y + cj.oy) - (A.y + ci.oy);
+              const px = A.hw + B.hw - Math.abs(dx), py = A.hh + B.hh - Math.abs(dy);
+              if (px <= 0 || py <= 0) continue;
+              if (px < py) { const d = Math.min(px / 2, maxMove) * (dx < 0 ? -1 : 1); ci.ox -= d; cj.ox += d; }
+              else { const d = Math.min(py / 2, maxMove) * (dy < 0 ? -1 : 1); ci.oy -= d; cj.oy += d; }
+            }
+          }
+        }
+        chips.forEach((el, n) => {
+          const c = Ch[n], p = P[n];
+          c.ox *= keep; c.oy *= keep;
+          el.style.transform = `translate3d(${(p.x + c.ox).toFixed(1)}px, ${(p.y + c.oy).toFixed(1)}px, 0) translate(-50%, -50%) scale(${p.sc.toFixed(3)})`;
+          el.style.opacity = String(((0.55 + 0.45 * p.depth) * (1 - e)).toFixed(3));
+          el.style.zIndex = String(Math.round(p.depth * 100));
+        });
+      }
       orbitLabels.forEach(el => { el.style.opacity = String(1 - e); });
     }
 
