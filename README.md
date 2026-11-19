@@ -64,7 +64,7 @@ Gera também `dist/Main.dc.html` (artboard com propriedades `preset`, `kanji` e 
 Cada projeto é um arquivo em `src/content/projetos/` (a ordem vem do campo `ordem`). Ele gera o card da home e a
 página `projetos/<slug>/`. O front matter tem `slug`, `ordem`, `kanji`, `sakura` (preset da árvore da página),
 `categoria`, `titulo`, `card` (texto curto do card), `tags`, `papel`, `periodo`, `status`, `stack` (separada por
-vírgulas), `repo`, `site` e, opcionalmente, `youtube` (ID do vídeo). O corpo é Markdown: o texto antes da primeira
+vírgulas), `repo`, `site` (um ou mais endereços, separados por vírgula) e, opcionalmente, `youtube` (ID do vídeo). O corpo é Markdown: o texto antes da primeira
 `## seção` vira o lead; a seção `## Em números` vira uma grade de destaques (`- **valor** rótulo`).
 
 **Vídeo de apresentação:** coloque `src/assets/projetos/<slug>/apresentacao.mp4` (ou `.webm`) e, se quiser, uma capa

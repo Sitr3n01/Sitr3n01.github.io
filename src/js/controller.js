@@ -140,6 +140,16 @@ function mount(root, options) {
     }
     return items;
   }
+  // clique no "Scroll": desce até o começo da próxima seção (ou até o fim, se não houver outra). Nas páginas de projeto,
+  // o vídeo e cada bloco com título (.sk-sec) também são paradas, com folga para o título não ficar sob a barra do topo;
+  // paradas a menos de 120 px da anterior se juntam, para nenhum clique andar quase nada
+  const nextSection = () => {
+    const stops = [...sections.map(topOf), ...$$('.sk-video, .sk-sec').map(el => topOf(el) - 140)].sort((a, b) => a - b)
+      .filter((t, i, a) => i === 0 || t - a[i - 1] >= 120);
+    const st = scroller.scrollTop, next = stops.find(t => t > st + 24);
+    scroller.scrollTo({ top: next != null ? next : scroller.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+  };
+  if (hint) hint.addEventListener('click', nextSection);
   const skipEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
   skipEvents.forEach(ev => window.addEventListener(ev, skip, { passive: true }));
 
@@ -286,7 +296,12 @@ function mount(root, options) {
       }
     });
 
-    if (hint) hint.style.opacity = String(1 - clamp(st / 140, 0, 1));
+    // "Scroll": fica enquanto houver o que rolar abaixo; no fim da página some e deixa de ser clicável
+    if (hint) {
+      const more = st + vh < scroller.scrollHeight - 4;
+      hint.style.opacity = more ? '1' : '0';
+      hint.style.pointerEvents = more ? '' : 'none';
+    }
   }
   raf = requestAnimationFrame(tick);
 
@@ -297,6 +312,7 @@ function mount(root, options) {
       dead = true; cancelAnimationFrame(raf); glass.destroy(); engine.destroy();
       skipEvents.forEach(ev => window.removeEventListener(ev, skip));
       window.removeEventListener('pagehide', onHide); videos.destroy(); ascii.destroy();
+      if (hint) hint.removeEventListener('click', nextSection);
     },
   };
 }

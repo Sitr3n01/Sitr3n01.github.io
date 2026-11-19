@@ -205,11 +205,12 @@ CONTACT = f'''
 </footer>
 </section>'''
 
-# "Scroll" centralizado na base, com a seta descendo e subindo (para em prefers-reduced-motion)
-HINT = f'''<div data-sk-hint="1" data-sk-ui="3" aria-hidden="true" class="sk-hint">
+# "Scroll" centralizado na base, com a seta descendo e subindo (para em prefers-reduced-motion). É um botão: cada
+# clique desce até o começo da próxima seção; some no fim da página (controller.js)
+HINT = f'''<button type="button" data-sk-hint="1" data-sk-ui="3" class="sk-hint" aria-label="Ir para a próxima seção">
 <span style="{CAP}; color: {INK}">Scroll</span>
-<svg class="sk-hint-arrow" width="14" height="22" viewBox="0 0 14 22" fill="none" stroke="{INK}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v19M1.5 14.5 7 20l5.5-5.5"/></svg>
-</div>'''
+<svg class="sk-hint-arrow" width="14" height="22" viewBox="0 0 14 22" fill="none" stroke="{INK}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 1v19M1.5 14.5 7 20l5.5-5.5"/></svg>
+</button>'''
 
 # WhatsApp fixo no canto inferior direito (fora do scroller, como a nav), em vidro líquido. A logo é
 # monocromática, na tinta do site: a paleta não tem o verde da marca. Abre a conversa com a mensagem pronta.
@@ -306,9 +307,11 @@ def project_body(p, nxt):
     links = []
     if p.get('repo'):
         links.append(f'<a class="sk-seg" href="{E(p["repo"])}" rel="noopener">Repositório <span class="sk-seg-sub">GitHub</span> ↗</a>')
-    if p.get('site'):
-        host = p['site'].split('//', 1)[-1].split('/', 1)[0]
-        links.append(f'<a class="sk-seg" href="{E(p["site"])}" rel="noopener">Site <span class="sk-seg-sub">{E(host)}</span> ↗</a>')
+    for site in (u.strip() for u in p.get('site', '').split(',')):  # um ou mais sites, separados por vírgula
+        if not site:
+            continue
+        host = site.split('//', 1)[-1].split('/', 1)[0]
+        links.append(f'<a class="sk-seg" href="{E(site)}" rel="noopener">Site <span class="sk-seg-sub">{E(host)}</span> ↗</a>')
     # um link só: botão de vidro avulso, que cresce e gira o reflexo no hover (num trilho, a lente já estaria parada
     # nele e nada mudaria). A entrada (data-sk-reveal) fica no invólucro, para o transform dela não travar o hover.
     if len(links) == 1:
@@ -533,7 +536,10 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 @media (max-width:1023px){.sk-wa-wrap{bottom:22px}.sk-wa{padding:13px}.sk-footblur{padding-right:calc(clamp(19px,4vw,76px) + 76px)}}
 
 /* ---- indicador de scroll: centro da base, seta animada ---- */
-.sk-hint{position:absolute;left:50%;width:120px;margin:0 0 0 -60px;bottom:22px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.sk-hint{position:absolute;left:50%;width:120px;margin:0 0 0 -60px;bottom:22px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer}
+.sk-hint:focus-visible{outline:2px solid #1d1d1d;outline-offset:6px;border-radius:10px}
+.sk-hint:hover .sk-hint-arrow{animation-duration:.9s}
 .sk-hint::before{content:"";position:absolute;inset:-26px -34px -14px;z-index:-1;border-radius:50%;
   background:radial-gradient(closest-side,rgba(229,228,224,.92) 35%,rgba(229,228,224,0));
   -webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);

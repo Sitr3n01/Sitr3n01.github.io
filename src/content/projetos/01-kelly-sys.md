@@ -12,7 +12,7 @@ periodo: No ar desde junho de 2026
 status: Em produção
 stack: Python, Django 5.2, Wagtail 7.4, PostgreSQL, HTMX, Alpine.js, Tailwind CSS, three.js, GSAP, Docker, Nginx, GitHub Actions
 repo: https://github.com/Sitr3n01/news_portal
-site: https://kellyfarias.com.br/news/
+site: https://kellyfarias.com.br/news/, https://komuniki.com.br
 ---
 
 Dois sites em produção para um cliente real: a [Komuniki](https://komuniki.com.br), escola de comunicação e artes, e o [Blog da Kelly](https://kellyfarias.com.br/news/), portal de notícias. Construí os dois sobre uma única base e cuido de tudo, do código ao servidor, desde junho de 2026.
