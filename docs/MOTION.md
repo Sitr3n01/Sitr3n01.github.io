@@ -18,6 +18,8 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
   que marca o item ativo é o único elemento com sombra, e seus reflexos de borda reutilizam as cores do gradiente
   das flores, em pontos pequenos. Fora desses elementos, valem as regras acima.
 - **Única fonte monoespaçada:** a arte ASCII do canvas (JetBrains Mono + Noto Sans JP para os kanji).
+- **Cards dos projetos:** objetos em ASCII denso, só tinta (`#1d1d1d` → `#bfbebe`), sem o gradiente das flores. Os glifos
+  `· + × ✚ ✳ ■` são desenhados como pixels numa grade de 6 px, 4 × 4 por quadrado do quadriculado de 24 px do card.
 
 ## Estrutura
 
@@ -30,7 +32,7 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
 ├─ header (nav fixa) · [data-sk-hint] "SCROLL ↓"   [data-sk-ui]: entram depois da abertura
 ```
 
-`SakuraSite.mount(root, { preset, kanji, wind })` liga tudo e devolve `{ engine, update(), destroy() }`.
+`SakuraSite.mount(root, { preset, kanji, wind })` liga tudo e devolve `{ engine, ascii, update(), destroy() }`.
 
 ## Dinâmicas (o que a referência faz → como está implementado)
 
@@ -50,7 +52,8 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
 | 12 | "SCROLL" some ao rolar | Opacidade = 1 − scroll/140 | `data-sk-hint` |
 | 13 | Lista de prêmios com linhas finas | Lista com hairlines; no hover o título desliza 19px | `.sk-row` |
 | 14 | Navegação em vidro líquido (segmented control com lente) | Trilho fosco com uma lente que desliza até o item ativo (mola `cubic-bezier(.3,1.45,.5,1)` em 0,62 s), estica no sentido do movimento por 170 ms e gira o reflexo iridescente da borda (`--rim`). Na nav, a lente segue a seção que cruza 40% da tela; no contato, descansa no primeiro link | `data-sk-glass`, `.sk-lens`, `.sk-seg`, `.sk-lens-btn`; `src/js/glass.js` |
-| 15 | Página de cada projeto | Card da home vira link (a área toda é clicável; "Ver projeto +"). A navegação usa View Transitions entre documentos: o kanji e o título do card voam até a página (0,6 s); sem suporte, troca normal. A página tem a própria sakura (preset `sakura` do projeto) e só a árvore crescendo na entrada (1,1 s). Câmera: `proj` (hero), `projbody` (vídeo e texto, árvore mais fraca, alpha 0,5) e `projnext`. Vídeo 16:9 com botão de vidro; "Próximo projeto" leva o kanji do seguinte. "Voltar" restaura a rolagem da home; âncoras (`#projetos`) chegam sem abertura | `src/content/projetos/*.md`, `project_body()` no gerador, `src/js/video.js`, `view-transition-name: sk-glyph-*` / `sk-title-*` |
+| 15 | Página de cada projeto | Card da home vira link (a área toda é clicável; "Ver projeto +"). A navegação usa View Transitions entre documentos: o palco ASCII e o título do card voam até a página (0,6 s); sem suporte, troca normal. A página tem a própria sakura (preset `sakura` do projeto) e só a árvore crescendo na entrada (1,1 s). Câmera: `proj` (hero), `projbody` (vídeo e texto, árvore mais fraca, alpha 0,5) e `projnext`. Vídeo 16:9 com botão de vidro; "Próximo projeto" leva o kanji do seguinte. "Voltar" restaura a rolagem da home; âncoras (`#projetos`) chegam sem abertura | `src/content/projetos/*.md`, `project_body()` no gerador, `src/js/video.js`, `view-transition-name: sk-glyph-*` / `sk-title-*` |
+| 16 | Objetos em ASCII denso nos cards (referência: flor em glifos densos) | Cada card tem um palco (`.sk-ascii`) com os objetos do projeto: uma nuvem de pontos (mesmo N em todas as formas; o ponto i de uma vira o ponto i da outra) que gira no próprio eixo, se desfaz e se remonta como o objeto seguinte, em loop. Todos os cards seguem um relógio só (guardado na sessão, vale também nas páginas de projeto) e todas as formas têm o mesmo tempo (3,2 s parada + 2,1 s de troca; 3 formas por projeto, ciclo de 15,9 s): os cinco trocam de objeto no mesmo instante. Por quadro: rotação → projeção na grade → z-buffer por célula → luz (normal · L) → glifo por dither ordenado. Quando um card aparece, o que o relógio mostra naquele momento brota de baixo para cima. Trocas por projeto: News Portal (microfone RCA 44 → Terra → tsuru; o microfone se desfaz em ondas), Local AI Provider (gabinete → placa de vídeo → cadeado; as partículas batem numa esfera invisível e voltam), XGB (monitor com a barra → controle → símbolos), Loopia (carta → anel de ilhas gerado de novo a cada volta, com o herói andando nele; as ilhas se montam na ordem do anel), ExoBeast (jogadores fora de fase → rede com o host, em sincronia → torre). Mouse em cima do card acelera o giro. O palco tem o mesmo `view-transition-name` do quadro da página do projeto, que mostra a mesma animação no mesmo relógio e com o mesmo ângulo. Só anima o que está na tela; aba oculta pausa; `prefers-reduced-motion` mostra um quadro parado. Custo: ~2–4 ms por card visível | `src/js/ascii.js` (motor), `src/js/ascii-forms.js` (formas, `ASC_PROJECTS`), `data-sk-ascii`, `data-sk-ascii-src`, `src/assets/ascii/` |
 
 Além da referência, a sakura também tem: vento com rajadas, pétalas que se soltam (kana ヽゝ゜さくら),
 blocos de glitch nas flores e caracteres que se embaralham perto do cursor.
@@ -67,5 +70,5 @@ blocos de glitch nas flores e caracteres que se embaralham perto do cursor.
 
 - Trocar `[SEU E-MAIL]` e conferir os textos.
 - Licenciar a Ataero Retina ou manter a Inter.
-- Imagens reais dos projetos, se quiser (hoje cada card tem um kanji).
+- Os kanji ainda aparecem no link "Próximo projeto" e no quadro de vídeo vazio das páginas de projeto.
 - Celular em pé: a composição da sakura fica mais esparsa, porque a cena é gerada para a proporção da tela.

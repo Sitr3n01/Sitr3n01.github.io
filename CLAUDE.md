@@ -15,7 +15,8 @@ Portfólio estático (pt-BR) com fundo de sakura em ASCII. Sem dependências de 
   `CHIPS`, `PATH_ROWS` guardam o conteúdo). Escape texto com `E()`.
 - Projetos vêm de `src/content/projetos/*.md` (ver README, seção Projetos): um arquivo gera o card da home e a
   página `projetos/<slug>/`. Não invente fatos sobre os projetos; use `[preencher]` quando faltar informação.
-- `src/js/*.js` são concatenados em um IIFE na ordem core → engine → glass → controller (`scripts/build.mjs`).
+- `src/js/*.js` são concatenados em um IIFE na ordem core → engine → glass → video → ascii → ascii-forms → controller
+  (`scripts/build.mjs`).
   Não use `import`/`export` neles; tudo de topo é compartilhado entre eles.
 - O JS se liga à marcação por atributos `data-sk-*`. Ao renomear/remover um, atualize os dois lados e o
   `scripts/check.mjs`.
@@ -23,5 +24,6 @@ Portfólio estático (pt-BR) com fundo de sakura em ASCII. Sem dependências de 
   gradiente só nas flores, uma família tipográfica (Inter), raio 0 em cards, 10px em links/pílulas, sem sombras
   (exceção: os elementos de vidro líquido da nav e do contato, ver MOTION.md).
   Respeite `prefers-reduced-motion` e mantenha `aria-hidden` nos elementos decorativos.
-- Desempenho: o motor roda a 30 fps (~7 ms/quadro). Evite trabalho por quadro que não seja por célula.
+- Desempenho: o motor roda a 30 fps (~7 ms/quadro). Evite trabalho por quadro que não seja por célula. Os cards em ASCII
+  (`ascii.js`) só desenham quando estão na tela; cada um custa ~2–4 ms por quadro.
 - Fim de linha LF, UTF-8, 2 espaços (4 no Python).

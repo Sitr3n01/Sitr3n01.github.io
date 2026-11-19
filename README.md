@@ -33,9 +33,12 @@ src/
   js/engine.js         motor ASCII: renderização, vento, pétalas, glitch, câmera
   js/glass.js          vidro líquido: lente deslizante da nav e do contato
   js/video.js          player do vídeo de apresentação (local ou YouTube)
+  js/ascii.js          objetos dos projetos em ASCII denso: nuvem de pontos, morph e desenho na grade do card
+  js/ascii-forms.js    as formas de cada projeto (geradas em código; microfone e tsuru vêm de assets/ascii/)
   js/controller.js     dinâmicas de scroll por seção (tabela VIEWS) e mount()
   assets/              imagens/arquivos estáticos → copiados para dist/assets/
     projetos/<slug>/   apresentacao.mp4 (ou .webm) e poster.jpg de cada projeto
+    ascii/             modelos do news_portal usados no card do News Portal (RCA 44, tsuru, máscara da Terra)
 scripts/
   build.mjs            src/ → dist/
   dev.mjs              servidor local com live reload
@@ -44,8 +47,8 @@ docs/MOTION.md         especificação de design e movimento
 dist/                  saída gerada (não versionada, não editar)
 ```
 
-`dist/sakura-site.js` é a concatenação de `core.js` → `engine.js` → `glass.js` → `controller.js` dentro de um IIFE que
-expõe `window.SakuraSite = { mount, createSakuraBackground, PRESETS }`. Os arquivos compartilham o mesmo
+`dist/sakura-site.js` é a concatenação de `core.js` → `engine.js` → `glass.js` → `video.js` → `ascii.js` → `ascii-forms.js` →
+`controller.js` dentro de um IIFE que expõe `window.SakuraSite = { mount, mountAscii, createSakuraBackground, PRESETS }`. Os arquivos compartilham o mesmo
 escopo, então a ordem importa e nomes de topo não podem colidir.
 
 ### Variante para o canvas de Design

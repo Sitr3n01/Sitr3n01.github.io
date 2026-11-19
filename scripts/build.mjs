@@ -1,6 +1,6 @@
 // Gera dist/ a partir de src/:
 //   dist/index.html      ← src/page/build_page.py (marcação + CSS)
-//   dist/sakura-site.js  ← src/js/{core,engine,controller}.js num IIFE que expõe window.SakuraSite
+//   dist/sakura-site.js  ← src/js/{core,engine,glass,video,ascii,ascii-forms,controller}.js num IIFE que expõe window.SakuraSite
 //   dist/assets/         ← cópia de src/assets/ (se existir)
 // Uso: node scripts/build.mjs [--dc <script_url>]
 import { spawnSync } from 'node:child_process';
@@ -13,7 +13,7 @@ export const SRC = join(ROOT, 'src');
 export const DIST = join(ROOT, 'dist');
 
 // Ordem importa: os arquivos compartilham o mesmo escopo dentro do IIFE.
-const JS_PARTS = ['core.js', 'engine.js', 'glass.js', 'video.js', 'controller.js'];
+const JS_PARTS = ['core.js', 'engine.js', 'glass.js', 'video.js', 'ascii.js', 'ascii-forms.js', 'controller.js'];
 
 const HEADER = `/*!
  * sakura-site.js — fundo de sakura em ASCII + dinâmicas de scroll do portfólio (sem dependências)
@@ -24,7 +24,7 @@ const HEADER = `/*!
 'use strict';
 `;
 const FOOTER = `
-global.SakuraSite = { mount, createSakuraBackground, PRESETS };
+global.SakuraSite = { mount, mountAscii, createSakuraBackground, PRESETS };
 })(typeof window !== 'undefined' ? window : this);
 `;
 

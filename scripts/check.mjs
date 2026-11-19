@@ -42,9 +42,16 @@ for (const slug of slugs) {
   ok(page.includes('data-sk-view="proj"') && page.includes('data-sk-view="projbody"') && page.includes('data-sk-video'),
     `projetos/${slug}/ existe e tem hero, corpo e vídeo`);
   ok(page.includes(`view-transition-name: sk-glyph-${slug}`) && html1.includes(`view-transition-name: sk-glyph-${slug}`),
-    `transição do kanji de ${slug} nos dois lados`);
+    `transição do palco ASCII de ${slug} nos dois lados`);
+  ok(html1.includes(`data-sk-ascii="${slug}"`) && page.includes(`data-sk-ascii="${slug}"`) && js1.includes(`'${slug}': {`),
+    `objetos em ASCII de ${slug} no card, na página e em ASC_PROJECTS`);
   if (page.includes('sk-video-empty')) pend.push(`${slug}: sem vídeo (src/assets/projetos/${slug}/apresentacao.mp4)`);
   if (page.includes('class="sk-pending"')) pend.push(`${slug}: texto com [preencher]`);
+}
+
+for (const f of ['rca44-geometry.glb', 'tsuru.glb', 'land-mask-640x320.bin']) {
+  let n = 0; try { n = readFileSync(join(DIST, 'assets', 'ascii', f)).length; } catch { /* falta */ }
+  ok(n > 0, `assets/ascii/${f}`);
 }
 
 build();

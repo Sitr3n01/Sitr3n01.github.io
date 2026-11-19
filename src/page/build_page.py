@@ -96,6 +96,13 @@ ABOUT = f'''
 PROJECTS = load_projects()
 
 
+def ascii_stage(slug, base, style):
+    """Palco dos objetos do projeto em ASCII (src/js/ascii.js). O nome de transição é o mesmo no card e na página
+    do projeto: o palco voa de um para o outro e continua girando de onde parou."""
+    return (f'<div class="sk-ascii" data-sk-ascii="{slug}" data-sk-ascii-src="{base}assets/ascii/" aria-hidden="true" '
+            f'style="{style}; view-transition-name: sk-glyph-{slug}; view-transition-class: sk-ascii"><canvas></canvas></div>')
+
+
 def card(p):
     slug = p['slug']
     return f'''<article class="sk-card" data-sk-reveal="1" style="background-color: {PAPER}; background-image: linear-gradient(to right, {PARCH} 1px, transparent 1px), linear-gradient(to bottom, {PARCH} 1px, transparent 1px); background-size: 24px 24px; min-height: 560px; padding: 30px; box-sizing: border-box; display: flex; flex-direction: column; gap: 19px">
@@ -103,9 +110,7 @@ def card(p):
 <span style="{CAP}">{E(p['cap'])}</span>
 <span class="sk-open" aria-hidden="true" style="{CAP}; display: inline-flex; align-items: center; gap: 10px">Ver projeto <span class="sk-plus" style="font-size: 24px; line-height: 1; display: inline-block">+</span></span>
 </div>
-<div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 220px">
-<span class="sk-glyph" aria-hidden="true" style="font-family: {JP}; font-size: clamp(120px, 13vw, 210px); line-height: 1; color: {INK}; display: inline-block; view-transition-name: sk-glyph-{slug}">{p['kanji']}</span>
-</div>
+{ascii_stage(slug, '', 'flex: 1 1 auto; min-height: 340px; margin: 0 -30px')}
 <h3 style="margin: 0; font-weight: 400; font-size: clamp(34px, 3.2vw, 46px); line-height: 1; letter-spacing: 0.006em"><a class="sk-card-link" href="projetos/{slug}/" data-sk-project="{slug}"><span style="display: inline-block; view-transition-name: sk-title-{slug}">{E(p['titulo'])}</span></a></h3>
 <p style="margin: 0; font-size: 15px; line-height: 1.4; max-width: 34em">{E(p['card'])}</p>
 <p style="margin: 0; {CAP}">{E(p['tags'])}</p>
@@ -302,7 +307,7 @@ def project_body(p, nxt):
 <div class="sk-lead">{p['lead']}</div>
 <p style="margin: 0; {CAP}">{E(p['tags'])}</p>
 </div>
-<div class="sk-tile" style="{GRID_BG}" aria-hidden="true"><span style="font-family: {JP}; font-size: clamp(110px, 13vw, 210px); line-height: 1; display: inline-block; view-transition-name: sk-glyph-{slug}">{p['kanji']}</span></div>
+<div class="sk-tile" style="{GRID_BG}" aria-hidden="true">{ascii_stage(slug, base, 'position: absolute; inset: 0')}</div>
 </div>
 </section>
 <section id="detalhes" data-sk-view="projbody" style="position: relative; padding: 46px {PADX} 119px">
@@ -353,7 +358,6 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-link:hover{{text-decoration:underline;text-underline-offset:4px}}
 .sk-pill{{transition:background-color .25s ease,color .25s ease}}.sk-pill:hover{{background-color:{INK};color:{PARCH}}}
 .sk-card .sk-plus{{transition:transform .45s cubic-bezier(.2,.7,.2,1)}}.sk-card:hover .sk-plus{{transform:rotate(90deg)}}
-.sk-card .sk-glyph{{transition:transform .7s cubic-bezier(.2,.7,.2,1)}}.sk-card:hover .sk-glyph{{transform:translateY(-8px) scale(1.05)}}
 .sk-cell{{transition:background-color .25s ease,color .25s ease}}.sk-cell:hover{{background-color:{INK}!important;color:{PARCH}}}
 .sk-cap{{color:#5f5f5d}}.sk-cell:hover .sk-cap{{color:{ASH}}}
 .sk-row .sk-row-t{{transition:transform .45s cubic-bezier(.2,.7,.2,1)}}.sk-row:hover .sk-row-t{{transform:translateX(19px)}}
@@ -410,6 +414,12 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 /* ---- transição entre páginas: kanji e título do card voam até a página do projeto ---- */
 @view-transition{navigation:auto}
 ::view-transition-group(*){animation-duration:.6s;animation-timing-function:cubic-bezier(.2,.7,.2,1)}
+/* o palco do card é largo e o da página é quadrado: as duas imagens ficam inteiras e centradas durante o voo */
+::view-transition-old(*.sk-ascii),::view-transition-new(*.sk-ascii){width:100%;height:100%;object-fit:contain}
+
+/* ---- objetos dos projetos em ASCII (canvas por cima do quadriculado do card) ---- */
+.sk-ascii{position:relative;display:block}
+.sk-ascii canvas{position:absolute;left:0;top:0;display:block;pointer-events:none}
 @media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
 
 /* ---- cards da home viram links ---- */
@@ -423,7 +433,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 /* ---- página de projeto ---- */
 .sk-lead{max-width:34em;font-size:clamp(18px,1.6vw,22px);line-height:1.4;letter-spacing:.006em}
 .sk-lead p{margin:0}
-.sk-tile{flex:0 0 auto;width:clamp(180px,24vw,340px);aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:1px solid #bfbebe;box-sizing:border-box}
+.sk-tile{position:relative;flex:0 0 auto;width:clamp(180px,24vw,340px);aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:1px solid #bfbebe;box-sizing:border-box}
 /* flex com quebra: cada linha estica as células até fechar a largura, então o fundo (as linhas de 1px)
    nunca aparece como célula vazia. data-c = células por linha com espaço (grid_attrs); a largura do
    contêiner (.sk-cq) decide entre 1, 2 (só contagens pares, data-pair) e data-c por linha */
