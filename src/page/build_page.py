@@ -332,7 +332,7 @@ def project_root(p, nxt):
 </div>'''
 
 
-JP_CHARS = '桜木林森さくらヽゝ゜知報獣輪光使'
+JP_CHARS = '桜木林森さくらヽゝ゜' + ''.join(dict.fromkeys(p['kanji'] for p in PROJECTS))
 FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">\n'
          f'<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400&amp;text={urllib.parse.quote(JP_CHARS)}&amp;display=swap" rel="stylesheet">')
 CSS = f'''body{{margin:0;background:{PARCH}}}
