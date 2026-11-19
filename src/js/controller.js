@@ -60,18 +60,23 @@ function mount(root, options) {
   const t0 = performance.now();
   let raf = 0, dead = false;
 
-  // home: primeira visita da sessão → abertura completa; depois → recuo curto. ?intro=full força a completa.
-  // Páginas de projeto, chegada por âncora (#projetos) ou botão "voltar" → só a árvore crescendo.
+  // home: primeira visita da sessão e F5 → abertura completa (o F5 recomeça do topo); voltar à home navegando
+  // dentro do site → recuo curto. ?intro=full força a completa.
+  // Páginas de projeto, chegada por âncora (#projetos; #inicio não conta, é o topo) ou botão "voltar" → só a árvore crescendo.
   const store = (k, v) => { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { /* sem storage */ } return null; };
   const navType = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0] || {}).type;
   const scrollKey = 'sk-scroll:' + location.pathname, saved = navType === 'back_forward' ? store(scrollKey) : null;
-  const hashEl = location.hash.length > 1 ? root.querySelector('#' + CSS.escape(decodeURIComponent(location.hash.slice(1)))) : null;
   let mode = o.intro === undefined ? 'home' : o.intro;
+  const reload = mode === 'home' && navType === 'reload';
+  if (reload && location.hash) history.replaceState(history.state, '', location.pathname + location.search);
+  const hashId = location.hash.length > 1 ? decodeURIComponent(location.hash.slice(1)) : '';
+  const hashEl = hashId && hashId !== 'inicio' ? root.querySelector('#' + CSS.escape(hashId)) : null;
   if (mode === 'home') {
-    const seen = store('sk-intro') === '1' && !/[?&]intro=full\b/.test(location.search);
+    const seen = store('sk-intro') === '1' && !reload && !/[?&]intro=full\b/.test(location.search);
     store('sk-intro', '1');
     mode = saved != null || hashEl ? 'page' : seen ? 'short' : 'full';
   }
+  if (reload) { const prev = scroller.style.scrollBehavior; scroller.style.scrollBehavior = 'auto'; scroller.scrollTop = 0; scroller.style.scrollBehavior = prev; }
   const IN = reduce || mode === false ? null : INTRO[mode];
   // posição de rolagem: volta para onde estava; âncora vai direto (sem rolagem suave)
   if (saved != null || hashEl) {
