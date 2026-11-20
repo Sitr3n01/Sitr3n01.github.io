@@ -28,7 +28,7 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
 ├─ svg[data-sk-rings]          anéis concêntricos, seguem o foco da câmera
 ├─ canvas[data-sk-canvas]      sakura em ASCII (fica fixa atrás de tudo)
 ├─ [data-sk-scroller]          o scroll acontece aqui dentro
-│   └─ section[data-sk-view=hero|manifesto|about|work|areas|path|contact]
+│   └─ section[data-sk-view=hero|manifesto|about|work|areas|path|me|contact]
 ├─ header (nav fixa) · [data-sk-hint] "SCROLL ↓"   [data-sk-ui]: entram depois da abertura
 ```
 

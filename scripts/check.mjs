@@ -34,7 +34,7 @@ try {
 }
 ok(S.PRESETS && ['kosa', 'sanbon', 'ogi', 'itozakura', 'koeda'].every((p) => p in S.PRESETS), 'os 5 presets existem');
 
-for (const v of ['hero', 'manifesto', 'about', 'work', 'areas', 'path', 'contact'])
+for (const v of ['hero', 'manifesto', 'about', 'work', 'areas', 'path', 'me', 'contact'])
   ok(html1.includes(`data-sk-view="${v}"`), `seção data-sk-view="${v}"`);
 for (const h of ['data-sk-root', 'data-sk-canvas', 'data-sk-scroller', 'data-sk-rings', 'data-sk-hint', 'data-sk-read', 'data-sk-ui'])
   ok(html1.includes(h), `gancho ${h}`);

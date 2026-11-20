@@ -22,7 +22,8 @@ const VIEWS = {
   work:      { cam: { z: 1.35, sx: 0.28, sy: 0.55 },  safe: { x: 0.50, y: 0.50, rx: 0.60, ry: 0.60, s: 0.45 }, alpha: 0.70 },
   areas:     { cam: { z: 1.05, sx: 0.50, sy: 0.50 },  safe: { x: 0.18, y: 0.86, rx: 0.26, ry: 0.16, s: 0.75 }, alpha: 0.95 },
   path:      { cam: { z: 1.60, sx: 0.12, sy: 0.88 },  safe: { x: 0.62, y: 0.50, rx: 0.50, ry: 0.62, s: 0.92 }, alpha: 0.90 },
-  contact:   { cam: { id: true },                     safe: { x: 0.40, y: 0.55, rx: 0.48, ry: 0.42, s: 0.88 }, alpha: 1.00 },
+  me:        { cam: { z: 1.90, sx: 1.00, sy: 0.30 },  safe: { x: 0.52, y: 0.55, rx: 0.66, ry: 0.62, s: 0.94 }, alpha: 0.80 },
+  contact:   { cam: { id: true },                    safe: { x: 0.40, y: 0.55, rx: 0.48, ry: 0.42, s: 0.88 }, alpha: 1.00 },
   // páginas de projeto
   proj:      { cam: { z: 1.55, sx: 0.80, sy: 0.42 },  safe: { x: 0.34, y: 0.62, rx: 0.48, ry: 0.46, s: 0.86 }, alpha: 0.95 },
   projbody:  { cam: { z: 2.40, sx: 1.02, sy: 0.22 },  safe: { x: 0.45, y: 0.52, rx: 0.72, ry: 0.70, s: 0.96 }, alpha: 0.50 },

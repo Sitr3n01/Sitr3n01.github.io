@@ -33,7 +33,8 @@ MENU_LINKS = (
     ('sobre', 'Sobre', 'M10.5 5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0ZM3 14v-1a5 3.5 0 0 1 10 0v1'),
     ('projetos', 'Projetos', 'M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z'),
     ('trajetoria', 'Trajetória', 'M4 5.5v5m0-8A1.5 1.5 0 1 0 4 5.5a1.5 1.5 0 0 0 0-3ZM4 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM8 4h5m-5 8h5'),
-    ('contato', 'Contato', 'M2 4h12v8H2zm0 0 6 4 6-4'),
+    ('sobre-mim', 'Sobre mim', 'M2 3.5h12v9H2zM5.5 8a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM3.5 10.5a2 1.5 0 0 1 4 0M9.5 6h3M9.5 8.5h3'),
+    ('contato', 'Contato','M2 4h12v8H2zm0 0 6 4 6-4'),
 )
 
 
@@ -57,6 +58,7 @@ def nav(base=''):
 <a class="sk-seg" href="{base}#sobre">Sobre</a>
 <a class="sk-seg" href="{base}#projetos">Projetos</a>
 <a class="sk-seg" href="{base}#trajetoria">Trajetória</a>
+<a class="sk-seg" href="{base}#sobre-mim">Sobre mim</a>
 </div>
 <a class="sk-lens-btn" href="{base}#contato">Contato +</a>
 </nav>
@@ -219,6 +221,40 @@ PATH = f'''
 </div>
 </section>'''
 
+ME_NAME = ('José Gilberto', 'Farias Souza')
+ME_LEAD = 'Minha trajetória é guiada por uma pergunta constante: até onde posso levar uma ideia?'
+ME_TEXT = ['Exploro diferentes áreas do desenvolvimento, de aplicações web e ferramentas desktop à inteligência artificial local, '
+           'sistemas interativos e jogos digitais. Gosto de compreender a tecnologia além da superfície, investigando sua '
+           'arquitetura, seus limites e suas possibilidades.',
+           'Entre código, design e experimentação, busco construir soluções eficientes, criativas e cuidadosamente desenvolvidas.']
+ME_FACTS = [('Cidade', ['Brasília']), ('Línguas', ['Português · fluente', 'Inglês · intermediário'])]
+me_facts = '\n'.join(f'<div class="sk-fact"><span style="{CAP}; color: #5f5f5d">{k}</span><span class="sk-fact-v">{"<br>".join(E(v) for v in vs)}</span></div>'
+                     for k, vs in ME_FACTS)
+# foto em preto e branco (a única cor do site são as flores); ganha cor no hover, ver .sk-me-photo
+ME = f'''
+<section id="sobre-mim" data-sk-view="me" style="position: relative; padding: 119px {PADX}">
+<div style="max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px">
+<h2 data-sk-read style="flex: 0 0 200px; margin: 0; font-weight: 400; {CAP}">Sobre mim</h2>
+<div style="flex: 1 1 560px; min-width: 0; display: flex; flex-wrap: wrap; gap: 46px; align-items: flex-start">
+<figure class="sk-me-photo" data-sk-read data-sk-reveal="1">
+<img src="assets/sobre/foto.jpg" width="960" height="1281" loading="lazy" decoding="async" alt="José Gilberto em um mirante de vidro, com a cidade ao fundo">
+</figure>
+<div class="sk-me-copy">
+<div data-sk-read data-sk-reveal="1" style="display: flex; flex-direction: column; gap: 30px">
+<h3 class="sk-me-name">{E(ME_NAME[0])}<br>{E(ME_NAME[1])}</h3>
+<p class="sk-lead">{E(ME_LEAD)}</p>
+</div>
+<div class="sk-prose" data-sk-read data-sk-reveal="1">
+{''.join(f'<p>{E(t)}</p>' for t in ME_TEXT)}
+</div>
+<div class="sk-cq" data-sk-read data-sk-reveal="1"><div class="sk-facts" data-c="2">
+{me_facts}
+</div></div>
+</div>
+</div>
+</div>
+</section>'''
+
 CONTACT = f'''
 <section id="contato" data-sk-read data-sk-view="contact" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; gap: 46px; padding: 119px {PADX} 30px; box-sizing: border-box">
 <h2 data-sk-reveal="1" style="margin: 0; font-weight: 400; line-height: 0.8; letter-spacing: -0.015em; text-transform: uppercase">Vamos<br>conversar.</h2>
@@ -277,6 +313,7 @@ def body(ref=''):
 {WORK}
 {AREAS}
 {PATH}
+{ME}
 {CONTACT}
 </main>
 </div>
@@ -430,6 +467,8 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   color:#5f5f5d;text-decoration:none;white-space:nowrap;transition:color .35s ease}
 .sk-seg.is-on,.sk-seg:hover{color:#1d1d1d}
 .sk-track-lg .sk-seg{padding:14px 24px;font-size:15px;letter-spacing:.013em;text-transform:none}
+/* 5 itens na nav: entre 721 e 820 px o trilho encostaria no logo, então os itens ficam mais justos */
+@media (max-width:820px){.sk-navlinks .sk-seg{padding:10px 12px}}
 .sk-seg-sub{color:#5f5f5d;transition:color .35s ease}
 .sk-lens-btn.sk-lens-btn-lg{padding:18px 28px;font-size:15px;letter-spacing:.013em;text-transform:none}
 .sk-seg:focus-visible,.sk-lens-btn:focus-visible,.sk-logo:focus-visible{outline:2px solid #1d1d1d;outline-offset:3px}
@@ -567,6 +606,16 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 }
 @media (min-width:721px) and (max-width:900px){.sk-area-title{bottom:86px}}
 #contato h2{font-size:clamp(56px,7.4vw,112px)}
+
+/* ---- sobre mim: foto 3:4 em preto e branco (ganha cor no hover), nome em caixa alta, texto e fatos ---- */
+.sk-me-photo{flex:0 1 clamp(240px,26vw,420px);min-width:0;margin:0;border:1px solid #bfbebe;background-color:#fff;line-height:0}
+.sk-me-photo img{display:block;width:100%;height:auto;aspect-ratio:960/1281;object-fit:cover;filter:grayscale(1) contrast(1.04);transition:filter .6s ease}
+.sk-me-photo:hover img{filter:none}
+.sk-me-copy{flex:1 1 380px;min-width:0;max-width:640px;display:flex;flex-direction:column;gap:46px}
+@container (min-width:360px){.sk-me-copy .sk-fact{flex-basis:calc((100% - 2px) / 2)}}
+.sk-me-name{margin:0;font-weight:400;font-size:clamp(40px,4.6vw,76px);line-height:.86;letter-spacing:-.015em;text-transform:uppercase}
+@media (prefers-reduced-motion:reduce){.sk-me-photo img{transition:none}}
+@media (max-width:720px){.sk-me-photo{flex-basis:100%;max-width:420px}.sk-me-copy{gap:30px}}
 @media (max-width:720px){
   [data-sk-view="proj"]{--sk-project-top:144px}
   .sk-area-labels{inset:64px 0 100px}
@@ -656,7 +705,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 @media (max-width:720px){
   [data-sk-view="hero"]{padding-bottom:max(92px,12svh)!important}
   [data-sk-view="hero"] h1{font-size:clamp(27px,9.2vw,60px)!important}
-  #sobre,#projetos,#trajetoria{padding-block:84px!important}
+  #sobre,#projetos,#trajetoria,#sobre-mim{padding-block:84px!important}
   #sobre>div{gap:76px!important}
   #projetos .sk-lens-btn{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
   .sk-card{min-height:0!important;padding:20px!important;gap:16px!important}
