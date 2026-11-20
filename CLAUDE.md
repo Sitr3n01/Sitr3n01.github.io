@@ -13,8 +13,11 @@ Portfólio estático (pt-BR) com fundo de sakura em ASCII. Sem dependências de 
 ## Regras
 
 - **Fonte da verdade é `src/`.** Nunca edite `dist/` (é regenerado e não é versionado).
-- Marcação, CSS e textos ficam em `src/page/build_page.py` (f-strings com estilos inline; listas `STACK`,
-  `CHIPS`, `PATH_ROWS` guardam o conteúdo). Escape texto com `E()`.
+- Marcação e CSS ficam em `src/page/build_page.py` (f-strings com estilos inline). Os textos da interface ficam em
+  `src/page/textos.py`, sempre em pares `(português, inglês)`; escape texto com `E()`.
+- O site tem dois idiomas: português na raiz e inglês em `en/`. Todo texto novo precisa das duas versões (os projetos
+  em `src/content/projetos/en/`), no mesmo tom: formal e fácil, em primeira pessoa (guia em docs/PLANO-INGLES.md).
+  CSS e JS identificam as seções por `data-sk-view`, nunca pelo `id` (os ids são traduzidos).
 - Projetos vêm de `src/content/projetos/*.md` (ver README, seção Projetos): um arquivo gera o card da home e a
   página `projetos/<slug>/`. Não invente fatos sobre os projetos; use `[preencher]` quando faltar informação.
 - `src/js/*.js` são concatenados em um IIFE na ordem core → engine → glass → video → ascii → ascii-forms → controller

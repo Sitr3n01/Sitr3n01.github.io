@@ -27,9 +27,11 @@ Se o Python não se chamar `python`/`python3`, defina `PYTHON` com o caminho.
 
 ```
 src/
-  page/build_page.py   marcação + CSS da home e das páginas de projeto (STACK, CHIPS, PATH_ROWS…)
+  page/build_page.py   marcação + CSS da home e das páginas de projeto, nos dois idiomas
+  page/textos.py       textos da interface e da home em pares (português, inglês): STACK, CHIPS, PATH_ROWS…
   page/content.py      lê src/content/projetos/*.md (front matter + Markdown simples)
   content/projetos/    um .md por projeto: card da home + página do projeto
+  content/projetos/en/ a tradução de cada projeto (mesmo nome de arquivo)
   js/core.js           presets e geração da árvore (galhos, flores)
   js/engine.js         motor ASCII: renderização, vento, pétalas, glitch, câmera
   js/glass.js          vidro líquido: lente deslizante da nav e do contato
@@ -60,6 +62,15 @@ node scripts/build.mjs --dc ./sakura-site.js
 
 Gera também `dist/Main.dc.html` (artboard com propriedades `preset`, `kanji` e `wind`).
 
+## Idiomas
+
+O site sai em português na raiz (`/`, `/projetos/<slug>/`) e em inglês em `en/` (`/en/`, `/en/projects/<slug>/`), a
+partir da mesma marcação. O seletor PT | EN fica na toolbar e leva à mesma página no outro idioma, na mesma seção.
+Textos da interface: `src/page/textos.py`. Projetos: `src/content/projetos/en/<mesmo nome>.md`, só com os campos que
+mudam (`categoria`, `card`, `tags`, `papel`, `periodo`, `status`) e o corpo traduzido, com `## Key figures` no lugar de
+`## Em números`. O `npm run check` falha se faltar tradução, se a estrutura (seções, números, itens, links) divergir do
+português ou se houver texto em português no inglês. Tom e glossário: [docs/PLANO-INGLES.md](docs/PLANO-INGLES.md).
+
 ## Projetos
 
 Cada projeto é um arquivo em `src/content/projetos/` (a ordem vem do campo `ordem`). Ele gera o card da home e a
@@ -71,6 +82,8 @@ vírgulas), `repo`, `site` (um ou mais endereços, separados por vírgula) e, op
 **Vídeo de apresentação:** coloque `src/assets/projetos/<slug>/apresentacao.mp4` (ou `.webm`) e, se quiser, uma capa
 `poster.jpg`. Sem arquivo, a página mostra um quadro "em produção". Para usar o YouTube, preencha `youtube:` no front
 matter; o player só carrega (youtube-nocookie) depois do clique. Prefira H.264 em 1080p com `-movflags +faststart`.
+Versão em inglês (legendas traduzidas): `apresentacao.en.mp4` e `poster.en.jpg`; sem ela, a página em inglês usa o vídeo
+em português e avisa na legenda ("Captions in Portuguese").
 
 Marque o que falta com `[preencher]` (aparece destacado na página). O `npm run check` lista as pendências: vídeos que
 faltam e textos com `[preencher]`.

@@ -16,7 +16,7 @@ function mountVideos(root) {
       } else if (yt && !fig.querySelector('iframe')) {
         const f = document.createElement('iframe');
         f.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(yt)}?autoplay=1&rel=0`;
-        f.title = `Vídeo de apresentação: ${fig.getAttribute('data-sk-title') || ''}`;
+        f.title = fig.getAttribute('data-sk-label') || fig.getAttribute('data-sk-title') || ''; // rótulo no idioma da página
         f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
         f.allowFullscreen = true;
         fig.querySelector('.sk-video-frame').appendChild(f);

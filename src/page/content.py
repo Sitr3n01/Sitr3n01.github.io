@@ -2,8 +2,12 @@
 
 Front matter: linhas `chave: valor` entre `---`. O corpo aceita um subconjunto de Markdown:
 parágrafos, `## seções`, listas com `-`, **negrito**, *itálico*, `código` e [links](url).
-O texto antes da primeira seção vira o lead. A seção "Em números" vira uma grade de destaques
-(cada item: **valor** rótulo).
+O texto antes da primeira seção vira o lead. A seção "Em números" (em inglês, "Key figures") vira uma grade de
+destaques (cada item: **valor** rótulo).
+
+Inglês: src/content/projetos/en/<mesmo nome>.md, só com os campos que mudam de idioma (categoria, card, tags, papel,
+periodo, status) e o corpo inteiro traduzido; o resto (slug, kanji, stack, repo, site...) vem do arquivo em português.
+Vídeo e poster em inglês, quando existirem: apresentacao.en.mp4 e poster.en.jpg (senão, os em português).
 """
 import html
 import os
@@ -11,6 +15,7 @@ import re
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
 CONTENT = os.path.join(ROOT, 'src', 'content', 'projetos')
+STATS_TITLES = ('em números', 'key figures')
 ASSETS = os.path.join(ROOT, 'src', 'assets')
 VIDEO_EXT = ('.mp4', '.webm')
 POSTER_EXT = ('.jpg', '.jpeg', '.png', '.webp', '.avif')
@@ -77,7 +82,8 @@ def stats(lines):
     return out
 
 
-def parse(path):
+def split(path):
+    """Arquivo .md → (front matter, corpo, texto bruto)."""
     raw = open(path, encoding='utf-8').read().replace('\r\n', '\n')
     meta, body = {}, raw
     if raw.startswith('---\n'):
@@ -87,6 +93,18 @@ def parse(path):
                 k, v = line.split(':', 1)
                 meta[k.strip()] = v.strip()
         body = raw[end + 4:]
+    return meta, body, raw
+
+
+def parse(path, lang='pt'):
+    meta, body, raw = split(path)
+    translated = lang == 'pt'
+    if not translated:
+        tr = os.path.join(os.path.dirname(path), lang, os.path.basename(path))
+        if os.path.exists(tr):  # sem tradução, a página sai em português e o check acusa
+            tmeta, body, raw = split(tr)
+            meta = {**meta, **tmeta}
+            translated = True
     lead, sections, cur = [], [], None
     for line in body.split('\n'):
         if line.startswith('## '):
@@ -102,7 +120,7 @@ def parse(path):
     p['lead'] = blocks(lead)
     p['sections'] = []
     for s in sections:
-        if s['title'].lower() == 'em números':
+        if s['title'].lower() in STATS_TITLES:
             p['sections'].append({'title': s['title'], 'stats': stats(s['lines'])})
         else:
             p['sections'].append({'title': s['title'], 'html': blocks(s['lines'])})
@@ -114,17 +132,20 @@ def parse(path):
             if os.path.exists(os.path.join(folder, name + e)):
                 return f'assets/projetos/{slug}/{name}{e}'
         return None
-    p['video'] = meta.get('video') or find('apresentacao', VIDEO_EXT)
-    p['poster'] = meta.get('poster') or find('poster', POSTER_EXT)
+    own = None if lang == 'pt' else find(f'apresentacao.{lang}', VIDEO_EXT)
+    p['video'] = meta.get('video') or own or find('apresentacao', VIDEO_EXT)
+    p['video_lang'] = lang if own and p['video'] == own else 'pt'
+    p['poster'] = meta.get('poster') or (lang != 'pt' and find(f'poster.{lang}', POSTER_EXT)) or find('poster', POSTER_EXT)
+    p['translated'] = translated
     p['youtube'] = meta.get('youtube') or None
     p['pending'] = PENDING in raw
     p['source'] = os.path.relpath(path, ROOT).replace('\\', '/')
     return p
 
 
-def load_projects():
+def load_projects(lang='pt'):
     files = sorted(f for f in os.listdir(CONTENT) if f.endswith('.md'))
-    projects = sorted((parse(os.path.join(CONTENT, f)) for f in files), key=lambda p: p['ordem'])
+    projects = sorted((parse(os.path.join(CONTENT, f), lang) for f in files), key=lambda p: p['ordem'])
     for i, p in enumerate(projects):
         p['num'] = f'{i + 1:02d}'
         p['cap'] = f"{p['num']} — {p['categoria']}"

@@ -140,14 +140,33 @@ function mountQuality(root, engine, ascii) {
   return { get tier() { return tier; }, destroy() { cancelAnimationFrame(raf); } };
 }
 
+// Troca de idioma (PT | EN na toolbar): o link leva à mesma página no outro idioma; no clique, ganha a âncora da
+// seção visível (data-sk-alt = id dela no outro idioma), para a leitura continuar do mesmo ponto. O item do
+// idioma atual não recarrega a página.
+function mountLang(root, scroller) {
+  const links = Array.from(root.querySelectorAll('.sk-lang a'));
+  const sections = Array.from(root.querySelectorAll('main > section'));
+  const click = event => {
+    const a = event.currentTarget;
+    if (a.hasAttribute('aria-current')) { event.preventDefault(); return; }
+    const probe = scroller.scrollTop + scroller.clientHeight * 0.4;
+    let id = '';
+    for (const s of sections) if (s.offsetTop <= probe) id = s.getAttribute('data-sk-alt') || '';
+    a.href = a.getAttribute('data-sk-lang-alt') + (id ? '#' + id : '');
+  };
+  links.forEach(a => a.addEventListener('click', click));
+  return () => links.forEach(a => a.removeEventListener('click', click));
+}
+
 function mount(root, options) {
   const o = Object.assign({ preset: 'kosa', kanji: true, wind: 1 }, options || {});
   const $ = s => root.querySelector(s), $$ = s => Array.from(root.querySelectorAll(s));
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canvas = $('[data-sk-canvas]'), scroller = $('[data-sk-scroller]') || document.scrollingElement;
-  const menuLayout = matchMedia('(max-width: 720px), (max-width: 1024px) and (pointer: coarse), (max-height: 520px) and (pointer: coarse)');
+  const menuLayout = matchMedia('(max-width: 860px), (max-width: 1024px) and (pointer: coarse), (max-height: 520px) and (pointer: coarse)');
   const singleColumn = matchMedia('(max-width: 720px), (max-width: 935px) and (pointer: coarse)');
   const unmountMenu = mountMenu(root, menuLayout), unmountColumns = mountCardColumns($('[data-sk-card-columns]'), singleColumn);
+  const unmountLang = mountLang(root, scroller);
   const project = !!$('[data-sk-view="proj"]');
   // os anéis seguem a câmera suavizada do motor: atualizados no quadro do motor, junto com o canvas
   const engine = createSakuraBackground(canvas, { preset: o.preset, kanji: o.kanji, wind: o.wind, holdIntro: !reduce, project,
@@ -237,7 +256,9 @@ function mount(root, options) {
   if (reload && location.hash) history.replaceState(history.state, '', location.pathname + location.search);
   let hashId = '';
   try { hashId = decodeURIComponent(location.hash.slice(1)); } catch { /* uma âncora inválida equivale a nenhuma */ }
-  const hashEl = hashId && hashId !== 'inicio' ? root.querySelector('#' + CSS.escape(hashId)) : null;
+  // a âncora do topo (#inicio, #home) não conta: é a abertura normal
+  const hashTarget = hashId ? root.querySelector('#' + CSS.escape(hashId)) : null;
+  const hashEl = hashTarget && !hashTarget.matches('[data-sk-view="hero"]') ? hashTarget : null;
   if (mode === 'home') {
     const seen = store('sk-intro') === '1' && !reload && !/[?&]intro=full\b/.test(location.search);
     store('sk-intro', '1');
@@ -594,7 +615,7 @@ function mount(root, options) {
     engine, ascii, get tier() { return quality.tier; },
     update(n) { Object.assign(o, n); engine.setOptions({ preset: o.preset, kanji: o.kanji, wind: o.wind }); },
     destroy() {
-      dead = true; cancelAnimationFrame(raf); unmountMenu(); unmountColumns(); glass.destroy(); engine.destroy();
+      dead = true; cancelAnimationFrame(raf); unmountMenu(); unmountColumns(); unmountLang(); glass.destroy(); engine.destroy();
       if (layoutRO) layoutRO.disconnect(); if (revealIO) revealIO.disconnect(); quality.destroy();
       window.removeEventListener('resize', relayout); scrollEvents.removeEventListener('scroll', wake);
       skipEvents.forEach(ev => window.removeEventListener(ev, skip, true));
