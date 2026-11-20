@@ -64,27 +64,40 @@ function mountGlass(root, scroller) {
   // (manifesto, áreas) continuam no item anterior; um destino fora do trilho (o botão Contato) apaga a lente.
   const spies = tracks.filter(t => t.spy);
   const idOf = a => { const h = a.getAttribute('href') || ''; return h.startsWith('#') && h.length > 1 ? h.slice(1) : null; };
-  let sraf = 0;
+  // destinos da nav e seus topos ficam em cache; só são medidos de novo quando o layout muda
+  let sraf = 0, anchors = null, viewH = 0;
+  const measureAnchors = () => {
+    viewH = scroller.clientHeight;
+    anchors = Array.from(root.querySelectorAll('header a[href^="#"]'), a => {
+      const id = idOf(a), target = id && root.querySelector('#' + CSS.escape(id));
+      return target ? { id, top: target.offsetTop } : null;
+    }).filter(Boolean);
+  };
   const spyNow = () => {
     sraf = 0;
-    const probe = scroller.scrollTop + scroller.clientHeight * 0.4;
+    if (!anchors) measureAnchors();
+    const probe = scroller.scrollTop + viewH * 0.4;
     let last = null, lastTop = -Infinity;
-    for (const a of root.querySelectorAll('header a[href^="#"]')) {
-      const id = idOf(a), target = id && root.querySelector('#' + CSS.escape(id));
-      if (target && target.offsetTop <= probe && target.offsetTop >= lastTop) { last = id; lastTop = target.offsetTop; }
-    }
+    for (const a of anchors) if (a.top <= probe && a.top >= lastTop) { last = a.id; lastTop = a.top; }
     for (const t of spies) {
       const found = last ? t.segs.find(seg => idOf(seg) === last) || null : null;
       if (found !== t.rest) { t.rest = found; t.settle(); }
     }
   };
-  if (spies.length) { on(scroller, 'scroll', () => { if (!sraf) sraf = requestAnimationFrame(spyNow); }, { passive: true }); spyNow(); }
+  const scrollEvents = scroller === document.scrollingElement ? window : scroller;
+  if (spies.length) { on(scrollEvents, 'scroll', () => { if (!sraf) sraf = requestAnimationFrame(spyNow); }, { passive: true }); spyNow(); }
 
   const relayout = () => tracks.forEach(t => t.settle(true));
   tracks.forEach(t => t.settle(true));
-  const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(relayout) : null;
-  if (ro) tracks.forEach(t => ro.observe(t.track));
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
+  const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(entries => {
+    if (entries.some(e => !e.target.matches('[data-sk-glass]'))) { anchors = null; if (spies.length && !sraf) sraf = requestAnimationFrame(spyNow); }
+    relayout();
+  }) : null;
+  if (ro) {
+    tracks.forEach(t => ro.observe(t.track));
+    if (spies.length) { ro.observe(scroller); if (scroller.firstElementChild) ro.observe(scroller.firstElementChild); }
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { anchors = null; relayout(); if (spies.length) spyNow(); });
 
   return {
     destroy() { offs.forEach(f => f()); if (ro) ro.disconnect(); cancelAnimationFrame(sraf); tracks.forEach(t => clearTimeout(t.timer)); },

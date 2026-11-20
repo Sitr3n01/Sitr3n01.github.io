@@ -21,7 +21,7 @@ function createSakuraBackground(canvas, options) {
   const ctx = canvas.getContext('2d');
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   let W = 0, H = 0, dpr = 1, cols = 0, rows = 0, cw = opts.cell, chh = opts.cell;
-  let scene = null, stems = [], att = null, prevGrid = null;
+  let scene = null, stems = [], att = null, attKey = null, prevGrid = null, buf = null, cells = null, frames = 0;
   let particles = [], blocks = [], nextBlock = 0, gust = 0, gustBoost = 0, gustPlan = null;
   let t0 = performance.now(), growStart = opts.holdIntro ? Infinity : 0, growDur = 1.6, last = 0, raf = 0, running = true, destroyed = false;
   // abertura: crescimento a partir do tronco, faíscas que viram flores, flor-broto (versão curta) e texto na grade
@@ -29,6 +29,8 @@ function createSakuraBackground(canvas, options) {
   const cam = { z: 1, fx: 0, fy: 0, sx: 0, sy: 0 }, camT = { z: 1, fx: 0, fy: 0, sx: 0, sy: 0 };
   const safe = { x: 0.5, y: 0.5, rx: 0.3, ry: 0.3, s: 0 }, safeT = { x: 0.5, y: 0.5, rx: 0.3, ry: 0.3, s: 0 };
   let alpha = 1, alphaT = 1, camSnap = true;
+  // qualidade (controller.js): resolução máxima, fração das pétalas soltas; cobertura = quanto da tela o papel tapa
+  let dprMax = 2, ambientK = 1, cover = 0, frameMs = 0;
   const pointer = { x: -1, y: -1, vx: 0, vy: 0, active: false, lastT: 0 };
   let flowerCells = [];
   const gAng = opts.angle * Math.PI / 180, gdx = Math.sin(gAng), gdy = -Math.cos(gAng);
@@ -37,6 +39,19 @@ function createSakuraBackground(canvas, options) {
   function irid(px, py) {
     return gradAt((px * gdx + py * gdy - pmin) / (pmax - pmin || 1) + drift);
   }
+  // Paleta indexada: tinta, branco, papel e o gradiente das flores em GN passos, puro (fundo da célula) e misturado
+  // com a tinta (glifo da pétala, do centro e da pétala solta). Índices pequenos deixam o atlas e os estilos finitos.
+  const GN = 48, C_INK = 0, C_WHITE = 1, C_PARCH = 2, C_GRAD = 3, C_PET = C_GRAD + GN, C_CEN = C_PET + GN, C_LOO = C_CEN + GN;
+  let palette = [];
+  function buildPalette() {
+    const ink = opts.ink;
+    palette = [ink, [255, 255, 255], [229, 228, 224]];
+    for (let g = 0; g < GN; g++) {
+      const c = gradAt(g / (GN - 1));
+      palette[C_GRAD + g] = c; palette[C_PET + g] = mixc(c, ink, 0.55); palette[C_CEN + g] = mixc(c, ink, 0.78); palette[C_LOO + g] = mixc(c, ink, 0.6);
+    }
+  }
+  const gradIdx = (px, py) => Math.round(clamp((px * gdx + py * gdy - pmin) / (pmax - pmin || 1) + drift, 0, 1) * (GN - 1));
   function gradAt(t) {
     t = clamp(t, 0, 1);
     const S = opts.stops;
@@ -47,14 +62,22 @@ function createSakuraBackground(canvas, options) {
     return S[S.length - 1][1];
   }
 
-  function layout() {
+  // regen = false: só a resolução do canvas mudou (nível de qualidade); a árvore e as pétalas continuam as mesmas
+  function layout(regen = true) {
     const r = canvas.getBoundingClientRect();
     W = Math.max(1, r.width); H = Math.max(1, r.height);
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    dpr = Math.min(window.devicePixelRatio || 1, dprMax);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     cols = Math.ceil(W / cw); rows = Math.ceil(H / chh);
-    att = new Float32Array(cols * rows);
-    prevGrid = new Uint32Array(cols * rows);
+    const N = cols * rows;
+    att = new Float32Array(N); attKey = null;
+    prevGrid = new Uint32Array(N);
+    // buffers por célula, reaproveitados a cada quadro
+    buf = { cb: new Float32Array(N), hl: new Float32Array(N), cp: new Float32Array(N), cc: new Float32Array(N), fr: new Float32Array(N),
+      twig: new Int8Array(N), loose: new Int16Array(N), inBlock: new Uint8Array(N) };
+    cells = { cellR: new Int32Array(N).fill(-2), cellG: new Int32Array(N).fill(-2), dirty: new Uint8Array(N), dirtyList: new Int32Array(N) };
+    atlas.dirty = true;
+    if (!regen && scene) return;
     scene = generate(opts.preset, opts.seed, opts.project ? PROJECT_ASPECT : W / H, opts.project);
     if (opts.project) {
       const starts = new Set();
@@ -69,7 +92,7 @@ function createSakuraBackground(canvas, options) {
     growthOrder();
     if (budTarget) pickBud(budTarget[0], budTarget[1]);
     particles = []; blocks = [];
-    for (let i = 0; i < scene.ambient; i++) spawnAmbient(true);
+    for (let i = 0; i < Math.round(scene.ambient * ambientK); i++) spawnAmbient(true);
   }
 
   // ordem de nascimento: distância ao longo da árvore a partir da base do tronco (0 → 1)
@@ -152,8 +175,12 @@ function createSakuraBackground(canvas, options) {
     return u <= 0 ? 0 : u >= 1 ? 1 : 1 - Math.pow(1 - u, 2.2);
   }
 
+  // a atenuação por célula só muda quando a zona de respiro ou a opacidade mudam
   function updateAtt() {
     const A = alpha;
+    if (attKey && Math.abs(attKey[0] - A) < 1e-4 && Math.abs(attKey[1] - safe.x) < 1e-4 && Math.abs(attKey[2] - safe.y) < 1e-4 &&
+      Math.abs(attKey[3] - safe.rx) < 1e-4 && Math.abs(attKey[4] - safe.ry) < 1e-4 && Math.abs(attKey[5] - safe.s) < 1e-4) return;
+    attKey = [A, safe.x, safe.y, safe.rx, safe.ry, safe.s];
     for (let r2 = 0; r2 < rows; r2++) for (let c = 0; c < cols; c++) {
       let a = 1;
       if (safe.s > 0.001) {
@@ -224,7 +251,8 @@ function createSakuraBackground(canvas, options) {
     }
     particles = particles.filter(p => p.x < asp + 0.05 && p.y < 1.05 && p.y > -0.2 && p.x > -0.3);
     let amb = 0; for (const p of particles) if (p.amb) amb++;
-    while (amb < scene.ambient) { spawnAmbient(false); amb++; }
+    const target = Math.round(scene.ambient * ambientK);
+    while (amb < target) { spawnAmbient(false); amb++; }
     const rate = (0.003 + 0.05 * gust) * dt;
     if (particles.length < 240) for (const f of scene.flowers) if (Math.random() < rate) {
       const [wx2, wy2] = flowerPos(f, t), sx = proj.X(wx2) / H, sy = proj.Y(wy2) / H;
@@ -295,18 +323,21 @@ function createSakuraBackground(canvas, options) {
       const c0 = Math.max(0, Math.floor((fx - R) / cw)), c1 = Math.min(cols - 1, Math.floor((fx + R) / cw));
       const r0 = Math.max(0, Math.floor((fy - R) / chh)), r1 = Math.min(rows - 1, Math.floor((fy + R) / chh));
       const ct = Math.cos(f.tdir), st = Math.sin(f.tdir), it = 1 / f.tilt;
+      // ângulo da pétala: θ = atan2(bb, a) − (rot − tdir); cos θ sai direto do ponto e cos 5θ pela identidade de
+      // Chebyshev (16c⁵ − 20c³ + 5c), sem atan2 nem cos por amostra
+      const cph = Math.cos(f.rot - f.tdir), sph = Math.sin(f.rot - f.tdir);
       const big = smooth(3, 8, R / cw); // 0 na escala normal; 1 quando a flor é grande (abertura, zoom)
       for (let rr = r0; rr <= r1; rr++) for (let col = c0; col <= c1; col++) {
         let pet = 0, cen = 0, dsum = 0;
         for (let sy = 0; sy < 2; sy++) for (let sx = 0; sx < 2; sx++) {
           const px = (col + 0.25 + 0.5 * sx) * cw - fx, py = (rr + 0.25 + 0.5 * sy) * chh - fy;
           const a = px * ct + py * st, bb = (-px * st + py * ct) * it;
-          const d = Math.sqrt(a * a + bb * bb) / R;
+          const rad = Math.sqrt(a * a + bb * bb), d = rad / R;
           if (d > 1) continue;
-          const th0 = Math.atan2(bb, a) - f.rot + f.tdir;
-          const lob = Math.cos(5 * th0);
-          const prof = 0.80 + 0.20 * lob - 0.2 * big * Math.pow(lob > 0 ? lob : 0, 14);
-          if (d < 0.22) cen++; else if (d < prof) { pet++; dsum += d; }
+          if (d < 0.22) { cen++; continue; }
+          const c1 = (a * cph + bb * sph) / rad, c2 = c1 * c1, lob = c1 * (16 * c2 * c2 - 20 * c2 + 5);
+          const prof = 0.80 + 0.20 * lob - (big > 0 && lob > 0 ? 0.2 * big * Math.pow(lob, 14) : 0);
+          if (d < prof) { pet++; dsum += d; }
         }
         if (pet || cen) {
           const id = rr * cols + col;
@@ -341,13 +372,13 @@ function createSakuraBackground(canvas, options) {
     const zH = H * cam.z, ox = cam.sx * W - cam.fx * zH, oy = cam.sy * H - cam.fy * zH;
     const P = { zH, X: wx => wx * zH + ox, Y: wy => wy * zH + oy };
     if (!reduce) stepParticles(dt, t, P);
-    const N = cols * rows, G = growth(t);
-    const cb = new Float32Array(N), hl = new Float32Array(N), cp = new Float32Array(N), cc = new Float32Array(N), fr = new Float32Array(N);
+    const G = growth(t);
+    const { cb, hl, cp, cc, fr, twig, loose, inBlock } = buf;
+    cb.fill(0); hl.fill(0); cp.fill(0); cc.fill(0); fr.fill(0); twig.fill(-1); loose.fill(-1); inBlock.fill(0);
     const thinPx = 0.35 * cw;
     splatBark(cb, hl, thinPx, P, G, fr);
     splatFlowers(cp, cc, reduce ? 0 : t, P, G, fr);
     stepSparks(dt, t, P);
-    const twig = new Int8Array(N).fill(-1);
     for (const b of scene.branches) {
       const n = b.xs.length;
       for (let k2 = 1; k2 < n; k2 += 2) {
@@ -363,7 +394,6 @@ function createSakuraBackground(canvas, options) {
         }
       }
     }
-    const loose = new Int16Array(N).fill(-1);
     particles.forEach((p, i) => {
       const c = Math.floor(p.x * H / cw), r = Math.floor(p.y * H / chh);
       if (c >= 0 && r >= 0 && c < cols && r < rows) loose[r * cols + c] = i;
@@ -375,17 +405,55 @@ function createSakuraBackground(canvas, options) {
       nextBlock = t + (0.25 + Math.random() * 1.2) / (1 + 2.5 * gust);
     }
     blocks = blocks.filter(b => b.until > t);
-    const inBlock = new Uint8Array(N);
     for (const b of blocks) for (let r = b.r; r < b.r + b.h; r++) for (let c = b.c; c < b.c + b.w; c++)
       if (r >= 0 && c >= 0 && r < rows && c < cols) inBlock[r * cols + c] = 1;
     draw(t, { cb, hl, cp, cc, twig, loose, inBlock, fr, G });
   }
 
   // ---------------------------------------------------------------- desenho
-  const glyphs = { text: new Map(), rect: new Map(), cjk: new Map() };
+  // Os glifos saem de um atlas: cada caractere, numa cor da paleta, é rasterizado uma vez e depois copiado com
+  // drawImage, agrupado pela opacidade (16 níveis, como antes). Os quadrados de fundo são agrupados pelo estilo
+  // (cor da paleta × opacidade). Faíscas e o texto da abertura têm cores livres e só existem na abertura: seguem
+  // com fillText. Só as células que mudaram desde o quadro anterior são apagadas e redesenhadas; quando muda mais da
+  // metade (câmera andando, abertura), o quadro inteiro é refeito.
+  const AL = 16, PAGE = 1024;
+  let forceFull = true, legacyPrev = false;
+  const lvl = a => Math.round((a < 0 ? 0 : a > 1 ? 1 : a) * AL);
+  const atlas = { pages: [], map: new Map(), n: 0, S: 0, per: 0, dirty: true };
+  const rectStyle = new Map(), rectBuckets = new Map(), glyphBuckets = Array.from({ length: AL + 1 }, () => []);
+  const legacy = { text: new Map(), rect: new Map(), cjk: new Map() };
   const push = (map, style, a, b, c, d) => { let arr = map.get(style); if (!arr) map.set(style, arr = []); arr.push(a, b, c, d); };
   const q8 = v => (Math.round(v / 6) * 6) | 0;
   const rgba = (c, a) => `rgba(${q8(c[0])},${q8(c[1])},${q8(c[2])},${Math.round(clamp(a, 0, 1) * 16) / 16})`;
+  const rgb = c => `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`;
+
+  function resetAtlas() {
+    atlas.dirty = false; atlas.map.clear(); atlas.n = 0; forceFull = true;
+    atlas.S = Math.max(4, Math.ceil(Math.max(cw, chh) * dpr)); atlas.per = Math.max(1, Math.floor(PAGE / atlas.S));
+    for (const p of atlas.pages) p.width = p.height = atlas.per * atlas.S; // redimensionar também limpa
+  }
+  function slotOf(ch, cjk, ci) {
+    const key = ch.charCodeAt(0) * 256 + ci;
+    let id = atlas.map.get(key);
+    if (id !== undefined) return id;
+    id = atlas.n++;
+    const S = atlas.S, per = atlas.per, pp = per * per, pi = (id / pp) | 0, k = id % pp;
+    let page = atlas.pages[pi];
+    if (!page) { page = document.createElement('canvas'); page.width = page.height = per * S; atlas.pages[pi] = page; }
+    const g = page.getContext('2d');
+    g.font = cjk ? `${opts.cjk * dpr}px ${opts.cjkFamily}` : `${opts.font * dpr}px ${opts.monoFamily}`;
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = rgb(palette[ci]);
+    g.fillText(ch, (k % per) * S + S / 2, ((k / per) | 0) * S + S / 2);
+    atlas.map.set(key, id);
+    return id;
+  }
+  const rectKey = (ci, a) => { const l = lvl(a); return l ? ci * (AL + 1) + l : -1; };
+  const glyphKey = (ch, cjk, ci, a) => { const l = lvl(a); return l ? slotOf(ch, cjk, ci) * (AL + 1) + l : -1; };
+  function rectStyleOf(key) {
+    let s = rectStyle.get(key);
+    if (!s) { const c = palette[(key / (AL + 1)) | 0]; s = `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${(key % (AL + 1)) / AL})`; rectStyle.set(key, s); }
+    return s;
+  }
 
   function motion(id, ch, cjk, t, kind, fresh) {
     const code = ch ? ch.charCodeAt(0) : 0;
@@ -403,14 +471,22 @@ function createSakuraBackground(canvas, options) {
 
   function draw(t, L) {
     const { cb, hl, cp, cc, twig, loose, inBlock, fr, G } = L;
-    glyphs.text.clear(); glyphs.rect.clear(); glyphs.cjk.clear();
+    if (atlas.dirty) resetAtlas();
+    legacy.text.clear(); legacy.rect.clear(); legacy.cjk.clear();
     const ink = opts.ink;
     const pr = pointer.active ? 4.5 : 0, pcx = pointer.x * H / cw, pcy = pointer.y * H / chh;
-    flowerCells = [];
+    flowerCells.length = 0;
+    // assinatura da célula = estilo do quadrado + glifo (com opacidade); mudou → entra na lista das que se redesenham
+    const { cellR, cellG, dirty, dirtyList } = cells;
+    let nDirty = 0, nFull = 0;
+    const cell = (id, rk, gk) => {
+      if (cellR[id] !== rk || cellG[id] !== gk) { dirty[id] = 1; dirtyList[nDirty++] = id; cellR[id] = rk; cellG[id] = gk; } else dirty[id] = 0;
+      if (rk >= 0 || gk >= 0) nFull++;
+    };
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const id = r * cols + c;
       const A = att[id];
-      if (A < 0.02) { prevGrid[id] = 0; continue; }
+      if (A < 0.02) { prevGrid[id] = 0; cell(id, -1, -1); continue; }
       const x = c * cw, y = r * chh, cx = x + cw / 2, cy = y + chh / 2;
       let near = 0;
       if (pr) { const d = Math.hypot(c + 0.5 - pcx, (r + 0.5 - pcy) * chh / cw); near = d < pr ? 1 - d / pr : 0; }
@@ -428,36 +504,38 @@ function createSakuraBackground(canvas, options) {
         if (opts.kanji) { ch = p.kind < 0.78 ? KANA[ph % 3] : KANA[3 + Math.floor((p.kind - 0.78) / 0.22 * 3) % 3]; cjk = true; } else ch = LOOSE[ph];
         val = 1;
       }
-      if (!kind) { prevGrid[id] = 0; continue; }
-      let sq = null, sqA = 0, col = ink, colA = 0;
+      if (!kind) { prevGrid[id] = 0; cell(id, -1, -1); continue; }
+      let sq = -1, sqA = 0, col = C_INK, colA = 0;
       if (kind === 'petal' || kind === 'center' || kind === 'loose' || inBlock[id]) {
-        const ic = irid(cx, cy);
-        if (kind === 'petal') { sq = ic; sqA = 0.38 + 0.50 * val; col = mixc(ic, ink, 0.55); colA = 0.9; ch = val < 0.3 ? '.' : val < 0.55 ? ':' : val < 0.8 ? '+' : '*'; }
-        else if (kind === 'center') { sq = ic; sqA = 0.92; col = mixc(ic, ink, 0.78); colA = 1; }
-        else if (kind === 'loose') { sq = ic; sqA = 0.55; col = mixc(ic, ink, 0.6); colA = 0.95; }
-        if (inBlock[id]) { sq = ic; sqA = 0.95; col = [255, 255, 255]; colA = 1; }
+        const g = gradIdx(cx, cy);
+        if (kind === 'petal') { sq = C_GRAD + g; sqA = 0.38 + 0.50 * val; col = C_PET + g; colA = 0.9; ch = val < 0.3 ? '.' : val < 0.55 ? ':' : val < 0.8 ? '+' : '*'; }
+        else if (kind === 'center') { sq = C_GRAD + g; sqA = 0.92; col = C_CEN + g; colA = 1; }
+        else if (kind === 'loose') { sq = C_GRAD + g; sqA = 0.55; col = C_LOO + g; colA = 0.95; }
+        if (inBlock[id]) { sq = C_GRAD + g; sqA = 0.95; col = C_WHITE; colA = 1; }
       }
       if (kind === 'bark') {
-        const h = hl[id]; sq = ink; sqA = 0.03 + 0.08 * (1 - h); colA = 0.42 + 0.45 * (1 - h);
+        const h = hl[id]; sq = C_INK; sqA = 0.03 + 0.08 * (1 - h); colA = 0.42 + 0.45 * (1 - h);
         if (opts.kanji && hash2(c, r) < 0.28) { ch = h > 0.62 ? '木' : h > 0.35 ? '林' : '森'; cjk = true; }
         else ch = hash2(c + 7, r) < 0.14 ? ':' : (h > 0.62 ? '-' : h > 0.35 ? '=' : '#');
-        if (inBlock[id]) { sq = ink; sqA = 0.85; col = [229, 228, 224]; colA = 1; }
-      } else if (kind === 'edge') { sq = ink; sqA = 0.05 * val; colA = 0.3 + 0.45 * val; ch = val < 0.3 ? '' : val < 0.6 ? '.' : ':'; }
+        if (inBlock[id]) { sq = C_INK; sqA = 0.85; col = C_PARCH; colA = 1; }
+      } else if (kind === 'edge') { sq = C_INK; sqA = 0.05 * val; colA = 0.3 + 0.45 * val; ch = val < 0.3 ? '' : val < 0.6 ? '.' : ':'; }
       else if (kind === 'twig') { colA = 0.78; }
       if (near) { sqA += 0.18 * near; if (Math.random() < 0.35 * near && !cjk) ch = SCRAMBLE[(Math.random() * SCRAMBLE.length) | 0]; }
       const m = motion(id, ch, cjk, t, kind, fr[id]); ch = m[0]; cjk = m[1];
-      if (sq && sqA > 0.01) push(glyphs.rect, rgba(sq, sqA * A), x + 1, y + 1, cw - 2, chh - 2);
-      if (ch && ch !== ' ') push(cjk ? glyphs.cjk : glyphs.text, rgba(col, colA * A), ch, cx, cy, 0);
+      const rk = sq >= 0 && sqA > 0.01 ? rectKey(sq, sqA * A) : -1, gk = ch && ch !== ' ' ? glyphKey(ch, cjk, col, colA * A) : -1;
+      cell(id, rk, gk);
+      if (rk >= 0) { let arr = rectBuckets.get(rk); if (!arr) rectBuckets.set(rk, arr = []); arr.push(x + 1, y + 1, id); }
+      if (gk >= 0) glyphBuckets[gk % (AL + 1)].push((gk / (AL + 1)) | 0, cx, cy, id);
     }
     for (const k of sparks) {
       if (k.dx == null) continue;
       const c = Math.floor(k.dx / cw), r = Math.floor(k.dy / chh);
       if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
-      if (k.pc >= 0 && (k.pc !== c || k.pr !== r)) push(glyphs.rect, rgba(k.dc, 0.3 * k.da), k.pc * cw + 1, k.pr * chh + 1, cw - 2, chh - 2);
-      push(glyphs.rect, rgba(k.dc, 0.9 * k.da), c * cw + 1, r * chh + 1, cw - 2, chh - 2);
+      if (k.pc >= 0 && (k.pc !== c || k.pr !== r)) push(legacy.rect, rgba(k.dc, 0.3 * k.da), k.pc * cw + 1, k.pr * chh + 1, cw - 2, chh - 2);
+      push(legacy.rect, rgba(k.dc, 0.9 * k.da), c * cw + 1, r * chh + 1, cw - 2, chh - 2);
       const kana = k.f < 0 && k.sp < 140;
       const ch = kana ? KANA[(k.ph * 3) | 0] : k.sp > 700 ? '*' : k.sp > 360 ? '+' : k.sp > 140 ? ':' : '.';
-      push(kana ? glyphs.cjk : glyphs.text, rgba(mixc(k.dc, ink, 0.55), k.da), ch, c * cw + cw / 2, r * chh + chh / 2, 0);
+      push(kana ? legacy.cjk : legacy.text, rgba(mixc(k.dc, ink, 0.55), k.da), ch, c * cw + cw / 2, r * chh + chh / 2, 0);
       k.pc = c; k.pr = r;
     }
     // texto da abertura, desenhado na mesma grade (uma letra por célula)
@@ -466,20 +544,55 @@ function createSakuraBackground(canvas, options) {
       for (let i = 0; i < s.length; i++) {
         const c = o.c + i, cx = c * cw + cw / 2, cy = o.r * chh + chh / 2;
         if (c < 0 || c >= cols || o.r < 0 || o.r >= rows || s[i] === ' ') continue;
-        if (o.sq) push(glyphs.rect, rgba(o.sq, o.sqA ?? 0.08), c * cw + 1, o.r * chh + 1, cw - 2, chh - 2);
+        if (o.sq) push(legacy.rect, rgba(o.sq, o.sqA ?? 0.08), c * cw + 1, o.r * chh + 1, cw - 2, chh - 2);
         let ch = s[i], cj = ch.charCodeAt(0) > 0x2e80;
         if (o.scr && !reduce && Math.random() < o.scr) { ch = SCRAMBLE[(Math.random() * SCRAMBLE.length) | 0]; cj = false; }
-        push(cj ? glyphs.cjk : glyphs.text, rgba(col, o.a ?? 1), ch, cx, cy, 0);
+        push(cj ? legacy.cjk : legacy.text, rgba(col, o.a ?? 1), ch, cx, cy, 0);
       }
     }
+    const legacyNow = legacy.rect.size > 0 || legacy.text.size > 0 || legacy.cjk.size > 0;
+    const full = forceFull || legacyNow || legacyPrev || nDirty > 0.5 * nFull;
+    forceFull = false; legacyPrev = legacyNow;
+    frames++;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (full) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    else for (let i = 0; i < nDirty; i++) {
+      const id = dirtyList[i], c = id % cols, r = (id / cols) | 0;
+      const x0 = Math.round(c * cw * dpr), y0 = Math.round(r * chh * dpr);
+      ctx.clearRect(x0, y0, Math.round((c + 1) * cw * dpr) - x0, Math.round((r + 1) * chh * dpr) - y0);
+    }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
-    for (const [style, a] of glyphs.rect) { ctx.fillStyle = style; for (let i = 0; i < a.length; i += 4) ctx.fillRect(a[i], a[i + 1], a[i + 2], a[i + 3]); }
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `${opts.font}px ${opts.monoFamily}`;
-    for (const [style, a] of glyphs.text) { ctx.fillStyle = style; for (let i = 0; i < a.length; i += 4) ctx.fillText(a[i], a[i + 1], a[i + 2]); }
-    ctx.font = `${opts.cjk}px ${opts.cjkFamily}`;
-    for (const [style, a] of glyphs.cjk) { ctx.fillStyle = style; for (let i = 0; i < a.length; i += 4) ctx.fillText(a[i], a[i + 1], a[i + 2]); }
+    const rw = cw - 2, rh = chh - 2;
+    for (const [key, a] of rectBuckets) {
+      if (!a.length) continue;
+      ctx.fillStyle = rectStyleOf(key);
+      for (let i = 0; i < a.length; i += 3) if (full || dirty[a[i + 2]]) ctx.fillRect(a[i], a[i + 1], rw, rh);
+      a.length = 0;
+    }
+    for (const [style, a] of legacy.rect) { ctx.fillStyle = style; for (let i = 0; i < a.length; i += 4) ctx.fillRect(a[i], a[i + 1], a[i + 2], a[i + 3]); }
+    // glifos do atlas, em pixels do dispositivo (o centro do glifo cai no centro da célula, como no fillText)
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const S = atlas.S, half = S / 2, per = atlas.per, pp = per * per, pages = atlas.pages;
+    for (let l = 1; l <= AL; l++) {
+      const a = glyphBuckets[l];
+      if (!a.length) continue;
+      ctx.globalAlpha = l / AL;
+      for (let i = 0; i < a.length; i += 4) {
+        if (!full && !dirty[a[i + 3]]) continue;
+        const id = a[i], k = id % pp;
+        ctx.drawImage(pages[(id / pp) | 0], (k % per) * S, ((k / per) | 0) * S, S, S, Math.round(a[i + 1] * dpr - half), Math.round(a[i + 2] * dpr - half), S, S);
+      }
+      a.length = 0;
+    }
+    ctx.globalAlpha = 1;
+    if (legacy.text.size || legacy.cjk.size) {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `${opts.font}px ${opts.monoFamily}`;
+      for (const [style, a] of legacy.text) { ctx.fillStyle = style; for (let i = 0; i < a.length; i += 4) ctx.fillText(a[i], a[i + 1], a[i + 2]); }
+      ctx.font = `${opts.cjk}px ${opts.cjkFamily}`;
+      for (const [style, a] of legacy.cjk) { ctx.fillStyle = style; for (let i = 0; i < a.length; i += 4) ctx.fillText(a[i], a[i + 1], a[i + 2]); }
+    }
   }
 
   // ---------------------------------------------------------------- laço e eventos
@@ -487,11 +600,15 @@ function createSakuraBackground(canvas, options) {
   function loop(now) {
     raf = requestAnimationFrame(loop);
     if (!running) return;
-    if (now - lastDraw < 1000 / opts.fps - 2) return;
+    // com o papel tapando a tela (cards, stack, fotos), o fundo quase não aparece: meia velocidade ou espera
+    const fps = cover >= 0.8 ? 0 : cover >= 0.5 ? opts.fps / 2 : opts.fps;
+    if (!fps || now - lastDraw < 1000 / fps - 2) return;
     lastDraw = now;
     const s0 = performance.now();
     frame(now);
-    if (opts.onFrame) opts.onFrame(performance.now() - s0);
+    const ms = performance.now() - s0;
+    frameMs = frameMs ? frameMs * 0.9 + ms * 0.1 : ms;
+    if (opts.onFrame) opts.onFrame(ms);
   }
   function onPointer(e) {
     if (!opts.interactive) return;
@@ -505,10 +622,17 @@ function createSakuraBackground(canvas, options) {
     pointer.x = x; pointer.y = y; pointer.active = true; pointer.lastT = now;
   }
   const onLeave = () => { pointer.active = false; };
-  const onVis = () => { running = !document.hidden; if (running) last = 0; };
+  // voltar de aba oculta ou recuperar o contexto do canvas (GPU reiniciada) refaz o quadro inteiro
+  const onVis = () => { running = !document.hidden; if (running) { last = 0; forceFull = true; } };
+  const onRestore = () => { forceFull = true; };
+  canvas.addEventListener('contextrestored', onRestore);
   let rt = 0;
   const onResize = () => { clearTimeout(rt); rt = setTimeout(() => { layout(); camSnap = true; frame(performance.now()); }, 120); };
 
+  // fontes que chegam depois (JetBrains Mono, Noto Sans JP) refazem o atlas, que guardou os glifos de reserva
+  const onFonts = () => { atlas.dirty = true; };
+  if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', onFonts);
+  buildPalette();
   layout();
   window.addEventListener('pointermove', onPointer, { passive: true });
   document.addEventListener('pointerleave', onLeave);
@@ -520,8 +644,18 @@ function createSakuraBackground(canvas, options) {
     setCamera(c, snap) { Object.assign(camT, c); if (snap) camSnap = true; if (reduce) frame(performance.now()); },
     setSafe(s) { Object.assign(safeT, s); },
     setAlpha(a) { alphaT = a; },
+    setCover(c) { cover = c; },
+    // nível de qualidade: { fps, dpr (máximo), glitch, scramble, ambient (fração das pétalas soltas) }
+    setQuality(q) {
+      if (q.fps) opts.fps = q.fps;
+      if ('glitch' in q) opts.glitch = q.glitch;
+      if ('scramble' in q) opts.scramble = q.scramble;
+      if (q.ambient) ambientK = q.ambient;
+      if (q.dpr && q.dpr !== dprMax) { dprMax = q.dpr; layout(false); camSnap = true; frame(performance.now()); }
+    },
+    get load() { return { ms: frameMs, fps: opts.fps, cover, frames }; },
     setOptions(o) { const regen = ('preset' in o && o.preset !== opts.preset) || ('seed' in o && o.seed !== opts.seed);
-      Object.assign(opts, o); if (regen) layout(); if (reduce) frame(performance.now()); },
+      Object.assign(opts, o); buildPalette(); rectStyle.clear(); atlas.dirty = true; if (regen) layout(); if (reduce) frame(performance.now()); },
     replayIntro(dur) { growStart = (performance.now() - t0) / 1000; if (dur) growDur = dur; gustPlan = null; },
     skipIntro() { growStart = -1e9; sparks = []; for (const f of scene.flowers) f.bt = undefined; },
     burst(cells, extra) { burst(cells, extra); },
@@ -545,6 +679,8 @@ function createSakuraBackground(canvas, options) {
       destroyed = true; cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onPointer); document.removeEventListener('pointerleave', onLeave);
       document.removeEventListener('visibilitychange', onVis); window.removeEventListener('resize', onResize);
+      canvas.removeEventListener('contextrestored', onRestore);
+      if (document.fonts && document.fonts.removeEventListener) document.fonts.removeEventListener('loadingdone', onFonts);
     },
     get stats() { return { cols, rows, branches: scene.branches.length, flowers: scene.flowers.length, particles: particles.length }; },
   };

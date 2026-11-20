@@ -7,6 +7,8 @@ Portfólio estático (pt-BR) com fundo de sakura em ASCII. Sem dependências de 
 - `npm run dev` — servidor em http://localhost:5500 com rebuild + live reload ao salvar em `src/`
 - `npm run build` — gera `dist/`
 - `npm run check` — rode depois de qualquer mudança; precisa terminar em "tudo certo"
+- `npm run perf` — régua de desempenho (Chrome headless, CPU lenta, celular); rode antes e depois de mexer no motor, nos cards
+  ou no controlador
 
 ## Regras
 
@@ -24,6 +26,7 @@ Portfólio estático (pt-BR) com fundo de sakura em ASCII. Sem dependências de 
   gradiente só nas flores, uma família tipográfica (Inter), raio 0 em cards, 10px em links/pílulas, sem sombras
   (exceção: os elementos de vidro líquido da nav e do contato, ver MOTION.md).
   Respeite `prefers-reduced-motion` e mantenha `aria-hidden` nos elementos decorativos.
-- Desempenho: o motor roda a 30 fps (~7 ms/quadro). Evite trabalho por quadro que não seja por célula. Os cards em ASCII
-  (`ascii.js`) só desenham quando estão na tela; cada um custa ~2–4 ms por quadro.
+- Desempenho: ver a seção "Desempenho" do MOTION.md. O motor roda a 30 fps, com atlas de glifos e redesenho só das
+  células que mudaram. O controlador só roda quando algo muda e lê o layout em cache: não leia layout no tick. Os níveis
+  de qualidade (`TIERS`) descem sozinhos em aparelhos fracos. Meça com `npm run perf`.
 - Fim de linha LF, UTF-8, 2 espaços (4 no Python).

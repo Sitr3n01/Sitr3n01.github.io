@@ -48,7 +48,7 @@ def nav(base=''):
     mobile_links = ''.join(f'<a href="{base}#{id}">{nav_icon(icon)}<span>{label}</span></a>'
                            for id, label, icon in MENU_LINKS)
     return f'''
-<div class="sk-topblur sk-blurfx" data-sk-ui="1" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+<div class="sk-topblur sk-blurfx" data-sk-ui="1" aria-hidden="true"><i></i><i></i></div>
 <header class="sk-toolbar" data-sk-ui="1" style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
 <a class="sk-logo" href="{base}#inicio" style="pointer-events: auto">SITR3N.</a>
 <nav class="sk-desktop-nav" aria-label="Seções" style="pointer-events: auto; display: flex; align-items: center; gap: 10px">
@@ -265,7 +265,7 @@ CONTACT = f'''
 <a class="sk-seg" href="mailto:zegilfarias@outlook.com">E-mail <span class="sk-seg-sub">zegilfarias@outlook.com</span></a>
 </div>
 <footer class="sk-footblur">
-<div class="sk-blurfx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+<div class="sk-blurfx" aria-hidden="true"><i></i><i></i></div>
 <span style="{CAP}">© 2026 Sitr3n</span>
 </footer>
 </section>'''
@@ -418,7 +418,7 @@ def project_body(p, nxt):
 <span class="sk-next-t"><span style="display: inline-block; view-transition-name: sk-title-{ns}">{E(nxt['titulo'])}</span> →</span>
 </a>
 <footer class="sk-footblur">
-<div class="sk-blurfx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+<div class="sk-blurfx" aria-hidden="true"><i></i><i></i></div>
 <span style="{CAP}">© 2026 Sitr3n</span>
 <a class="sk-link" href="{base}#contato" style="{CAP}; text-decoration: none">Vamos conversar ↗</a>
 </footer>
@@ -516,7 +516,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 
 /* ---- objetos dos projetos em ASCII (canvas por cima do quadriculado do card) ---- */
 .sk-ascii{position:relative;display:block}
-.sk-ascii canvas{position:absolute;left:0;top:0;display:block;pointer-events:none}
+.sk-ascii canvas{position:absolute;left:0;top:0;display:block;pointer-events:none;image-rendering:pixelated}
 @media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
 
 /* ---- cards da home viram links ---- */
@@ -583,11 +583,9 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   background:linear-gradient(to bottom,rgba(229,228,224,.72) 0%,rgba(229,228,224,.38) 45%,rgba(229,228,224,0) 100%)}
 .sk-topblur{--dir:to bottom}
 .sk-blurfx i{position:absolute;inset:0}
-.sk-blurfx i:nth-child(1){-webkit-backdrop-filter:blur(.6px);backdrop-filter:blur(.6px);-webkit-mask-image:linear-gradient(var(--dir),#000 70%,transparent 100%);mask-image:linear-gradient(var(--dir),#000 70%,transparent 100%)}
-.sk-blurfx i:nth-child(2){-webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);-webkit-mask-image:linear-gradient(var(--dir),#000 52%,transparent 82%);mask-image:linear-gradient(var(--dir),#000 52%,transparent 82%)}
-.sk-blurfx i:nth-child(3){-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);-webkit-mask-image:linear-gradient(var(--dir),#000 36%,transparent 64%);mask-image:linear-gradient(var(--dir),#000 36%,transparent 64%)}
-.sk-blurfx i:nth-child(4){-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:linear-gradient(var(--dir),#000 20%,transparent 46%);mask-image:linear-gradient(var(--dir),#000 20%,transparent 46%)}
-.sk-blurfx i:nth-child(5){-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);-webkit-mask-image:linear-gradient(var(--dir),#000 6%,transparent 30%);mask-image:linear-gradient(var(--dir),#000 6%,transparent 30%)}
+/* duas camadas (antes eram cinco): o desfoque progressivo continua, com menos passes de GPU sobre o canvas animado */
+.sk-blurfx i:nth-child(1){-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);-webkit-mask-image:linear-gradient(var(--dir),#000 55%,transparent 88%);mask-image:linear-gradient(var(--dir),#000 55%,transparent 88%)}
+.sk-blurfx i:nth-child(2){-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);-webkit-mask-image:linear-gradient(var(--dir),#000 12%,transparent 46%);mask-image:linear-gradient(var(--dir),#000 12%,transparent 46%)}
 /* rodapé: o mesmo desfoque, de baixo para cima, sangrando até as bordas da tela */
 .sk-footblur{--dir:to top;position:relative;margin:0 calc(-1 * clamp(19px,4vw,76px)) -30px;padding:0 clamp(19px,4vw,76px) 30px;min-height:168px;
   display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 19px;box-sizing:border-box;
@@ -660,6 +658,10 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-hint-arrow{display:block;animation:sk-bob 1.6s cubic-bezier(.45,0,.55,1) infinite}
 @keyframes sk-bob{0%,100%{transform:translateY(-3px)}50%{transform:translateY(5px)}}
 @media (prefers-reduced-motion:reduce){.sk-hint-arrow{animation:none}}
+/* nível de qualidade C (aparelhos fracos, ver TIERS no controlador): vidro sem desfoque, com o fundo mais opaco */
+[data-sk-tier="c"] .sk-glass,[data-sk-tier="c"] .sk-lens,[data-sk-tier="c"] .sk-lens-btn,[data-sk-tier="c"] .sk-blurfx i,
+[data-sk-tier="c"] .sk-hint::before,[data-sk-tier="c"] .sk-menu{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+[data-sk-tier="c"] .sk-glass{background-color:rgba(229,228,224,.9)}
 
 /* A toolbar e os controles cabem em uma linha também no celular deitado. */
 .sk-menu-toggle,.sk-menu{display:none}

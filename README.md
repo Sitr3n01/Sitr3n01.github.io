@@ -18,6 +18,7 @@ Nada para instalar: não há `node_modules`.
 | `npm run dev`   | build + servidor em http://localhost:5500 que refaz o build e recarrega a página a cada alteração em `src/` |
 | `npm run build` | gera `dist/` do zero                                                         |
 | `npm run check` | build + verificações rápidas (sintaxe, export do `SakuraSite`, seções, build determinístico) |
+| `npm run perf`  | mede o desempenho no Chrome headless (CPU 4×/6× mais lenta, celular) e compara com as metas; ver `docs/PLANO-UX-MOBILE.md` |
 
 Porta diferente: `PORT=3000 npm run dev` (PowerShell: `$env:PORT=3000; npm run dev`).
 Se o Python não se chamar `python`/`python3`, defina `PYTHON` com o caminho.

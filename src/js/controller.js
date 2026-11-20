@@ -86,6 +86,60 @@ function mountCardColumns(columns, layout) {
   return () => { layout.removeEventListener('change', arrange); right.append(...second); };
 }
 
+// Níveis de qualidade. Começa pelo melhor que o aparelho sugere (Save-Data e deviceMemory; o nível mais baixo já
+// atingido fica guardado) e desce sozinho quando mede sobrecarga: dois intervalos seguidos de 2 s com mais de 20% dos
+// quadros acima de 40 ms, ou o quadro do motor acima de 16 ms no nível A (metade do quadro a 30 fps). Depois de
+// cada troca há 4 s sem avaliar: a troca refaz o canvas e não pode contar como sobrecarga. Nunca sobe na mesma visita (não oscila); o
+// nível guardado vale por 14 dias, para um engasgo isolado não prender o aparelho no nível baixo.
+// ?tier=a|b|c fixa o nível (testes). O nível vai para data-sk-tier na raiz: o CSS do nível C tira o desfoque do vidro.
+const TIERS = {
+  a: { engine: { fps: 30, dpr: 2, glitch: true, scramble: true, ambient: 1 }, ascii: { fps: 30, density: 1, animate: Infinity } },
+  b: { engine: { fps: 24, dpr: 1.5, glitch: false, scramble: true, ambient: 0.6 }, ascii: { fps: 24, density: 0.75, animate: 2 } },
+  c: { engine: { fps: 15, dpr: 1, glitch: false, scramble: false, ambient: 0.4 }, ascii: { fps: 15, density: 0.55, animate: 1 } },
+};
+const TIER_KEY = 'sk-tier-v1', TIER_DAYS = 14;
+
+function mountQuality(root, engine, ascii) {
+  const order = Object.keys(TIERS);
+  const local = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { /* sem storage */ } return null; };
+  const forced = (/[?&]tier=([abc])\b/.exec(location.search) || [])[1];
+  const nav = typeof navigator === 'object' ? navigator : {};
+  const mem = nav.deviceMemory, saveData = nav.connection && nav.connection.saveData;
+  const prior = saveData || (mem && mem <= 2) ? 'c' : mem && mem <= 4 ? 'b' : 'a';
+  let stored = 'a';
+  try { const s = JSON.parse(local(TIER_KEY)); if (order.includes(s.t) && Date.now() - s.at < TIER_DAYS * 864e5) stored = s.t; } catch (e) { /* nada guardado */ }
+  let tier = forced || order[Math.max(order.indexOf(prior), order.indexOf(stored))];
+  const apply = t => {
+    tier = t;
+    root.setAttribute('data-sk-tier', t);
+    engine.setQuality(TIERS[t].engine);
+    ascii.setQuality(TIERS[t].ascii);
+  };
+  apply(tier);
+
+  let raf = 0, t0 = 0, last = 0, n = 0, slow = 0, bad = 0, calm = 0;
+  const loop = now => {
+    raf = 0;
+    if (tier === 'c') return; // nada abaixo
+    raf = requestAnimationFrame(loop);
+    if (document.hidden || root.getAttribute('data-sk-intro') === 'on') { last = 0; t0 = 0; n = slow = 0; return; }
+    if (now < calm) { last = 0; t0 = 0; n = slow = 0; return; }
+    if (last) { const gap = now - last; if (gap < 400) { n++; if (gap > 40) slow++; } }
+    last = now;
+    if (!t0) t0 = now;
+    if (now - t0 < 2000) return;
+    const over = (n >= 10 && slow / n > 0.2) || (tier === 'a' && engine.load.ms > 16);
+    bad = over ? bad + 1 : 0;
+    t0 = now; n = slow = 0;
+    if (bad < 2) return;
+    bad = 0; calm = now + 4000;
+    apply(order[order.indexOf(tier) + 1]);
+    local(TIER_KEY, JSON.stringify({ t: tier, at: Date.now() }));
+  };
+  if (!forced) raf = requestAnimationFrame(loop);
+  return { get tier() { return tier; }, destroy() { cancelAnimationFrame(raf); } };
+}
+
 function mount(root, options) {
   const o = Object.assign({ preset: 'kosa', kanji: true, wind: 1 }, options || {});
   const $ = s => root.querySelector(s), $$ = s => Array.from(root.querySelectorAll(s));
@@ -95,8 +149,11 @@ function mount(root, options) {
   const singleColumn = matchMedia('(max-width: 720px), (max-width: 935px) and (pointer: coarse)');
   const unmountMenu = mountMenu(root, menuLayout), unmountColumns = mountCardColumns($('[data-sk-card-columns]'), singleColumn);
   const project = !!$('[data-sk-view="proj"]');
-  const engine = createSakuraBackground(canvas, { preset: o.preset, kanji: o.kanji, wind: o.wind, holdIntro: !reduce, project });
+  // os anéis seguem a câmera suavizada do motor: atualizados no quadro do motor, junto com o canvas
+  const engine = createSakuraBackground(canvas, { preset: o.preset, kanji: o.kanji, wind: o.wind, holdIntro: !reduce, project,
+    onFrame: () => placeRings() });
   const glass = mountGlass(root, scroller), videos = mountVideos(root), ascii = mountAscii(root);
+  const quality = mountQuality(root, engine, ascii);
   const F = engine.focus;
   function camOf(v, fit, compact) {
     if (v.cam.id) return { z: lerp(1, fit, compact), fx: F[0] * compact, fy: F[1] * compact, sx: 0.54 * compact, sy: 0.5 * compact };
@@ -138,6 +195,36 @@ function mount(root, options) {
 
   const t0 = performance.now();
   let raf = 0, dead = false;
+
+  // O tick só roda quando algo muda: rolagem, redimensionamento, abertura ou órbita na tela. A geometria (topos das
+  // seções, colunas com parallax, tamanho da área de rolagem) fica em cache e só é medida de novo quando o layout muda,
+  // para o quadro não ler o layout depois de escrever transforms.
+  const scrollEvents = scroller === document.scrollingElement ? window : scroller;
+  const geo = { dirty: true, vh: 0, vw: 0, tops: [], heights: [], cols: [], paper: [], orbitTop: 0, orbitH: 0, wordsTop: 0, wordsH: 0 };
+  const paper = $$('.sk-card, .sk-stack, .sk-facts, .sk-stats, .sk-video-frame, .sk-me-photo, .sk-tile');
+  const wake = () => { if (!raf && !dead) raf = requestAnimationFrame(tick); };
+  const relayout = () => { geo.dirty = true; wake(); };
+  function measure() {
+    geo.dirty = false;
+    geo.vh = scroller.clientHeight; geo.vw = scroller.clientWidth; geo.scrollH = scroller.scrollHeight;
+    geo.tops = sections.map(topOf); geo.heights = sections.map(el => el.offsetHeight);
+    geo.cols = parallax.map(el => ({ el, top: topOf(el) - translateY(el.style.transform), h: el.offsetHeight, speed: Number(el.dataset.skParallax), y: NaN }));
+    if (orbit) { const sec = orbit.closest('[data-sk-view]'); geo.orbitTop = topOf(sec); geo.orbitH = sec.offsetHeight; }
+    if (words.length) { const sec = words[0].closest('[data-sk-view]'); geo.wordsTop = topOf(sec); geo.wordsH = sec.offsetHeight; }
+    // superfícies de papel (opacas): quanto da tela elas tapam decide a velocidade do fundo (engine.setCover)
+    const left = scroller.getBoundingClientRect().left;
+    geo.paper = paper.map(el => {
+      const r = el.getBoundingClientRect(), colEl = el.closest('[data-sk-parallax]'), col = geo.cols.find(c => c.el === colEl) || null;
+      const w = Math.max(0, Math.min(r.right - left, geo.vw) - Math.max(r.left - left, 0));
+      return { top: topOf(el) - (col ? translateY(col.el.style.transform) : 0) - translateY(getComputedStyle(el.closest('[data-sk-reveal]') || el).transform), h: r.height, w, col };
+    });
+  }
+  const layoutRO = typeof ResizeObserver === 'function' ? new ResizeObserver(relayout) : null;
+  if (layoutRO) { layoutRO.observe(scroller); if (scroller.firstElementChild) layoutRO.observe(scroller.firstElementChild); }
+  window.addEventListener('resize', relayout);
+  scrollEvents.addEventListener('scroll', wake, { passive: true });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
+  const last = { p: NaN, m: NaN, e: NaN, hint: null, intro: true };
 
   // home: primeira visita da sessão e F5 → abertura completa (o F5 recomeça do topo); voltar à home navegando
   // dentro do site → recuo curto. ?intro=full força a completa.
@@ -185,7 +272,7 @@ function mount(root, options) {
     const ti = (performance.now() - t0) / 1000 - skew;
     if (ti < IN.end) skew -= IN.end - ti;
     introSkipped = true;
-    engine.skipIntro(); grown = true; burstDone = true; showUI();
+    engine.skipIntro(); grown = true; burstDone = true; showUI(); wake();
   };
 
   // barra de progresso na grade; ao completar, as células explodem em faíscas
@@ -235,6 +322,7 @@ function mount(root, options) {
 
   function showReveal(el, animate) {
     el.__shown = true;
+    if (revealIO) revealIO.unobserve(el);
     el.style.transition = animate ? 'transform 1s cubic-bezier(.2,.7,.2,1), opacity 1s ease' : 'none';
     el.style.opacity = '1'; el.style.transform = 'translate3d(0,0,0)';
   }
@@ -313,8 +401,18 @@ function mount(root, options) {
   const skipEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
   skipEvents.forEach(ev => window.addEventListener(ev, skip, { passive: true, capture: true }));
 
+  // entradas: um observador avisa quando o bloco passa da linha de 90% da tela (ou já ficou acima dela)
+  let revealIO = null;
   if (!reduce) {
     reveals.forEach(el => { el.style.opacity = '0'; el.style.transform = 'translate3d(0,40px,0)'; });
+    revealIO = new IntersectionObserver(entries => {
+      for (const en of entries) {
+        const top = en.rootBounds ? en.rootBounds.top : 0;
+        if (!en.target.__shown && (en.isIntersecting || en.boundingClientRect.bottom <= top)) showReveal(en.target, en.isIntersecting);
+        if (en.target.__shown) revealIO.unobserve(en.target);
+      }
+    }, { root: scroller === document.scrollingElement ? null : scroller, rootMargin: '0px 0px -10% 0px' });
+    reveals.forEach(el => revealIO.observe(el));
   }
   const revealFocus = event => {
     const reveal = event.target.closest('[data-sk-reveal]');
@@ -324,17 +422,30 @@ function mount(root, options) {
 
   function topOf(el) { return el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop; }
 
+  function placeRings() {
+    if (!rings || dead) return;
+    const cc = engine.camera, size = engine.size;
+    const px = (F[0] - cc.fx) * size.H * cc.z + cc.sx * size.W, py = (F[1] - cc.fy) * size.H * cc.z + cc.sy * size.H;
+    rings.style.transform = `translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0) scale(${(0.7 + 0.35 * cc.z).toFixed(3)})`;
+  }
+
   function tick(now) {
+    raf = 0;
     if (dead) return;
-    raf = requestAnimationFrame(tick);
     const t = (now - t0) / 1000;
-    const st = scroller.scrollTop, vh = scroller.clientHeight, vw = scroller.clientWidth;
+    // leituras primeiro (o layout em cache só é medido de novo quando mudou), escritas depois
+    if (geo.dirty) measure();
+    const st = scroller.scrollTop, vh = geo.vh, vw = geo.vw;
+    let again = false; // pede outro quadro: abertura em andamento ou órbita girando na tela
 
     const ti = t - skew; // relógio da abertura (avança de uma vez quando o visitante pula)
     const zooming = on && IN.zoom && ti < IN.zoom[1];
+    // as letras do título terminam de se montar em IN.ui + 0,5 s (maior atraso) + 1,1 s
+    const introLive = on && !introSkipped && ti < Math.max(IN.end, IN.ui + 1.65);
+    if (introLive) again = true;
 
     // ---------------- câmera: mistura a vista da seção atual com a próxima
-    const tops = sections.map(topOf);
+    const tops = geo.tops;
     const anchor = st + vh * 0.5;
     let i = 0; for (let k = 0; k < tops.length; k++) if (tops[k] <= anchor) i = k;
     const j = Math.min(i + 1, sections.length - 1);
@@ -358,14 +469,14 @@ function mount(root, options) {
 
     // ---------------- órbita (seção "áreas" fixada): gira, depois explode e a câmera mergulha
     if (orbit) {
-      const sec = orbit.closest('[data-sk-view]');
-      const top = topOf(sec), h = sec.offsetHeight;
+      const top = geo.orbitTop, h = geo.orbitH;
       const q = clamp((st - top) / Math.max(1, h - vh), 0, 1);
       const e = smooth(0.58, 0.92, q);
       const inView = st + vh > top && st < top + h;
       if (inView) cam.z = lerp(cam.z, 2.7, e);
       const rx = Math.min(vw * 0.38, 620), ry = rx * 0.46, spin = reduce ? 0 : t;
       if (inView) {
+        if (!reduce) again = true;
         if (!Ch[0].w) sizeChips();
         // posição da órbita + um desvio (ox, oy) que afasta chips sobrepostos: a cada quadro, cada par que se
         // toca é separado pelo eixo mais curto (metade para cada um, em duas passadas, para resolver grupos), com
@@ -401,7 +512,7 @@ function mount(root, options) {
           el.style.zIndex = String(Math.round(p.depth * 100));
         });
       }
-      orbitLabels.forEach(el => { el.style.opacity = String(1 - e); });
+      if (e !== last.e) { orbitLabels.forEach(el => { el.style.opacity = String(1 - e); }); last.e = e; }
     }
 
     // ---------------- abertura
@@ -419,19 +530,13 @@ function mount(root, options) {
     } else {
       engine.setCamera(cam); engine.setSafe(safe); engine.setAlpha(alpha);
     }
-
-    // ---------------- anéis concêntricos seguem o foco da câmera
-    if (rings) {
-      const cc = engine.camera;
-      const px = (F[0] - cc.fx) * size.H * cc.z + cc.sx * size.W, py = (F[1] - cc.fy) * size.H * cc.z + cc.sy * size.H;
-      rings.style.transform = `translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0) scale(${(0.7 + 0.35 * cc.z).toFixed(3)})`;
-    }
+    if (reduce) placeRings(); // sem o laço do motor, os anéis acompanham aqui
 
     // ---------------- título: letras se montam na entrada e se dispersam no scroll
     // Entrada: a letra só aparece nos últimos 10% do caminho, já quase no lugar. Saída: a dispersão cresce com
     // p³ (quase parada no começo) e a palavra inteira some até p ≈ 0,3, antes de as letras se afastarem.
     const p = clamp(st / (vh * 0.9), 0, 1), p2 = p * p * p;
-    if (!reduce) letters.forEach((el, n) => {
+    if (!reduce && (introLive || last.intro || p !== last.p)) letters.forEach((el, n) => {
       const d = L[n];
       const a = !on || introSkipped ? 1 : ease((ti - IN.ui - d.idel) / 1.1);
       const x = d.ix * (1 - a) + d.sx * p2, y = d.iy * (1 - a) + d.sy * p2, r = d.ir * (1 - a) + d.sr * p2;
@@ -439,48 +544,59 @@ function mount(root, options) {
       el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) rotate(${r.toFixed(1)}deg)`;
       el.style.opacity = op.toFixed(3);
     });
+    last.p = p; last.intro = introLive;
 
     // ---------------- manifesto: palavras desalinhadas que assentam
     if (!reduce && words.length) {
-      const sec = words[0].closest('[data-sk-view]');
-      const top = topOf(sec), h = sec.offsetHeight;
-      const m = clamp((st - top + vh * 0.6) / Math.max(1, h - vh * 0.4), 0, 1);
-      words.forEach((el, n) => {
+      const m = clamp((st - geo.wordsTop + vh * 0.6) / Math.max(1, geo.wordsH - vh * 0.4), 0, 1);
+      if (m !== last.m) words.forEach((el, n) => {
         // só aparece na segunda metade do caminho, já quase no lugar; a saída sobe o bloco todo junto
         const w = Wd[n], loc = ease((m - w.d) / 0.26), exit = smooth(0.86, 1, m);
         el.style.transform = `translate3d(0, ${((1 - loc) * w.off - exit * 0.7).toFixed(3)}em, 0)`;
         el.style.opacity = (smooth(0.5, 1, loc) * (1 - exit)).toFixed(3);
       });
+      last.m = m;
     }
 
-    // ---------------- colunas com velocidades diferentes
-    parallax.forEach(el => {
-      const p = parallaxPosition(el, scroller.getBoundingClientRect().top, vh);
-      el.style.transform = `translate3d(0, ${p.offset.toFixed(1)}px, 0)`;
-    });
+    // ---------------- colunas com velocidades diferentes (posição sem transform, em cache)
+    const single = singleColumn.matches;
+    for (const c of geo.cols) {
+      const y = single ? 0 : -((c.top - st) + (c.h - vh) / 2) * c.speed / (1 + c.speed);
+      if (Math.abs(y - c.y) < 0.05) continue;
+      c.y = y;
+      c.el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+    }
 
-    // ---------------- entradas
-    if (!reduce) reveals.forEach(el => {
-      if (el.__shown) return;
-      const r = el.getBoundingClientRect(), sr = scroller.getBoundingClientRect();
-      if (r.top - sr.top < vh * 0.9) showReveal(el, true);
-    });
+    // ---------------- papel cobrindo a tela: o fundo desacelera (≥ 50%) ou espera (≥ 80%)
+    let covered = 0;
+    for (const b of geo.paper) {
+      const top = b.top + (b.col && b.col.y === b.col.y ? b.col.y : 0);
+      const v = Math.min(top + b.h, st + vh) - Math.max(top, st);
+      if (v > 0) covered += v * b.w;
+    }
+    engine.setCover(zooming || introLive ? 0 : covered / Math.max(1, vw * vh));
 
     // "Scroll": fica enquanto houver o que rolar abaixo; no fim da página some e deixa de ser clicável
     if (hint) {
-      const more = st + vh < scroller.scrollHeight - 1;
-      hint.style.opacity = more ? '1' : '0';
-      hint.style.pointerEvents = more ? '' : 'none';
-      hint.disabled = !more;
+      const more = st + vh < geo.scrollH - 1;
+      if (more !== last.hint) {
+        hint.style.opacity = more ? '1' : '0';
+        hint.style.pointerEvents = more ? '' : 'none';
+        hint.disabled = !more;
+        last.hint = more;
+      }
     }
+    if (again) wake();
   }
-  raf = requestAnimationFrame(tick);
+  wake();
 
   return {
-    engine, ascii,
+    engine, ascii, get tier() { return quality.tier; },
     update(n) { Object.assign(o, n); engine.setOptions({ preset: o.preset, kanji: o.kanji, wind: o.wind }); },
     destroy() {
       dead = true; cancelAnimationFrame(raf); unmountMenu(); unmountColumns(); glass.destroy(); engine.destroy();
+      if (layoutRO) layoutRO.disconnect(); if (revealIO) revealIO.disconnect(); quality.destroy();
+      window.removeEventListener('resize', relayout); scrollEvents.removeEventListener('scroll', wake);
       skipEvents.forEach(ev => window.removeEventListener(ev, skip, true));
       scroller.removeEventListener('focusin', revealFocus);
       cancelAnimationFrame(restoreFrame); window.removeEventListener('pageshow', onShow);

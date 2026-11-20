@@ -32,25 +32,15 @@ const ASC_GLYPHS = [
   '#####|#####|#####|#####|#####',
 ];
 
-function ascAtlas(dpr) {
-  const T = Math.max(5, Math.round(ASC_CELL * dpr));
-  const cv = document.createElement('canvas');
-  cv.width = T * ASC_GLYPHS.length; cv.height = T * ASC_TONES.length;
-  const g = cv.getContext('2d');
-  ASC_TONES.forEach((col, k) => {
-    g.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
-    ASC_GLYPHS.forEach((pat, i) => {
-      const rows = pat.split('|');
-      for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) {
-        if (rows[y][x] !== '#') continue;
-        const x0 = Math.round((x + 1) * T / 6), x1 = Math.round((x + 2) * T / 6);
-        const y0 = Math.round((y + 1) * T / 6), y1 = Math.round((y + 2) * T / 6);
-        g.fillRect(i * T + x0, k * T + y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0));
-      }
-    });
-  });
-  return { cv, T, dpr };
-}
+// Os glifos são pixel art (5 × 5 numa célula de 6 px): o palco desenha em 1 pixel por px de CSS, direto num buffer, e
+// o navegador amplia com image-rendering: pixelated. Em dpr 2 cada pixel do glifo vira 2 × 2, como antes, com 1/4 dos
+// pixels e uma cópia por quadro (putImageData) no lugar de um drawImage por célula.
+const ASC_PIX = ASC_GLYPHS.map(pat => {
+  const rows = pat.split('|'), out = [];
+  for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) if (rows[y][x] === '#') out.push(x + 1, y + 1);
+  return out;
+});
+const ASC_TONE32 = typeof Uint32Array === 'undefined' ? [] : ASC_TONES.map(c => ((255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0]) >>> 0);
 
 // ---------------------------------------------------------------- malha → nuvem de pontos
 // Uma malha é uma lista de partes; cada parte tem triângulos, um albedo (número ou função da posição e da normal;
@@ -356,7 +346,7 @@ function ascStage(el, store, reduce) {
   const grid = el.closest('.sk-card, .sk-tile') || el;
   const S = {
     el, canvas, ctx, grid, slug: el.getAttribute('data-sk-ascii'), src: el.getAttribute('data-sk-ascii-src') || 'assets/ascii/',
-    W: 0, H: 0, dpr: 1, cols: 0, rows: 0, sx: 0, sy: 0, atlas: null,
+    W: 0, H: 0, cols: 0, rows: 0, sx: 0, sy: 0, img: null, px: null,
     shapes: null, dust: null, N: 0, building: false, failed: false,
     t: 0, intro: 0, angle: 0.6, yaw: 0.6, seg: '', ord: null, ord0: null, kind: 'scatter', boost: 0, hover: false, frame: 0, dirty: true,
     zb: null, val: null, kd: null, gl: null, szb: null, sval: null, ms: 0,
@@ -373,9 +363,9 @@ function ascStage(el, store, reduce) {
 function ascLayout(S) {
   const r = S.el.getBoundingClientRect(), g = S.grid.getBoundingClientRect();
   S.W = Math.max(1, Math.round(r.width)); S.H = Math.max(1, Math.round(r.height));
-  S.dpr = Math.min(window.devicePixelRatio || 1, 2);
-  S.canvas.width = Math.round(S.W * S.dpr); S.canvas.height = Math.round(S.H * S.dpr);
+  S.canvas.width = S.W; S.canvas.height = S.H;
   S.canvas.style.width = S.W + 'px'; S.canvas.style.height = S.H + 'px';
+  S.img = S.ctx.createImageData(S.W, S.H); S.px = new Uint32Array(S.img.data.buffer);
   // células alinhadas ao quadriculado do card (que começa na borda interna do elemento com o fundo)
   const offX = r.left - g.left - (S.grid.clientLeft || 0), offY = r.top - g.top - (S.grid.clientTop || 0);
   S.sx = ((Math.round(offX) % ASC_CELL) + ASC_CELL) % ASC_CELL; S.sy = ((Math.round(offY) % ASC_CELL) + ASC_CELL) % ASC_CELL;
@@ -383,7 +373,6 @@ function ascLayout(S) {
   const n = S.cols * S.rows;
   S.zb = new Float32Array(n); S.val = new Float32Array(n); S.kd = new Uint8Array(n); S.gl = new Uint8Array(n);
   S.szb = new Float32Array(n); S.sval = new Float32Array(n);
-  if (!S.atlas || S.atlas.dpr !== S.dpr) S.atlas = ascAtlas(S.dpr);
   S.dirty = false;
 }
 
@@ -436,15 +425,18 @@ function ascSampler() {
   };
 }
 
-async function ascBuild(S, sampler) {
+// cede a vez ao navegador entre as etapas da preparação (cada forma vira uma tarefa curta, não uma longa)
+const ascYield = () => new Promise(resolve => setTimeout(resolve, 0));
+
+async function ascBuild(S, sampler, density = 1) {
   S.building = true;
-  const N = S.N = clamp(Math.round(S.cols * S.rows * 2.4), 4000, 16000);
+  const N = S.N = clamp(Math.round(S.cols * S.rows * 2.4 * density), 2500, 16000);
   const rng = rngFrom(hash2(S.slug.length * 131, S.slug.charCodeAt(0) * 7) * 4294967296 >>> 0);
   const rnd = rng.random;
   const def = ASC_PROJECTS[S.slug] || ASC_PROJECTS._;
   const env = { N, rnd, src: S.src, sample: (name, n, params) => sampler.sample(rng, name, n, params) };
   const shapes = [];
-  for (const make of def.shapes) shapes.push(await make(env));
+  for (const make of def.shapes) { shapes.push(await make(env)); await ascYield(); }
   shapes.forEach((sh, k) => { sh.trans = def.trans[k] || 'scatter'; });
   S.dust = ascDust(N, rnd);
   S.dir = new Float32Array(N * 3); S.rn = new Float32Array(N);
@@ -644,12 +636,11 @@ function ascRender(S, w, A, B, ca, cb, morph, tilt, sc, itau) {
       if (n >= 3 || (n === 2 && ((kd[id - 1] === 1 && kd[id + 1] === 1) || (kd[id - cols] === 1 && kd[id + cols] === 1)))) { kd[id] = mark; val[id] = sv / n; zb[id] = sz; }
     }
   }
-  // ---- desenho
-  const ctx = S.ctx, at = S.atlas, T = at.T, dpr = S.dpr;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, S.canvas.width, S.canvas.height);
+  // ---- desenho: pixels dos glifos direto no buffer do palco (1 px por px de CSS)
+  const px = S.px, W = S.W, H = S.H;
+  px.fill(0);
   for (let r = 0; r < rows; r++) {
-    const dy = Math.round((r * ASC_CELL - S.sy) * dpr);
+    const oy = r * ASC_CELL - S.sy;
     for (let c = 0; c < cols; c++) {
       const id = r * cols + c, k = kd[id];
       if (!k) continue;
@@ -662,14 +653,19 @@ function ascRender(S, w, A, B, ca, cb, morph, tilt, sc, itau) {
         g = lv === 1 ? 0 : lv === 2 ? 1 : lv === 3 ? 2 + ((r + c) & 1) : lv;
         tone = k === 2 ? 3 : clamp(Math.floor(clamp((0.5 - zb[id]) / 1.3, 0, 1) * 2 + b), 0, 2);
       }
-      ctx.drawImage(at.cv, g * T, tone * T, T, T, Math.round((c * ASC_CELL - S.sx) * dpr), dy, T, T);
+      const P = ASC_PIX[g], col = ASC_TONE32[tone], ox = c * ASC_CELL - S.sx;
+      for (let q = 0; q < P.length; q += 2) {
+        const x = ox + P[q], y = oy + P[q + 1];
+        if (x >= 0 && y >= 0 && x < W && y < H) px[y * W + x] = col;
+      }
     }
   }
+  S.ctx.putImageData(S.img, 0, 0);
 }
 
 function mountAscii(root) {
   const els = Array.from(root.querySelectorAll('[data-sk-ascii]'));
-  if (!els.length || typeof IntersectionObserver === 'undefined') return { stages: [], destroy() {} };
+  if (!els.length || typeof IntersectionObserver === 'undefined') return { stages: [], setQuality() {}, destroy() {} };
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const store = (() => { try { return window.sessionStorage; } catch (e) { return { getItem() { return null; }, setItem() {} }; } })();
   const stages = els.map(el => ascStage(el, store, reduce));
@@ -677,42 +673,85 @@ function mountAscii(root) {
   const active = new Set();
   const sampler = ascSampler();
   const scroller = root.closest?.('[data-sk-scroller]') || root.querySelector('[data-sk-scroller]');
-  let raf = 0, last = 0, dead = false, running = !document.hidden;
+  let raf = 0, pickRaf = 0, idle = 0, last = 0, dead = false, running = !document.hidden;
   let epoch = Number(store.getItem('sk-ascii-epoch')) || 0;
+  // qualidade (controller.js): quadros por segundo, densidade de pontos e quantos palcos animam ao mesmo tempo
+  const Q = { fps: ASC_FPS, density: 1, animate: Infinity };
+  // coluna única (celular): só o palco mais perto do centro da tela anima; os outros ficam no último quadro
+  const oneColumn = typeof matchMedia === 'function' ? matchMedia('(max-width: 720px), (max-width: 935px) and (pointer: coarse)') : { matches: false };
+  const limit = () => (oneColumn.matches ? 1 : Q.animate);
 
   const schedule = () => {
     if (!dead && !reduce && running && active.size && !raf) raf = requestAnimationFrame(loop);
   };
-  const refresh = S => {
-    if (dead || !S.shapes || !S.visible) { active.delete(S); return; }
-    if (reduce) draw(S, 0);
-    else { active.add(S); schedule(); }
+  const clock = () => {
+    if (!epoch) { epoch = Date.now(); store.setItem('sk-ascii-epoch', String(epoch)); } // o relógio começa no 1º card visto
+    return (Date.now() - epoch) / 1000;
+  };
+  // um quadro parado no instante atual do relógio, sem a entrada (palco visível que não é o central)
+  const still = S => { S.intro = Infinity; S.t = clock(); draw(S, 0); S.still = true; };
+  function pick() {
+    pickRaf = 0;
+    if (dead) return;
+    const vis = stages.filter(S => S.visible && S.shapes);
+    let chosen = vis;
+    if (!reduce && vis.length > limit()) {
+      // os mais perto do centro da tela
+      const box = scroller ? scroller.getBoundingClientRect() : { top: 0, height: innerHeight };
+      const mid = box.top + box.height / 2;
+      const dist = new Map(vis.map(S => { const r = S.el.getBoundingClientRect(); return [S, Math.abs(r.top + r.height / 2 - mid)]; }));
+      chosen = vis.slice().sort((a, b) => dist.get(a) - dist.get(b)).slice(0, limit());
+    }
+    for (const S of stages) {
+      if (chosen.includes(S)) continue;
+      active.delete(S);
+      if (S.visible && S.shapes && !reduce && !S.still) still(S);
+    }
+    for (const S of chosen) {
+      if (reduce) draw(S, 0);
+      else { active.add(S); S.still = false; }
+    }
+    schedule();
+  }
+  const repick = () => { if (!pickRaf && !dead) pickRaf = requestAnimationFrame(pick); };
+  const onScroll = () => { if (stages.filter(S => S.visible && S.shapes).length > limit()) repick(); };
+  const build = S => {
+    if (S.shapes || S.building || S.failed || dead) return Promise.resolve();
+    if (S.dirty) ascLayout(S);
+    return ascBuild(S, sampler, Q.density).then(repick).catch(err => {
+      S.failed = true; S.building = false;
+      if (!dead) console.warn('[ascii]', S.slug, err);
+    });
   };
   // A margem expande o próprio scroller. Com a janela como raiz, o scroller cortava a pré-carga.
   const preload = new IntersectionObserver(entries => {
-    for (const en of entries) {
-      const S = stageOf.get(en.target);
-      if (!en.isIntersecting || S.shapes || S.building || S.failed || dead) continue;
-      if (S.dirty) ascLayout(S);
-      ascBuild(S, sampler).then(() => refresh(S)).catch(err => {
-        S.failed = true; S.building = false;
-        if (!dead) console.warn('[ascii]', S.slug, err);
-      });
-    }
+    for (const en of entries) if (en.isIntersecting) build(stageOf.get(en.target));
   }, { root: scroller, rootMargin: '400px 0px' });
+  // Preparação em tempo ocioso, depois da abertura: um palco de cada vez, na ordem da página. Assim a rolagem chega
+  // aos cards com tudo pronto, em vez de calcular as formas no meio dela.
+  const idleCall = cb => (typeof requestIdleCallback === 'function' ? requestIdleCallback(cb, { timeout: 3000 }) : setTimeout(cb, 400));
+  const idleCancel = id => (typeof cancelIdleCallback === 'function' ? cancelIdleCallback(id) : clearTimeout(id));
+  const prebuild = () => {
+    idle = 0;
+    const S = stages.find(x => !x.shapes && !x.building && !x.failed);
+    if (!S || dead) return;
+    build(S).then(() => { if (!dead) idle = idleCall(prebuild); });
+  };
+  const prebuildTimer = setTimeout(() => { idle = idleCall(prebuild); }, 4500);
   const visibility = new IntersectionObserver(entries => {
     for (const en of entries) {
       const S = stageOf.get(en.target);
       S.visible = en.isIntersecting;
-      refresh(S);
+      if (!S.visible) { active.delete(S); S.still = false; }
     }
+    repick();
   }, { root: scroller });
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(entries => {
     for (const en of entries) {
       const S = stageOf.get(en.target);
-      S.dirty = true;
-      if (reduce) refresh(S);
+      S.dirty = true; S.still = false;
     }
+    repick();
   }) : null;
   const hovers = [];
   stages.forEach(S => {
@@ -724,6 +763,9 @@ function mountAscii(root) {
       hovers.push([card, on, off]);
     }
   });
+  const scrollEvents = scroller || window;
+  scrollEvents.addEventListener('scroll', onScroll, { passive: true });
+  if (oneColumn.addEventListener) oneColumn.addEventListener('change', repick);
 
   function draw(S, dt) {
     if (S.dirty) ascLayout(S);
@@ -736,12 +778,11 @@ function mountAscii(root) {
     raf = 0;
     if (dead || !running || !active.size) { last = 0; return; }
     schedule();
-    if (now - last < 1000 / ASC_FPS - 2) return;
-    const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / ASC_FPS;
+    if (now - last < 1000 / Q.fps - 2) return;
+    const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / Q.fps;
     last = now;
     for (const S of active) {
-      if (!epoch) { epoch = Date.now(); store.setItem('sk-ascii-epoch', String(epoch)); } // o relógio começa no 1º card visto
-      S.t = (Date.now() - epoch) / 1000;
+      S.t = clock();
       S.intro += dt;
       draw(S, dt);
     }
@@ -753,17 +794,21 @@ function mountAscii(root) {
 
   return {
     stages,
+    setQuality(q) { Object.assign(Q, q); repick(); },
     // quadro num instante qualquer do relógio (testes e capturas); t < 0 mostra a entrada do palco
     frameAt(i, t, angle, dt) {
       const S = stages[i]; if (!S || !S.shapes || S.building) return false;
       if (t < 0) { if (S.intro >= ASC_INTRO || S.t !== 0) S.ord0 = null; S.t = 0; S.intro = ASC_INTRO + t; } else { S.t = t; S.intro = Infinity; }
       if (angle != null) S.angle = angle; draw(S, dt || 0); return true;
     },
-    get stats() { return stages.map(S => ({ slug: S.slug, N: S.N, cols: S.cols, rows: S.rows, ms: +S.ms.toFixed(2) })); },
+    get stats() { return stages.map(S => ({ slug: S.slug, N: S.N, cols: S.cols, rows: S.rows, ms: +S.ms.toFixed(2), active: active.has(S) })); },
     destroy() {
-      dead = true; cancelAnimationFrame(raf); preload.disconnect(); visibility.disconnect(); if (ro) ro.disconnect();
+      dead = true; cancelAnimationFrame(raf); cancelAnimationFrame(pickRaf); clearTimeout(prebuildTimer); if (idle) idleCancel(idle);
+      preload.disconnect(); visibility.disconnect(); if (ro) ro.disconnect();
       sampler.destroy(); active.clear();
       hovers.forEach(([c, on, off]) => { c.removeEventListener('pointerenter', on); c.removeEventListener('pointerleave', off); });
+      scrollEvents.removeEventListener('scroll', onScroll);
+      if (oneColumn.removeEventListener) oneColumn.removeEventListener('change', repick);
       document.removeEventListener('visibilitychange', onVis); window.removeEventListener('pagehide', onHide);
     },
   };

@@ -60,12 +60,39 @@ blocos de glitch nas flores e caracteres que se embaralham perto do cursor.
 
 ## Desempenho e acessibilidade
 
-- **Custo:** o motor roda a 30 fps, com ~7 ms por quadro (mediana) e 12 ms (p95) em 1440×900, no Chrome sem placa de vídeo.
-  A cobertura é calculada direto por célula, sem canvas intermediário nem `getImageData`.
-- **Aba oculta:** a animação pausa.
-- **Cards ASCII:** a preparação começa até 400 px antes do palco entrar na área de rolagem. Um worker prepara as
-  superfícies implícitas do ExoBeast e do Local AI Provider. Se o worker estiver indisponível, a mesma amostragem
-  cede tempo à interface entre lotes. O canvas desenha enquanto o palco estiver visível.
+- **Régua:** `npm run perf` mede no Chrome headless, com a CPU emulada 4× e 6× mais lenta e viewport de celular, e
+  compara com as metas de [PLANO-UX-MOBILE.md](PLANO-UX-MOBILE.md). Meça antes e depois de qualquer mudança no motor,
+  nos cards ou no controlador.
+- **Motor:** 30 fps. Os glifos saem de um atlas (cada caractere numa cor da paleta indexada, rasterizado uma vez) e
+  entram com `drawImage`, agrupados pela opacidade. Só as células que mudaram desde o quadro anterior são apagadas e
+  redesenhadas; com a câmera andando, ou quando muda mais da metade, o quadro é refeito inteiro. A cobertura é
+  calculada direto por célula, em buffers reaproveitados, e a atenuação só é recalculada quando a zona de respiro muda.
+  Custo parado, em 1080p com CPU 4×: cerca de 6,5 ms por quadro.
+- **Fundo coberto:** quando as superfícies de papel (cards, stack, fatos, vídeo, foto) tapam 50% da tela, o motor
+  cai para meia velocidade. A partir de 80%, espera.
+- **Controlador:** o tick só roda quando há rolagem, redimensionamento, abertura ou órbita na tela. A geometria
+  (topos das seções, colunas, superfícies de papel) fica em cache e é medida de novo quando o layout muda. As entradas
+  usam `IntersectionObserver`.
+- **Níveis de qualidade** (`TIERS` no controlador, `data-sk-tier` na raiz):
+
+  | Nível | Motor | Cards | Vidro |
+  |---|---|---|---|
+  | A | 30 fps, dpr até 2 | 30 fps | com desfoque |
+  | B | 24 fps, dpr até 1,5, sem glitch, menos pétalas | 24 fps, 75% dos pontos, até 2 animando | com desfoque |
+  | C | 15 fps, dpr 1, sem glitch nem embaralhamento | 15 fps, 55% dos pontos, só o central | sem desfoque |
+
+  Começa pelo que o aparelho sugere (Save-Data, `deviceMemory`). Desce sozinho quando mede sobrecarga: dois
+  intervalos seguidos de 2 s com mais de 20% dos quadros acima de 40 ms, ou o motor acima de 16 ms por quadro no
+  nível A. Depois de cada troca, espera 4 s antes de avaliar de novo. Nunca sobe na mesma visita. O nível alcançado fica guardado por 14 dias. `?tier=a|b|c` fixa um nível.
+- **Cards ASCII:** desenham em 1 pixel por px de CSS num buffer (`putImageData`), e o navegador amplia com
+  `image-rendering: pixelated`. Os glifos são pixel art, então o desenho é o mesmo.
+  - Em coluna única (celular), só o palco mais perto do centro da tela anima; os outros mostram um quadro parado do
+    relógio comum.
+  - A preparação acontece em tempo ocioso depois da abertura, um palco por vez, com uma tarefa por forma. O worker
+    amostra as superfícies implícitas do ExoBeast e do Local AI Provider.
+  - Fallback: os cards também se preparam quando ficam a 400 px de entrar na tela.
+- **Vidro:** o desfoque progressivo do topo e do rodapé tem 2 camadas.
+- **Aba oculta:** a animação pausa. Ao voltar, o quadro é refeito inteiro.
 - **`prefers-reduced-motion`:** sem abertura (a cena já aparece pronta), sem animação de letras e palavras, sakura parada (a câmera ainda acompanha as seções).
 - **Leitores de tela:** canvas, anéis, chips e loader têm `aria-hidden`. O título tem `aria-label` com o texto inteiro.
 
