@@ -14,6 +14,7 @@ const read = (f) => readFileSync(join(DIST, f), 'utf8');
 
 build({ clean: true });
 const js1 = read('sakura-site.js'), html1 = read('index.html');
+const worker1 = read('sakura-ascii-worker.js');
 
 const sandbox = {};
 try {
@@ -24,6 +25,13 @@ try {
 }
 const S = sandbox.SakuraSite || {};
 ok(typeof S.mount === 'function' && typeof S.createSakuraBackground === 'function', 'SakuraSite.mount e createSakuraBackground existem');
+try {
+  const worker = {};
+  vm.runInNewContext(worker1, { self: worker }, { filename: 'sakura-ascii-worker.js' });
+  ok(typeof worker.onmessage === 'function', 'worker de geometria ASCII inicializa');
+} catch (e) {
+  ok(false, `worker de geometria ASCII inicializa (${e.message})`);
+}
 ok(S.PRESETS && ['kosa', 'sanbon', 'ogi', 'itozakura', 'koeda'].every((p) => p in S.PRESETS), 'os 5 presets existem');
 
 for (const v of ['hero', 'manifesto', 'about', 'work', 'areas', 'path', 'contact'])
@@ -46,7 +54,7 @@ for (const slug of slugs) {
     `transição do palco ASCII de ${slug} nos dois lados`);
   ok(html1.includes(`data-sk-ascii="${slug}"`) && page.includes(`data-sk-ascii="${slug}"`) && js1.includes(`'${slug}': {`),
     `objetos em ASCII de ${slug} no card, na página e em ASC_PROJECTS`);
-  if (page.includes('sk-video-empty')) pend.push(`${slug}: sem vídeo (src/assets/projetos/${slug}/apresentacao.mp4)`);
+  if (page.includes('class="sk-video-empty"')) pend.push(`${slug}: sem vídeo (src/assets/projetos/${slug}/apresentacao.mp4)`);
   if (page.includes('class="sk-pending"')) pend.push(`${slug}: texto com [preencher]`);
 }
 
@@ -56,7 +64,7 @@ for (const f of ['rca44-geometry.glb', 'tsuru.glb', 'land-mask-640x320.bin']) {
 }
 
 build();
-ok(read('sakura-site.js') === js1 && read('index.html') === html1, 'build determinístico');
+ok(read('sakura-site.js') === js1 && read('sakura-ascii-worker.js') === worker1 && read('index.html') === html1, 'build determinístico');
 
 if (html1.includes('[SEU E-MAIL]')) console.log('! pendência: [SEU E-MAIL] ainda está no contato');
 for (const p of pend) console.log(`! pendência: ${p}`);

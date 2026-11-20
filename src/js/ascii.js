@@ -19,6 +19,8 @@ const ASC_TONES = [[29, 29, 29], [62, 62, 61], [110, 110, 108], [175, 174, 173]]
 const ASC_L = (() => { const l = [-0.5, 0.62, 0.6], n = Math.hypot(l[0], l[1], l[2]); return l.map(v => v / n); })();
 const ASC_FLY = [0, 0, 1, 1, 2, 3, 0, 1]; // glifos das partículas soltas: mais pontos e cruzes pequenas
 const ASC_BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + 0.5) / 16);
+const ASC_SCRIPT_URL = typeof document === 'undefined' ? '' : document.currentScript?.src || '';
+const ASC_WORKER_URL = /^https?:/.test(ASC_SCRIPT_URL) ? new URL('sakura-ascii-worker.js', ASC_SCRIPT_URL) : null;
 // glifos desenhados como pixels (5 × 5 dentro da célula, com 1 px de respiro à esquerda e em cima, que coincide
 // com as linhas do quadriculado): · + × ✚ ✳ ■, em ordem de tinta
 const ASC_GLYPHS = [
@@ -226,11 +228,16 @@ function ascSampleMesh(m, N, rnd) {
 }
 
 // superfície implícita (SDF): pontos sorteados numa casca fina em volta da superfície e projetados nela
-function ascSampleSDF(sdf, box, N, rnd, albFn, grpFn) {
+async function ascSampleSDF(sdf, box, N, rnd, albFn, grpFn, pause) {
   const B = ascBuffers(N), eps = 0.03, h = 0.0015;
   const [x0, y0, z0, x1, y1, z1] = box;
   let n = 0, tries = 0;
+  let until = pause ? performance.now() + 6 : 0;
   while (n < N && tries < N * 600) {
+    if (pause && (tries & 63) === 0 && performance.now() >= until) {
+      await pause();
+      until = performance.now() + 6;
+    }
     tries++;
     let x = x0 + (x1 - x0) * rnd(), y = y0 + (y1 - y0) * rnd(), z = z0 + (z1 - z0) * rnd();
     let d = sdf(x, y, z);
@@ -380,13 +387,62 @@ function ascLayout(S) {
   S.dirty = false;
 }
 
-async function ascBuild(S) {
+function ascSampler() {
+  const pending = new Map();
+  let worker = null, id = 0, failed = false, closed = false;
+  const stop = error => {
+    failed = true;
+    worker?.terminate();
+    worker = null;
+    pending.forEach(job => job.reject(error));
+    pending.clear();
+  };
+  const request = (name, N, params, state) => new Promise((resolve, reject) => {
+    if (!worker) {
+      worker = new Worker(ASC_WORKER_URL);
+      worker.onmessage = ({ data }) => {
+        const job = pending.get(data.id);
+        if (!job) return;
+        pending.delete(data.id);
+        if (data.error) job.reject(new Error(data.error));
+        else job.resolve(data);
+      };
+      worker.onerror = event => { event.preventDefault(); stop(new Error(event.message || 'Worker ASCII')); };
+      worker.onmessageerror = () => stop(new Error('Resposta inválida do worker ASCII'));
+    }
+    pending.set(++id, { resolve, reject });
+    worker.postMessage({ id, name, N, params, state });
+  });
+  const pause = async () => {
+    await new Promise(resolve => setTimeout(resolve, 0));
+    if (closed) throw new Error('Palco ASCII desmontado');
+  };
+  return {
+    async sample(rng, name, N, params) {
+      if (closed) throw new Error('Palco ASCII desmontado');
+      if (!failed && ASC_WORKER_URL && typeof Worker === 'function') {
+        try {
+          const { cloud, state } = await request(name, N, params, rng.state);
+          rng.state = state;
+          return cloud;
+        } catch (error) {
+          if (closed) throw error;
+          stop(error);
+        }
+      }
+      return ASC_SAMPLERS[name](N, rng.random, params, pause);
+    },
+    destroy() { closed = true; stop(new Error('Palco ASCII desmontado')); },
+  };
+}
+
+async function ascBuild(S, sampler) {
   S.building = true;
   const N = S.N = clamp(Math.round(S.cols * S.rows * 2.4), 4000, 16000);
   const rng = rngFrom(hash2(S.slug.length * 131, S.slug.charCodeAt(0) * 7) * 4294967296 >>> 0);
   const rnd = rng.random;
   const def = ASC_PROJECTS[S.slug] || ASC_PROJECTS._;
-  const env = { N, rnd, src: S.src };
+  const env = { N, rnd, src: S.src, sample: (name, n, params) => sampler.sample(rng, name, n, params) };
   const shapes = [];
   for (const make of def.shapes) shapes.push(await make(env));
   shapes.forEach((sh, k) => { sh.trans = def.trans[k] || 'scatter'; });
@@ -424,7 +480,6 @@ function ascWhere(S) {
 function ascOrder(S, kind, A, Bc, shA) {
   const N = S.N, O = S.ord, rn = S.rn;
   let mn = Infinity, mx = -Infinity;
-  const key = new Float32Array(N);
   const o = shA.origin || [0, 0, 0], ang0 = rn[0] * Math.PI * 2;
   for (let i = 0; i < N; i++) {
     const j = i * 3;
@@ -434,11 +489,11 @@ function ascOrder(S, kind, A, Bc, shA) {
     else if (kind === 'contain') v = -Math.hypot(A[j], A[j + 1], A[j + 2]);
     else if (kind === 'sync' || kind === 'implode') v = 0;
     else v = -A[j + 1]; // scatter: de cima para baixo
-    key[i] = v; if (v < mn) mn = v; if (v > mx) mx = v;
+    O[i] = v; if (v < mn) mn = v; if (v > mx) mx = v;
   }
   const span = mx - mn || 1;
   const jit = kind === 'sync' || kind === 'implode' ? 0.25 : 0.22;
-  for (let i = 0; i < N; i++) O[i] = clamp((1 - jit) * (key[i] - mn) / span + jit * rn[i], 0, 1);
+  for (let i = 0; i < N; i++) O[i] = clamp((1 - jit) * (O[i] - mn) / span + jit * rn[i], 0, 1);
 }
 
 function ascFit(S, sh, tilt) {
@@ -453,13 +508,14 @@ function ascStep(S, dt) {
   const segKey = w.a + '>' + w.b;
   const t = S.t;
   // ---- troca começando: forma nova (anel do Loopia), ordem de saída
-  if (morph && S.seg !== segKey) {
+  const newMorph = morph && S.seg !== segKey;
+  if (newMorph) {
     if (B.regen) B.regen(B);
     S.kind = A.trans;
     S.seg = segKey;
-    ascOrder(S, S.kind, ascAnimate(A, t).pos, ascAnimate(B, t).pos, A);
   } else if (!morph) S.seg = segKey;
   const ca = ascAnimate(A, t), cb = morph ? ascAnimate(B, t) : ca;
+  if (newMorph) ascOrder(S, S.kind, ca.pos, cb.pos, A);
   const tauE = ascIO(w.tau), bump = morph ? Math.sin(Math.PI * w.tau) : 0;
   // ---- câmera: gira mais rápido no meio da troca e com o mouse em cima do card
   S.boost += ((S.hover ? 1 : 0) - S.boost) * Math.min(1, dt * 3);
@@ -473,7 +529,7 @@ function ascStep(S, dt) {
   const dy = (((yb - ya + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
   S.yaw = ya + dy * tauE;
   const tilt = A.view.tilt + (B.view.tilt - A.view.tilt) * tauE;
-  const sc = ascFit(S, A, tilt) + (ascFit(S, B, tilt) - ascFit(S, A, tilt)) * tauE;
+  const fitA = ascFit(S, A, tilt), sc = morph ? fitA + (ascFit(S, B, tilt) - fitA) * tauE : fitA;
   // ---- entrada do palco: o que o relógio mostra agora brota do chão, de baixo para cima
   const itau = S.intro < ASC_INTRO ? S.intro / ASC_INTRO : 1;
   if (itau < 1 && !S.ord0) {
@@ -572,13 +628,16 @@ function ascRender(S, w, A, B, ca, cb, morph, tilt, sc, itau) {
   // vidro e superfícies "macias": só aparecem onde não há nada sólido
   for (let id = 0; id < cols * rows; id++) if (!kd[id] && szb[id] > -1e8) { kd[id] = 2; val[id] = sval[id]; zb[id] = szb[id]; }
   // furinhos entre pontos: célula vazia (ou só de vidro) cercada de células sólidas vira a média delas
+  const neighbors = [0, 0, 0, 0];
   for (let pass = 0; pass < 2; pass++) {
     const mark = pass ? 6 : 4;
     for (let r = 1; r < rows - 1; r++) for (let c = 1; c < cols - 1; c++) {
       const id = r * cols + c;
       if (kd[id] && kd[id] !== 2) continue;
       let n = 0, sv = 0, sz = -1e9;
-      for (const q of [id - 1, id + 1, id - cols, id + cols]) {
+      neighbors[0] = id - 1; neighbors[1] = id + 1; neighbors[2] = id - cols; neighbors[3] = id + cols;
+      for (let i = 0; i < 4; i++) {
+        const q = neighbors[i];
         const kq = kd[q];
         if (kq === 1 || (pass && kq === 4)) { n++; sv += val[q]; if (zb[q] > sz) sz = zb[q]; }
       }
@@ -614,25 +673,50 @@ function mountAscii(root) {
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const store = (() => { try { return window.sessionStorage; } catch (e) { return { getItem() { return null; }, setItem() {} }; } })();
   const stages = els.map(el => ascStage(el, store, reduce));
+  const stageOf = new Map(stages.map(S => [S.el, S]));
+  const active = new Set();
+  const sampler = ascSampler();
+  const scroller = root.closest?.('[data-sk-scroller]') || root.querySelector('[data-sk-scroller]');
   let raf = 0, last = 0, dead = false, running = !document.hidden;
   let epoch = Number(store.getItem('sk-ascii-epoch')) || 0;
 
-  const io = new IntersectionObserver(entries => {
+  const schedule = () => {
+    if (!dead && !reduce && running && active.size && !raf) raf = requestAnimationFrame(loop);
+  };
+  const refresh = S => {
+    if (dead || !S.shapes || !S.visible) { active.delete(S); return; }
+    if (reduce) draw(S, 0);
+    else { active.add(S); schedule(); }
+  };
+  // A margem expande o próprio scroller. Com a janela como raiz, o scroller cortava a pré-carga.
+  const preload = new IntersectionObserver(entries => {
     for (const en of entries) {
-      const S = stages.find(s => s.el === en.target);
-      S.near = en.isIntersecting;
-      if (S.near && !S.shapes && !S.building && !S.failed) {
-        if (S.dirty) ascLayout(S);
-        ascBuild(S).then(() => { if (reduce) draw(S, 0); }).catch(err => { S.failed = true; S.building = false; console.warn('[ascii]', S.slug, err); });
-      }
+      const S = stageOf.get(en.target);
+      if (!en.isIntersecting || S.shapes || S.building || S.failed || dead) continue;
+      if (S.dirty) ascLayout(S);
+      ascBuild(S, sampler).then(() => refresh(S)).catch(err => {
+        S.failed = true; S.building = false;
+        if (!dead) console.warn('[ascii]', S.slug, err);
+      });
     }
-  }, { rootMargin: '400px 0px' });
+  }, { root: scroller, rootMargin: '400px 0px' });
+  const visibility = new IntersectionObserver(entries => {
+    for (const en of entries) {
+      const S = stageOf.get(en.target);
+      S.visible = en.isIntersecting;
+      refresh(S);
+    }
+  }, { root: scroller });
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(entries => {
-    for (const en of entries) { const S = stages.find(s => s.el === en.target); S.dirty = true; if (reduce && S.shapes) draw(S, 0); }
+    for (const en of entries) {
+      const S = stageOf.get(en.target);
+      S.dirty = true;
+      if (reduce) refresh(S);
+    }
   }) : null;
   const hovers = [];
   stages.forEach(S => {
-    io.observe(S.el); if (ro) ro.observe(S.el);
+    preload.observe(S.el); visibility.observe(S.el); if (ro) ro.observe(S.el);
     const card = S.el.closest('.sk-card');
     if (card) {
       const on = () => { S.hover = true; }, off = () => { S.hover = false; };
@@ -641,10 +725,6 @@ function mountAscii(root) {
     }
   });
 
-  function onScreen(S) {
-    const r = S.el.getBoundingClientRect();
-    return r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth && r.width > 0;
-  }
   function draw(S, dt) {
     if (S.dirty) ascLayout(S);
     const s0 = performance.now();
@@ -653,23 +733,23 @@ function mountAscii(root) {
     S.ms = S.ms * 0.9 + (performance.now() - s0) * 0.1;
   }
   function loop(now) {
-    raf = requestAnimationFrame(loop);
-    if (!running || now - last < 1000 / ASC_FPS - 2) return;
+    raf = 0;
+    if (dead || !running || !active.size) { last = 0; return; }
+    schedule();
+    if (now - last < 1000 / ASC_FPS - 2) return;
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / ASC_FPS;
     last = now;
-    for (const S of stages) {
-      if (!S.shapes || S.building || !S.near || !onScreen(S)) continue;
+    for (const S of active) {
       if (!epoch) { epoch = Date.now(); store.setItem('sk-ascii-epoch', String(epoch)); } // o relógio começa no 1º card visto
       S.t = (Date.now() - epoch) / 1000;
       S.intro += dt;
       draw(S, dt);
     }
   }
-  const onVis = () => { running = !document.hidden; last = 0; };
-  const onHide = () => { for (const S of stages) if (S.shapes) store.setItem('sk-ascii:' + S.slug, JSON.stringify({ a: S.angle, at: Date.now() })); };
+  const onVis = () => { running = !document.hidden; last = 0; schedule(); };
+  const onHide = () => { for (const S of stages) if (S.frame) store.setItem('sk-ascii:' + S.slug, JSON.stringify({ a: S.angle, at: Date.now() })); };
   document.addEventListener('visibilitychange', onVis);
   window.addEventListener('pagehide', onHide);
-  if (!reduce) raf = requestAnimationFrame(loop);
 
   return {
     stages,
@@ -681,7 +761,8 @@ function mountAscii(root) {
     },
     get stats() { return stages.map(S => ({ slug: S.slug, N: S.N, cols: S.cols, rows: S.rows, ms: +S.ms.toFixed(2) })); },
     destroy() {
-      dead = true; cancelAnimationFrame(raf); io.disconnect(); if (ro) ro.disconnect();
+      dead = true; cancelAnimationFrame(raf); preload.disconnect(); visibility.disconnect(); if (ro) ro.disconnect();
+      sampler.destroy(); active.clear();
       hovers.forEach(([c, on, off]) => { c.removeEventListener('pointerenter', on); c.removeEventListener('pointerleave', off); });
       document.removeEventListener('visibilitychange', onVis); window.removeEventListener('pagehide', onHide);
     },

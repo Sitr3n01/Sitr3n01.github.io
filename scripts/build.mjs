@@ -1,6 +1,7 @@
 // Gera dist/ a partir de src/:
 //   dist/index.html      ← src/page/build_page.py (marcação + CSS)
 //   dist/sakura-site.js  ← src/js/{core,engine,glass,video,ascii,ascii-forms,controller}.js num IIFE que expõe window.SakuraSite
+//   dist/sakura-ascii-worker.js ← amostragem da geometria dos cards fora da thread principal
 //   dist/assets/         ← cópia de src/assets/ (se existir)
 // Uso: node scripts/build.mjs [--dc <script_url>]
 import { spawnSync } from 'node:child_process';
@@ -14,6 +15,7 @@ export const DIST = join(ROOT, 'dist');
 
 // Ordem importa: os arquivos compartilham o mesmo escopo dentro do IIFE.
 const JS_PARTS = ['core.js', 'engine.js', 'glass.js', 'video.js', 'ascii.js', 'ascii-forms.js', 'controller.js'];
+const WORKER_PARTS = ['core.js', 'ascii.js', 'ascii-forms.js', 'ascii-worker.js'];
 
 const HEADER = `/*!
  * sakura-site.js — fundo de sakura em ASCII + dinâmicas de scroll do portfólio (sem dependências)
@@ -34,8 +36,9 @@ function python() {
 }
 
 export function buildJs() {
-  const body = JS_PARTS.map((f) => readFileSync(join(SRC, 'js', f), 'utf8').replace(/\r\n/g, '\n')).join('');
-  writeFileSync(join(DIST, 'sakura-site.js'), HEADER + body + FOOTER);
+  const bundle = parts => parts.map(f => readFileSync(join(SRC, 'js', f), 'utf8').replace(/\r\n/g, '\n')).join('\n');
+  writeFileSync(join(DIST, 'sakura-site.js'), HEADER + bundle(JS_PARTS) + FOOTER);
+  writeFileSync(join(DIST, 'sakura-ascii-worker.js'), "'use strict';\n" + bundle(WORKER_PARTS));
 }
 
 export function buildHtml(dcUrl) {

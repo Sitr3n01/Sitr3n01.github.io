@@ -36,6 +36,8 @@ function rngFrom(seed) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const r = {
     random: next,
+    get state() { return a >>> 0; },
+    set state(value) { a = value >>> 0; },
     uniform: (lo, hi) => lo + (hi - lo) * next(),
     int: (lo, hi) => lo + Math.floor(next() * (hi - lo + 1)),
     normal: (mu = 0, sd = 1) => { const u = 1 - next(), v = next(); return mu + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); },

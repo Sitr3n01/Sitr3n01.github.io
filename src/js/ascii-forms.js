@@ -181,7 +181,7 @@ function ascGpu(env) {
   return ascShape(ascSampleMesh(m, env.N, env.rnd), env.rnd, { view: { tilt: 0.3, spin: 0.55, light: 0.45, face: 0 } });
 }
 
-function ascLock(env) {
+function ascLockSamples(N, rnd, _params, pause) {
   const body = (x, y, z) => sdRoundBox(x, y + 0.2, z, 0.4, 0.3, 0.15, 0.07);
   const shackle = (x, y, z) => {
     const qy = y - 0.1, R = 0.27, r = 0.062;
@@ -198,7 +198,11 @@ function ascLock(env) {
     }
     return 0.58;
   };
-  return ascShape(ascSampleSDF(sdf, [-0.5, -0.56, -0.24, 0.5, 0.42, 0.24], env.N, env.rnd, alb), env.rnd, { view: { tilt: 0.22, spin: 0.6, face: 0 } });
+  return ascSampleSDF(sdf, [-0.5, -0.56, -0.24, 0.5, 0.42, 0.24], N, rnd, alb, null, pause);
+}
+
+async function ascLock(env) {
+  return ascShape(await env.sample('lock', env.N), env.rnd, { view: { tilt: 0.22, spin: 0.6, face: 0 } });
 }
 
 // ================================================================ 03 · XGB: monitor com a barra → controle → símbolos
@@ -479,24 +483,27 @@ function ascPawnAlb(x, y, z) {
   if (z > 0.04 && Math.abs(x) + Math.abs(y - 0.02) < 0.045) return 1;
   return 0.52;
 }
-function ascPawns(env, C, N, poseFor) {
+function ascPawnSamples(N, rnd, C, pause) {
   const near = (x, y, z) => { let b = 0, bd = Infinity; C.forEach((c, i) => { const d = Math.hypot(x - c[0], y - c[1], z - c[2]); if (d < bd) { bd = d; b = i; } }); return b; };
   const sdf = (x, y, z) => { let d = Infinity; for (const c of C) d = Math.min(d, ascPawnSDF(x - c[0], y - c[1], z - c[2])); return d; };
   const xs = C.map(c => c[0]), ys = C.map(c => c[1]), zs = C.map(c => c[2]);
   const box = [Math.min(...xs) - 0.22, Math.min(...ys) - 0.24, Math.min(...zs) - 0.22, Math.max(...xs) + 0.22, Math.max(...ys) + 0.4, Math.max(...zs) + 0.22];
-  const B = ascSampleSDF(sdf, box, N, env.rnd, (x, y, z) => { const c = C[near(x, y, z)]; return ascPawnAlb(x - c[0], y - c[1], z - c[2]); }, near);
+  return ascSampleSDF(sdf, box, N, rnd, (x, y, z) => { const c = C[near(x, y, z)]; return ascPawnAlb(x - c[0], y - c[1], z - c[2]); }, near, pause);
+}
+async function ascPawns(env, C, N, poseFor) {
+  const B = await env.sample('pawns', N, C);
   return { B, groups: C.map((c, g) => ({ c, pose: t => poseFor(g, t) })) };
 }
-function ascPlayers(env) {
+async function ascPlayers(env) {
   const C = [[-0.62, 0, 0.2], [0.6, 0.06, 0.25], [0.04, -0.03, -0.58], [0.05, 0.08, 0.5]];
   // cada um gira e balança no seu ritmo: ninguém está na mesma partida ainda
-  const { B, groups } = ascPawns(env, C, env.N, (g, t) => [t * (0.55 + 0.42 * g) + g * 1.9, 0.2 * Math.sin(t * (1.2 + 0.3 * g) + g * 2), 0, 0.05 * Math.sin(t * (1.6 + 0.35 * g) + g)]);
+  const { B, groups } = await ascPawns(env, C, env.N, (g, t) => [t * (0.55 + 0.42 * g) + g * 1.9, 0.2 * Math.sin(t * (1.2 + 0.3 * g) + g * 2), 0, 0.05 * Math.sin(t * (1.6 + 0.35 * g) + g)]);
   return ascShape(B, env.rnd, { view: { tilt: 0.34, spin: 0.3 }, groups });
 }
-function ascNet(env) {
+async function ascNet(env) {
   const N = env.N, R = 0.86, C = [0, 1, 2, 3].map(k => { const a = Math.PI / 4 + k * Math.PI / 2; return [R * Math.cos(a), -0.2, R * Math.sin(a)]; });
   // em sincronia: todos giram e balançam juntos, com o host como autoridade no meio
-  const P = ascPawns(env, C, Math.round(N * 0.6), (g, t) => [t * 0.8, 0.08 * Math.sin(t * 1.4), 0, 0.03 * Math.sin(t * 1.6)]);
+  const P = await ascPawns(env, C, Math.round(N * 0.6), (g, t) => [t * 0.8, 0.08 * Math.sin(t * 1.4), 0, 0.03 * Math.sin(t * 1.6)]);
   const h = ascMesh();
   h.part((x, y, z) => {
     const lat = Math.asin(clamp(y / 0.2, -1, 1)), lon = Math.atan2(z, x);
@@ -518,7 +525,7 @@ function ascNet(env) {
   const albAnim = (a, aux, t) => (aux > 0 ? (fract((aux - 1) * 3 - t * 1.3) < 0.28 ? 1 : 0.3) : a);
   return ascShape(B, env.rnd, { view: { tilt: 0.55, spin: 0.25 }, groups, albAnim });
 }
-function ascTower(env) {
+function ascTowerSamples(N, rnd, _params, pause) {
   const parts = (x, y, z) => ({
     base: Math.min(sdCylAx(x, z, y + 0.5, 0.42, 0.05) - 0.01, sdCylAx(x, z, y + 0.42, 0.34, 0.035) - 0.01),
     body: sdCone(x, y, z, -0.39, 0.27, 0.1, 0.2),
@@ -537,8 +544,13 @@ function ascTower(env) {
     if (Math.abs(y + 0.15) < 0.016) return 1;
     return fract(Math.atan2(z, x) / (Math.PI * 2) * 10) < 0.07 ? 0.95 : 0.45;
   };
-  return ascShape(ascSampleSDF(sdf, [-0.5, -0.58, -0.5, 0.5, 0.66, 0.62], env.N, env.rnd, alb), env.rnd, { view: { tilt: 0.26, spin: 0.55 } });
+  return ascSampleSDF(sdf, [-0.5, -0.58, -0.5, 0.5, 0.66, 0.62], N, rnd, alb, null, pause);
 }
+async function ascTower(env) {
+  return ascShape(await env.sample('tower', env.N), env.rnd, { view: { tilt: 0.26, spin: 0.55 } });
+}
+
+const ASC_SAMPLERS = { lock: ascLockSamples, pawns: ascPawnSamples, tower: ascTowerSamples };
 
 // ================================================================ projeto sem formas próprias: cubo ↔ esfera
 function ascCube(env) { const m = ascMesh(); m.part((x, y, z) => fract((x + y + z) * 4) < 0.2 ? 0.95 : 0.5); ascBox(m, 0, 0, 0, 1, 1, 1); return ascShape(ascSampleMesh(m, env.N, env.rnd), env.rnd, {}); }

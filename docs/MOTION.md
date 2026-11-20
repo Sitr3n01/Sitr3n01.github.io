@@ -63,6 +63,9 @@ blocos de glitch nas flores e caracteres que se embaralham perto do cursor.
 - **Custo:** o motor roda a 30 fps, com ~7 ms por quadro (mediana) e 12 ms (p95) em 1440×900, no Chrome sem placa de vídeo.
   A cobertura é calculada direto por célula, sem canvas intermediário nem `getImageData`.
 - **Aba oculta:** a animação pausa.
+- **Cards ASCII:** a preparação começa até 400 px antes do palco entrar na área de rolagem. Um worker prepara as
+  superfícies implícitas do ExoBeast e do Local AI Provider. Se o worker estiver indisponível, a mesma amostragem
+  cede tempo à interface entre lotes. O canvas desenha enquanto o palco estiver visível.
 - **`prefers-reduced-motion`:** sem abertura (a cena já aparece pronta), sem animação de letras e palavras, sakura parada (a câmera ainda acompanha as seções).
 - **Leitores de tela:** canvas, anéis, chips e loader têm `aria-hidden`. O título tem `aria-label` com o texto inteiro.
 
