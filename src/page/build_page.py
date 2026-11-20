@@ -28,13 +28,29 @@ def words(text):
                     for w in text.split())
 
 
+MENU_LINKS = (
+    ('inicio', 'Início', 'm2 8 6-5 6 5v6H2zM7 14v-4h2v4'),
+    ('sobre', 'Sobre', 'M10.5 5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0ZM3 14v-1a5 3.5 0 0 1 10 0v1'),
+    ('projetos', 'Projetos', 'M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z'),
+    ('trajetoria', 'Trajetória', 'M4 5.5v5m0-8A1.5 1.5 0 1 0 4 5.5a1.5 1.5 0 0 0 0-3ZM4 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM8 4h5m-5 8h5'),
+    ('contato', 'Contato', 'M2 4h12v8H2zm0 0 6 4 6-4'),
+)
+
+
+def nav_icon(path):
+    return (f'<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" '
+            f'stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{path}"/></svg>')
+
+
 def nav(base=''):
     spy = 'spy' if not base else 'links'
+    mobile_links = ''.join(f'<a href="{base}#{id}">{nav_icon(icon)}<span>{label}</span></a>'
+                           for id, label, icon in MENU_LINKS)
     return f'''
 <div class="sk-topblur sk-blurfx" data-sk-ui="1" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
 <header class="sk-toolbar" data-sk-ui="1" style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
 <a class="sk-logo" href="{base}#inicio" style="pointer-events: auto">SITR3N.</a>
-<nav aria-label="Seções" style="pointer-events: auto; display: flex; align-items: center; gap: 10px">
+<nav class="sk-desktop-nav" aria-label="Seções" style="pointer-events: auto; display: flex; align-items: center; gap: 10px">
 <div class="sk-glass sk-track sk-navlinks" data-sk-glass="{spy}">
 <span class="sk-lens" aria-hidden="true"></span>
 <a class="sk-seg" href="{base}#inicio">Início</a>
@@ -44,6 +60,17 @@ def nav(base=''):
 </div>
 <a class="sk-lens-btn" href="{base}#contato">Contato +</a>
 </nav>
+<button type="button" class="sk-menu-toggle sk-lens-btn" data-sk-menu-open aria-controls="sk-mobile-menu" aria-expanded="false">Menu {nav_icon('M2 5h12M2 8h12M2 11h12')}</button>
+<dialog id="sk-mobile-menu" class="sk-menu" data-sk-menu aria-label="Menu de navegação">
+<div class="sk-menu-head">
+<span class="sk-logo" aria-hidden="true">SITR3N.</span>
+<button type="button" class="sk-menu-close sk-lens-btn" data-sk-menu-close autofocus aria-label="Fechar menu">{nav_icon('m3.5 3.5 9 9m0-9-9 9')}</button>
+</div>
+<nav class="sk-menu-links" aria-label="Seções e contato">
+{mobile_links}
+<a href="{E(WA_HREF)}" target="_blank" rel="noopener" aria-label="WhatsApp (abre em nova aba)">{WA_ICON}<span>WhatsApp</span><span class="sk-menu-external" aria-hidden="true">↗</span></a>
+</nav>
+</dialog>
 </header>'''
 
 HERO = f'''
@@ -126,7 +153,7 @@ WORK = f'''
 <h2 style="margin: 0; font-weight: 400; {CAP}">Projetos em destaque</h2>
 <a class="sk-lens-btn" href="https://github.com/Sitr3n01" rel="noopener">Todos no GitHub +</a>
 </div>
-<div style="display: flex; flex-wrap: wrap; gap: 19px; align-items: flex-start">
+<div data-sk-card-columns style="display: flex; flex-wrap: wrap; gap: 19px; align-items: flex-start">
 <div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 19px">
 {colA}
 </div>
@@ -327,9 +354,9 @@ def project_body(p, nxt):
     ns = nxt['slug']
     return f'''
 <section id="inicio" data-sk-view="proj" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: var(--sk-project-top,184px) {PADX} 150px; box-sizing: border-box">
-<div style="max-width: 1400px; width: 100%; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-end; justify-content: space-between">
-<div data-sk-read style="flex: 1 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 30px">
-<a class="sk-link" href="{base}#projetos" style="align-self: flex-start; {CAP}; color: {INK}; text-decoration: none; padding: 5px 0">← Todos os projetos</a>
+<div class="sk-project-hero" style="max-width: 1400px; width: 100%; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-end; justify-content: space-between">
+<div class="sk-project-copy" data-sk-read style="flex: 1 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 30px">
+<a class="sk-link sk-project-back" href="{base}#projetos" style="align-self: flex-start; {CAP}; color: {INK}; text-decoration: none; padding: 5px 0">← Todos os projetos</a>
 <p style="margin: 0; {CAP}">{E(p['cap'])} · {inline(p.get('status', ''))}</p>
 <h1 style="margin: 0; font-weight: 400; font-size: clamp(44px, 7.4vw, 120px); line-height: 0.9; letter-spacing: -0.015em; overflow-wrap: anywhere"><span style="display: inline-block; view-transition-name: sk-title-{slug}">{E(p['titulo'])}</span></h1>
 <div class="sk-lead">{p['lead']}</div>
@@ -389,7 +416,6 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-cell{{transition:background-color .25s ease,color .25s ease}}.sk-cell:hover{{background-color:{INK}!important;color:{PARCH}}}
 .sk-cap{{color:#5f5f5d}}.sk-cell:hover .sk-cap{{color:{ASH}}}
 .sk-row .sk-row-t{{transition:transform .45s cubic-bezier(.2,.7,.2,1)}}.sk-row:hover .sk-row-t{{transform:translateX(19px)}}
-@media (max-width:720px){{.sk-navlinks{{display:none!important}}}}
 @media (prefers-reduced-motion:reduce){{[data-sk-scroller]{{scroll-behavior:auto!important}}}}''' + '''
 /* ---- vidro líquido: trilho fosco + lente refrativa ---- */
 @property --rim{syntax:'<angle>';inherits:true;initial-value:0deg}
@@ -573,7 +599,92 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   -webkit-mask-image:radial-gradient(closest-side,#000 45%,transparent);mask-image:radial-gradient(closest-side,#000 45%,transparent)}
 .sk-hint-arrow{display:block;animation:sk-bob 1.6s cubic-bezier(.45,0,.55,1) infinite}
 @keyframes sk-bob{0%,100%{transform:translateY(-3px)}50%{transform:translateY(5px)}}
-@media (prefers-reduced-motion:reduce){.sk-hint-arrow{animation:none}}'''
+@media (prefers-reduced-motion:reduce){.sk-hint-arrow{animation:none}}
+
+/* A toolbar e os controles cabem em uma linha também no celular deitado. */
+.sk-menu-toggle,.sk-menu{display:none}
+@media (max-width:720px),(max-width:950px) and (max-height:520px) and (pointer:coarse){
+  [data-sk-root]{--sk-mobile-edge:clamp(16px,4.5vw,32px);--sk-mobile-top:104px;height:100dvh!important}
+  [data-sk-scroller]{scroll-padding-top:var(--sk-mobile-top)}
+  [data-sk-view="hero"],#contato,[data-sk-view="proj"]{min-height:100dvh!important}
+  #manifesto>div,#areas>div{height:100dvh!important}
+  .sk-toolbar{padding:12px var(--sk-mobile-edge)!important}
+  .sk-toolbar .sk-logo,.sk-menu .sk-logo{font-size:19px;line-height:20px}
+  .sk-topblur{height:var(--sk-mobile-top)}
+  [data-sk-root]:not([data-sk-menu-ready]) .sk-navlinks{display:none}
+  [data-sk-menu-ready] .sk-desktop-nav,[data-sk-menu-ready] .sk-wa-wrap{display:none!important}
+  [data-sk-menu-ready] .sk-menu-toggle,.sk-menu-close{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;
+    gap:10px;min-height:44px;padding:0 15px;border:0;font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .sk-menu-toggle[aria-expanded="true"]{opacity:0}
+  .sk-menu[open]{display:block;pointer-events:auto;position:fixed;inset:12px var(--sk-mobile-edge) auto auto;
+    width:min(420px,calc(100% - 2 * var(--sk-mobile-edge)));max-width:none;max-height:calc(100dvh - 24px);
+    box-sizing:border-box;overflow:auto;overscroll-behavior:contain;margin:0;padding:14px 18px 8px;
+    border:1px solid rgba(255,255,255,.85);border-radius:24px;color:#1d1d1d;background:rgba(246,245,242,.92);
+    -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+  .sk-menu::backdrop{background:rgba(29,29,29,.15)}
+  .sk-menu-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:12px}
+  .sk-menu-close{min-width:44px;padding:0}
+  .sk-menu-links{display:grid;border-top:1px solid #bfbebe}
+  .sk-menu-links a{display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:center;gap:12px;
+    min-height:50px;padding:0 8px;color:#1d1d1d;text-decoration:none;font-size:16px}
+  .sk-menu-links a+a{border-top:1px solid rgba(29,29,29,.16)}
+  .sk-menu-links a:active{background:rgba(29,29,29,.06)}
+  .sk-menu-links .sk-wa-i{height:19px;width:19px}
+  .sk-menu-external{font-size:14px;color:#5f5f5d}
+  .sk-hint{left:auto;right:var(--sk-mobile-edge);bottom:14px;width:auto;min-height:48px;margin:0;padding:0 8px 0 12px;
+    flex-direction:row;justify-content:center;gap:12px}
+  .sk-hint::before{inset:-10px -16px -5px}
+  .sk-hint:focus-visible{outline-offset:1px}
+  .sk-card .sk-ascii,.sk-tile .sk-ascii{overflow:hidden}
+  [data-sk-card-columns]>[data-sk-parallax]{padding-top:0!important}
+  [data-sk-card-columns]>[data-sk-parallax]:not(:has(.sk-card)){display:none!important}
+  [data-sk-menu-ready] .sk-footblur{padding-right:clamp(19px,4vw,76px)}
+}
+@media (max-width:720px){
+  [data-sk-view="hero"]{padding-bottom:max(92px,12svh)!important}
+  [data-sk-view="hero"] h1{font-size:clamp(27px,9.2vw,60px)!important}
+  #sobre,#projetos,#trajetoria{padding-block:84px!important}
+  #sobre>div{gap:76px!important}
+  #projetos .sk-lens-btn{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
+  .sk-card{min-height:0!important;padding:20px!important;gap:16px!important}
+  .sk-card .sk-ascii{min-height:clamp(220px,70vw,340px)!important;margin-inline:-20px!important}
+  .sk-row{display:grid!important;grid-template-columns:28px minmax(0,1fr);gap:10px 8px!important}
+  .sk-row>span:last-child{grid-column:2;margin-left:0!important;text-align:left!important}
+  #contato{gap:24px!important}
+  .sk-track-lg{padding:6px;border-radius:24px}
+  .sk-track-lg .sk-seg{min-height:48px;box-sizing:border-box;padding:13px 16px}
+  .sk-lens-btn.sk-lens-btn-lg,.sk-play-wrap .sk-lens-btn{box-sizing:border-box;max-width:100%;min-height:48px;
+    padding:14px 18px;white-space:normal;overflow-wrap:anywhere}
+  .sk-project-back{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
+  .sk-project-copy h1{font-size:clamp(34px,9.8vw,64px)!important}
+  [data-sk-view="projbody"]>div{gap:54px!important}
+  .sk-next-t{font-size:clamp(30px,10vw,56px);overflow-wrap:anywhere}
+}
+@media (max-width:720px) and (min-height:521px){
+  [data-sk-view="proj"]{--sk-project-top:98px;padding-bottom:76px!important;justify-content:flex-start!important}
+  .sk-project-hero{display:grid!important;grid-template-columns:minmax(0,1fr);gap:16px!important}
+  .sk-project-copy{display:contents!important}
+  .sk-project-copy .sk-lead{grid-row:5}
+  .sk-project-copy>p:last-child{grid-row:6}
+  .sk-project-hero .sk-tile{grid-row:4;justify-self:center;width:min(100%,320px,43svh)}
+}
+@media (max-height:520px) and (max-width:720px),(max-height:520px) and (max-width:950px) and (pointer:coarse){
+  [data-sk-root]{--sk-mobile-top:78px}
+  [data-sk-view="hero"]{padding-bottom:92px!important}
+  [data-sk-view="hero"] h1{font-size:clamp(24px,min(6.5vw,10.5vh),46px)!important}
+  [data-sk-view="proj"]{--sk-project-top:92px;padding-bottom:76px!important}
+  .sk-project-hero{gap:16px!important}
+  .sk-project-copy{gap:12px!important}
+}
+@media (min-width:520px) and (max-height:520px) and (max-width:720px),(min-width:520px) and (max-height:520px) and (max-width:950px) and (pointer:coarse){
+  .sk-menu-links{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sk-menu-links a+a{border-top:0}
+  .sk-menu-links a:nth-child(n+3){border-top:1px solid rgba(29,29,29,.16)}
+  .sk-menu-links a:nth-child(even){border-left:1px solid rgba(29,29,29,.16);padding-left:12px}
+  .sk-project-hero{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,34%);align-items:center!important}
+  .sk-project-hero .sk-tile{width:100%}
+  .sk-project-copy h1{font-size:clamp(34px,6.3vw,60px)!important}
+}'''
 
 DC_PROPS = {
     "preset": {"editor": "enum", "options": ["kosa", "sanbon", "ogi", "itozakura", "koeda"], "default": "kosa", "section": "Sakura"},

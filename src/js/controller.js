@@ -29,11 +29,64 @@ const VIEWS = {
   projnext:  { cam: { id: true },                     safe: { x: 0.40, y: 0.60, rx: 0.52, ry: 0.40, s: 0.80 }, alpha: 1.00 },
 };
 
+function mountMenu(root, layout) {
+  const menu = root.querySelector('[data-sk-menu]');
+  const opener = root.querySelector('[data-sk-menu-open]');
+  if (!opener || typeof menu?.showModal !== 'function') return () => {};
+
+  const dismiss = () => menu.close();
+  const open = () => {
+    opener.focus({ preventScroll: true });
+    menu.showModal();
+    opener.setAttribute('aria-expanded', 'true');
+  };
+  const reset = () => opener.setAttribute('aria-expanded', 'false');
+  const resize = () => { if (!layout.matches && menu.open) dismiss(); };
+  const click = event => {
+    if (event.target.closest('a,[data-sk-menu-close]')) { dismiss(); return; }
+    if (event.target !== menu) return;
+    const r = menu.getBoundingClientRect();
+    if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) dismiss();
+  };
+
+  root.setAttribute('data-sk-menu-ready', '');
+  opener.addEventListener('click', open);
+  menu.addEventListener('close', reset);
+  menu.addEventListener('click', click);
+  layout.addEventListener('change', resize);
+  return () => {
+    if (menu.open) dismiss();
+    reset();
+    root.removeAttribute('data-sk-menu-ready');
+    opener.removeEventListener('click', open);
+    menu.removeEventListener('close', reset);
+    menu.removeEventListener('click', click);
+    layout.removeEventListener('change', resize);
+  };
+}
+
+function mountCardColumns(columns, layout) {
+  if (!columns) return () => {};
+  const [left, right] = columns.children;
+  const first = Array.from(left.children), second = Array.from(right.children);
+  const arrange = () => {
+    const focused = document.activeElement;
+    if (layout.matches) second.forEach((card, i) => first[i].after(card));
+    else right.append(...second);
+    if (columns.contains(focused) && document.activeElement !== focused) focused.focus({ preventScroll: true });
+  };
+  if (layout.matches) arrange();
+  layout.addEventListener('change', arrange);
+  return () => { layout.removeEventListener('change', arrange); right.append(...second); };
+}
+
 function mount(root, options) {
   const o = Object.assign({ preset: 'kosa', kanji: true, wind: 1 }, options || {});
   const $ = s => root.querySelector(s), $$ = s => Array.from(root.querySelectorAll(s));
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canvas = $('[data-sk-canvas]'), scroller = $('[data-sk-scroller]') || document.scrollingElement;
+  const mobile = matchMedia('(max-width: 720px), (max-width: 950px) and (max-height: 520px) and (pointer: coarse)');
+  const unmountMenu = mountMenu(root, mobile), unmountColumns = mountCardColumns($('[data-sk-card-columns]'), mobile);
   const project = !!$('[data-sk-view="proj"]');
   const engine = createSakuraBackground(canvas, { preset: o.preset, kanji: o.kanji, wind: o.wind, holdIntro: !reduce, project });
   const glass = mountGlass(root, scroller), videos = mountVideos(root), ascii = mountAscii(root);
@@ -100,7 +153,8 @@ function mount(root, options) {
   // posição de rolagem: volta para onde estava; âncora vai direto (sem rolagem suave)
   if (saved != null || hashEl) {
     const prev = scroller.style.scrollBehavior; scroller.style.scrollBehavior = 'auto';
-    scroller.scrollTop = saved != null ? Number(saved) : hashEl.offsetTop;
+    const scrollPadding = parseFloat(getComputedStyle(scroller).scrollPaddingTop) || 0;
+    scroller.scrollTop = saved != null ? Number(saved) : hashEl.offsetTop - scrollPadding;
     requestAnimationFrame(() => { scroller.style.scrollBehavior = prev; });
   }
   const onHide = () => store(scrollKey, String(scroller.scrollTop));
@@ -151,6 +205,7 @@ function mount(root, options) {
   }
 
   function parallaxPosition(el, viewportTop, height) {
+    if (mobile.matches) return { current: 0, offset: 0, rate: 1 };
     const r = el.getBoundingClientRect(), current = translateY(el.style.transform);
     const speed = Number(el.dataset.skParallax);
     const mid = r.top - viewportTop - current + (r.height - height) / 2;
@@ -172,7 +227,8 @@ function mount(root, options) {
     const viewportTop = scroller.getBoundingClientRect().top;
     const headerEdge = Math.max(toolbar?.getBoundingClientRect().bottom ?? viewportTop, topBlur?.getBoundingClientRect().bottom ?? viewportTop);
     const halo = parseFloat(getComputedStyle(hint, '::before').top) || 0;
-    const bottomEdge = Math.min(hint.getBoundingClientRect().top + Math.min(0, halo), whatsApp?.getBoundingClientRect().top ?? viewportTop + height);
+    const waTop = whatsApp?.getClientRects().length ? whatsApp.getBoundingClientRect().top : viewportTop + height;
+    const bottomEdge = Math.min(hint.getBoundingClientRect().top + Math.min(0, halo), waTop);
     const top = headerEdge - viewportTop + 8, bottom = bottomEdge - viewportTop - 8;
     const columns = new Map(parallax.map(el => [el, parallaxPosition(el, viewportTop, height)]));
     const shifts = new Map();
@@ -399,7 +455,7 @@ function mount(root, options) {
     engine, ascii,
     update(n) { Object.assign(o, n); engine.setOptions({ preset: o.preset, kanji: o.kanji, wind: o.wind }); },
     destroy() {
-      dead = true; cancelAnimationFrame(raf); glass.destroy(); engine.destroy();
+      dead = true; cancelAnimationFrame(raf); unmountMenu(); unmountColumns(); glass.destroy(); engine.destroy();
       skipEvents.forEach(ev => window.removeEventListener(ev, skip));
       window.removeEventListener('pagehide', onHide); videos.destroy(); ascii.destroy();
       if (hint) hint.removeEventListener('click', nextSection);
