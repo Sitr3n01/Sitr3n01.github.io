@@ -41,6 +41,7 @@ function mountMenu(root, layout) {
     opener.setAttribute('aria-expanded', 'true');
   };
   const reset = () => opener.setAttribute('aria-expanded', 'false');
+  const onHistory = () => { if (menu.open) dismiss(); };
   const resize = () => { if (!layout.matches && menu.open) dismiss(); };
   const click = event => {
     if (event.target.closest('a,[data-sk-menu-close]')) { dismiss(); return; }
@@ -54,6 +55,8 @@ function mountMenu(root, layout) {
   menu.addEventListener('close', reset);
   menu.addEventListener('click', click);
   layout.addEventListener('change', resize);
+  window.addEventListener('popstate', onHistory);
+  window.addEventListener('pagehide', onHistory);
   return () => {
     if (menu.open) dismiss();
     reset();
@@ -62,6 +65,8 @@ function mountMenu(root, layout) {
     menu.removeEventListener('close', reset);
     menu.removeEventListener('click', click);
     layout.removeEventListener('change', resize);
+    window.removeEventListener('popstate', onHistory);
+    window.removeEventListener('pagehide', onHistory);
   };
 }
 
@@ -85,8 +90,9 @@ function mount(root, options) {
   const $ = s => root.querySelector(s), $$ = s => Array.from(root.querySelectorAll(s));
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canvas = $('[data-sk-canvas]'), scroller = $('[data-sk-scroller]') || document.scrollingElement;
-  const mobile = matchMedia('(max-width: 720px), (max-width: 950px) and (max-height: 520px) and (pointer: coarse)');
-  const unmountMenu = mountMenu(root, mobile), unmountColumns = mountCardColumns($('[data-sk-card-columns]'), mobile);
+  const menuLayout = matchMedia('(max-width: 720px), (max-width: 1024px) and (pointer: coarse), (max-height: 520px) and (pointer: coarse)');
+  const singleColumn = matchMedia('(max-width: 720px), (max-width: 935px) and (pointer: coarse)');
+  const unmountMenu = mountMenu(root, menuLayout), unmountColumns = mountCardColumns($('[data-sk-card-columns]'), singleColumn);
   const project = !!$('[data-sk-view="proj"]');
   const engine = createSakuraBackground(canvas, { preset: o.preset, kanji: o.kanji, wind: o.wind, holdIntro: !reduce, project });
   const glass = mountGlass(root, scroller), videos = mountVideos(root), ascii = mountAscii(root);
@@ -141,33 +147,44 @@ function mount(root, options) {
   let mode = o.intro === undefined ? 'home' : o.intro;
   const reload = mode === 'home' && navType === 'reload';
   if (reload && location.hash) history.replaceState(history.state, '', location.pathname + location.search);
-  const hashId = location.hash.length > 1 ? decodeURIComponent(location.hash.slice(1)) : '';
+  let hashId = '';
+  try { hashId = decodeURIComponent(location.hash.slice(1)); } catch { /* uma âncora inválida equivale a nenhuma */ }
   const hashEl = hashId && hashId !== 'inicio' ? root.querySelector('#' + CSS.escape(hashId)) : null;
   if (mode === 'home') {
     const seen = store('sk-intro') === '1' && !reload && !/[?&]intro=full\b/.test(location.search);
     store('sk-intro', '1');
     mode = saved != null || hashEl ? 'page' : seen ? 'short' : 'full';
   }
-  if (reload) { const prev = scroller.style.scrollBehavior; scroller.style.scrollBehavior = 'auto'; scroller.scrollTop = 0; scroller.style.scrollBehavior = prev; }
+  const jump = top => scroller.scrollTo({ top, behavior: 'instant' });
+  if (reload) jump(0);
   const IN = reduce || mode === false ? null : INTRO[mode];
   // posição de rolagem: volta para onde estava; âncora vai direto (sem rolagem suave)
   if (saved != null || hashEl) {
-    const prev = scroller.style.scrollBehavior; scroller.style.scrollBehavior = 'auto';
     const scrollPadding = parseFloat(getComputedStyle(scroller).scrollPaddingTop) || 0;
-    scroller.scrollTop = saved != null ? Number(saved) : hashEl.offsetTop - scrollPadding;
-    requestAnimationFrame(() => { scroller.style.scrollBehavior = prev; });
+    jump(saved != null ? Number(saved) : hashEl.offsetTop - scrollPadding);
   }
-  const onHide = () => store(scrollKey, String(scroller.scrollTop));
+  let restore = saved, hiddenAt = null, restoreFrame = 0;
+  const onHide = () => { hiddenAt = scroller.scrollTop; store(scrollKey, String(hiddenAt)); };
+  const onShow = event => {
+    if (event.persisted) restore = hiddenAt;
+    if (restore == null) return;
+    // O WebKit aplica a posição da âncora após o script de montagem, durante a navegação pelo histórico.
+    restoreFrame = requestAnimationFrame(() => { if (restore != null) jump(Number(restore)); restore = null; });
+  };
   window.addEventListener('pagehide', onHide);
+  window.addEventListener('pageshow', onShow);
   const bud = IN && IN.zoom ? engine.pickBud(BUD_AT[0], BUD_AT[1]) : null;
   const on = !!IN && (!IN.zoom || !!bud);
-  let skew = 0, grown = false, burstDone = false, bandOff = false, uiShown = !on;
+  let skew = 0, grown = false, burstDone = false, bandOff = false, uiShown = !on, introSkipped = false;
   if (on) root.setAttribute('data-sk-intro', 'on');
+  const showUI = () => { uiShown = true; root.setAttribute('data-sk-intro', 'off'); };
   const skip = () => {
+    restore = null;
     if (!on || uiShown) return;
     const ti = (performance.now() - t0) / 1000 - skew;
     if (ti < IN.end) skew -= IN.end - ti;
-    engine.skipIntro(); grown = true; burstDone = true;
+    introSkipped = true;
+    engine.skipIntro(); grown = true; burstDone = true; showUI();
   };
 
   // barra de progresso na grade; ao completar, as células explodem em faíscas
@@ -205,7 +222,7 @@ function mount(root, options) {
   }
 
   function parallaxPosition(el, viewportTop, height) {
-    if (mobile.matches) return { current: 0, offset: 0, rate: 1 };
+    if (singleColumn.matches) return { current: 0, offset: 0, rate: 1 };
     const r = el.getBoundingClientRect(), current = translateY(el.style.transform);
     const speed = Number(el.dataset.skParallax);
     const mid = r.top - viewportTop - current + (r.height - height) / 2;
@@ -240,6 +257,8 @@ function mount(root, options) {
       return { top: rect.top + offset, bottom: rect.bottom + offset, rate: column?.rate ?? 1 };
     }
     const stops = [max];
+    // Numa janela menor que uma linha, mantenha o avanço por telas mesmo que nenhum bloco caiba.
+    if (bottom - top < 20) stops.push(Math.min(max, st + Math.max(2, Math.floor(height * 0.55))));
     function addStop(page) {
       if (page.from <= 0 && page.to >= 0) return; // o texto já cabe na vista inicial
       const target = Math.min(max, Math.floor(page.to));
@@ -291,11 +310,16 @@ function mount(root, options) {
   };
   if (hint) hint.addEventListener('click', nextSection);
   const skipEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
-  skipEvents.forEach(ev => window.addEventListener(ev, skip, { passive: true }));
+  skipEvents.forEach(ev => window.addEventListener(ev, skip, { passive: true, capture: true }));
 
   if (!reduce) {
     reveals.forEach(el => { el.style.opacity = '0'; el.style.transform = 'translate3d(0,40px,0)'; });
   }
+  const revealFocus = event => {
+    const reveal = event.target.closest('[data-sk-reveal]');
+    if (!reduce && reveal && getComputedStyle(reveal).opacity !== '1') showReveal(reveal, false);
+  };
+  scroller.addEventListener('focusin', revealFocus);
 
   function topOf(el) { return el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop; }
 
@@ -382,7 +406,7 @@ function mount(root, options) {
     // ---------------- abertura
     if (on) {
       if (!grown && ti >= IN.grow) { engine.replayIntro(IN.growDur); grown = true; }
-      if (!uiShown && ti >= IN.ui) { uiShown = true; root.setAttribute('data-sk-intro', 'off'); }
+      if (!uiShown && ti >= IN.ui) showUI();
       if (IN.band && !bandOff) {
         if (ti < IN.burst + 0.3) engine.setOverlay(band(ti)); else { engine.setOverlay([]); bandOff = true; }
       }
@@ -406,9 +430,9 @@ function mount(root, options) {
     // Entrada: a letra só aparece nos últimos 10% do caminho, já quase no lugar. Saída: a dispersão cresce com
     // p³ (quase parada no começo) e a palavra inteira some até p ≈ 0,3, antes de as letras se afastarem.
     const p = clamp(st / (vh * 0.9), 0, 1), p2 = p * p * p;
-    letters.forEach((el, n) => {
+    if (!reduce) letters.forEach((el, n) => {
       const d = L[n];
-      const a = !on ? 1 : ease((ti - IN.ui - d.idel) / 1.1);
+      const a = !on || introSkipped ? 1 : ease((ti - IN.ui - d.idel) / 1.1);
       const x = d.ix * (1 - a) + d.sx * p2, y = d.iy * (1 - a) + d.sy * p2, r = d.ir * (1 - a) + d.sr * p2;
       const op = Math.min(on ? smooth(0.9, 1, a) : 1, 1 - smooth(d.fade, d.fade + 0.14, p));
       el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) rotate(${r.toFixed(1)}deg)`;
@@ -416,13 +440,13 @@ function mount(root, options) {
     });
 
     // ---------------- manifesto: palavras desalinhadas que assentam
-    if (words.length) {
+    if (!reduce && words.length) {
       const sec = words[0].closest('[data-sk-view]');
       const top = topOf(sec), h = sec.offsetHeight;
       const m = clamp((st - top + vh * 0.6) / Math.max(1, h - vh * 0.4), 0, 1);
       words.forEach((el, n) => {
         // só aparece na segunda metade do caminho, já quase no lugar; a saída sobe o bloco todo junto
-        const w = Wd[n], loc = reduce ? 1 : ease((m - w.d) / 0.26), exit = smooth(0.86, 1, m);
+        const w = Wd[n], loc = ease((m - w.d) / 0.26), exit = smooth(0.86, 1, m);
         el.style.transform = `translate3d(0, ${((1 - loc) * w.off - exit * 0.7).toFixed(3)}em, 0)`;
         el.style.opacity = (smooth(0.5, 1, loc) * (1 - exit)).toFixed(3);
       });
@@ -456,7 +480,9 @@ function mount(root, options) {
     update(n) { Object.assign(o, n); engine.setOptions({ preset: o.preset, kanji: o.kanji, wind: o.wind }); },
     destroy() {
       dead = true; cancelAnimationFrame(raf); unmountMenu(); unmountColumns(); glass.destroy(); engine.destroy();
-      skipEvents.forEach(ev => window.removeEventListener(ev, skip));
+      skipEvents.forEach(ev => window.removeEventListener(ev, skip, true));
+      scroller.removeEventListener('focusin', revealFocus);
+      cancelAnimationFrame(restoreFrame); window.removeEventListener('pageshow', onShow);
       window.removeEventListener('pagehide', onHide); videos.destroy(); ascii.destroy();
       if (hint) hint.removeEventListener('click', nextSection);
     },

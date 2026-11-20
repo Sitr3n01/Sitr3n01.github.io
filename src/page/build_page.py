@@ -268,6 +268,7 @@ def body(ref=''):
     return f'''<div data-sk-root="1"{ref} style="position: relative; height: 100vh; overflow: hidden; background-color: {PARCH}; color: {INK}; font-family: {SANS}">
 {RINGS}
 <canvas data-sk-canvas="1" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block"></canvas>
+{nav()}
 <div data-sk-scroller="1" style="position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth">
 <main>
 {HERO}
@@ -279,7 +280,6 @@ def body(ref=''):
 {CONTACT}
 </main>
 </div>
-{nav()}
 {HINT}
 {WA}
 </div>'''
@@ -392,12 +392,12 @@ def project_root(p, nxt):
     return f'''<div data-sk-root="1" style="position: relative; height: 100vh; overflow: hidden; background-color: {PARCH}; color: {INK}; font-family: {SANS}">
 {RINGS}
 <canvas data-sk-canvas="1" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block"></canvas>
+{nav('../../')}
 <div data-sk-scroller="1" style="position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth">
 <main>
 {project_body(p, nxt)}
 </main>
 </div>
-{nav('../../')}
 {HINT}
 {WA}
 </div>'''
@@ -444,7 +444,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
     0 0 0 1px rgba(29,29,29,.05),0 1px 1px rgba(29,29,29,.08),0 8px 18px -8px rgba(29,29,29,.3)}
 .sk-lens{position:absolute;left:0;top:0;z-index:0;pointer-events:none;width:var(--w,0);height:var(--h,0);
   transform:translate3d(var(--x,0),var(--y,0),0) scale(var(--sx),var(--sy));
-  transition:transform .62s cubic-bezier(.3,1.45,.5,1),width .62s cubic-bezier(.3,1.35,.5,1),height .62s cubic-bezier(.3,1.35,.5,1),opacity .3s ease,--rim .9s cubic-bezier(.3,1,.4,1)}
+  transition:transform .62s cubic-bezier(.25,.85,.35,1),width .62s cubic-bezier(.25,.85,.35,1),height .62s cubic-bezier(.25,.85,.35,1),opacity .3s ease,--rim .9s cubic-bezier(.3,1,.4,1)}
 .sk-lens.is-off{opacity:0;transform:translate3d(var(--x,0),var(--y,0),0) scale(.6,.6)}
 .sk-lens.no-anim{transition:none}
 .sk-lens-btn{position:relative;display:inline-block;padding:13px 22px;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
@@ -464,6 +464,8 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 [data-sk-ui]{transition:opacity .9s ease,transform 1s cubic-bezier(.2,.7,.2,1)}
 [data-sk-ui="2"]{transition-delay:.15s}[data-sk-ui="3"]{transition-delay:.3s}
 [data-sk-intro="on"] [data-sk-ui]{opacity:0!important;transform:translate3d(0,-10px,0);transition:none}
+[data-sk-ui]:focus-visible,[data-sk-ui]:focus-within{transition:none}
+@media (prefers-reduced-motion:reduce){[data-sk-ui]{transition:none}}
 [data-sk-rings]{transition:opacity 1.4s ease}
 [data-sk-intro="on"] [data-sk-rings]{opacity:0;transition:none}
 
@@ -556,9 +558,14 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 @media (max-width:720px){.sk-topblur{height:128px}.sk-logo{font-size:19px}.sk-footblur{min-height:128px}}
 
 #manifesto p{font-size:clamp(30px,3.6vw,54px)}
-.sk-area-labels{position:absolute;inset:0;pointer-events:none}
+[data-sk-orbit]{z-index:0;pointer-events:none}
+.sk-area-labels{position:absolute;inset:0;pointer-events:none;z-index:1}
 .sk-area-labels [data-sk-orbit-label]{position:absolute}
-.sk-area-title{bottom:46px;font-size:clamp(44px,5vw,76px)}
+.sk-area-title{bottom:46px;z-index:1;font-size:clamp(44px,5vw,76px)}
+@media (max-width:900px),(max-height:600px){
+  .sk-area-labels [data-sk-orbit-label],.sk-area-title{paint-order:stroke fill;-webkit-text-stroke:3px #e5e4e0}
+}
+@media (min-width:721px) and (max-width:900px){.sk-area-title{bottom:86px}}
 #contato h2{font-size:clamp(56px,7.4vw,112px)}
 @media (max-width:720px){
   [data-sk-view="proj"]{--sk-project-top:144px}
@@ -573,6 +580,10 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   #manifesto p{font-size:clamp(22px,min(3.6vw,7vh),34px)}
   .sk-area-labels{inset:100px 0 165px}
   .sk-area-title{bottom:92px;font-size:clamp(26px,8vh,40px)}
+}
+@media (min-height:521px) and (max-height:650px){
+  .sk-area-labels{inset:142px clamp(19px,4vw,76px) auto;display:flex;justify-content:space-between;gap:8px}
+  .sk-area-labels [data-sk-orbit-label]{position:static;font-size:clamp(11px,3vw,15px)!important}
 }
 @media (max-height:350px){
   .sk-area-labels{inset:100px clamp(19px,4vw,76px) auto;display:flex;justify-content:space-between;gap:8px}
@@ -603,7 +614,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 
 /* A toolbar e os controles cabem em uma linha também no celular deitado. */
 .sk-menu-toggle,.sk-menu{display:none}
-@media (max-width:720px),(max-width:950px) and (max-height:520px) and (pointer:coarse){
+@media (max-width:720px),(max-width:1024px) and (pointer:coarse),(max-height:520px) and (pointer:coarse){
   [data-sk-root]{--sk-mobile-edge:clamp(16px,4.5vw,32px);--sk-mobile-top:104px;height:100dvh!important}
   [data-sk-scroller]{scroll-padding-top:var(--sk-mobile-top)}
   [data-sk-view="hero"],#contato,[data-sk-view="proj"]{min-height:100dvh!important}
@@ -636,9 +647,11 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   .sk-hint::before{inset:-10px -16px -5px}
   .sk-hint:focus-visible{outline-offset:1px}
   .sk-card .sk-ascii,.sk-tile .sk-ascii{overflow:hidden}
+  [data-sk-menu-ready] .sk-footblur{padding-right:clamp(19px,4vw,76px)}
+}
+@media (max-width:720px),(max-width:935px) and (pointer:coarse){
   [data-sk-card-columns]>[data-sk-parallax]{padding-top:0!important}
   [data-sk-card-columns]>[data-sk-parallax]:not(:has(.sk-card)){display:none!important}
-  [data-sk-menu-ready] .sk-footblur{padding-right:clamp(19px,4vw,76px)}
 }
 @media (max-width:720px){
   [data-sk-view="hero"]{padding-bottom:max(92px,12svh)!important}
@@ -668,7 +681,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   .sk-project-copy>p:last-child{grid-row:6}
   .sk-project-hero .sk-tile{grid-row:4;justify-self:center;width:min(100%,320px,43svh)}
 }
-@media (max-height:520px) and (max-width:720px),(max-height:520px) and (max-width:950px) and (pointer:coarse){
+@media (max-height:520px) and (max-width:720px),(max-height:520px) and (pointer:coarse){
   [data-sk-root]{--sk-mobile-top:78px}
   [data-sk-view="hero"]{padding-bottom:92px!important}
   [data-sk-view="hero"] h1{font-size:clamp(24px,min(6.5vw,10.5vh),46px)!important}
@@ -676,14 +689,35 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   .sk-project-hero{gap:16px!important}
   .sk-project-copy{gap:12px!important}
 }
-@media (min-width:520px) and (max-height:520px) and (max-width:720px),(min-width:520px) and (max-height:520px) and (max-width:950px) and (pointer:coarse){
+@media (min-width:520px) and (max-height:520px) and (max-width:720px),(min-width:520px) and (max-height:520px) and (pointer:coarse){
   .sk-menu-links{grid-template-columns:repeat(2,minmax(0,1fr))}
   .sk-menu-links a+a{border-top:0}
   .sk-menu-links a:nth-child(n+3){border-top:1px solid rgba(29,29,29,.16)}
   .sk-menu-links a:nth-child(even){border-left:1px solid rgba(29,29,29,.16);padding-left:12px}
   .sk-project-hero{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,34%);align-items:center!important}
-  .sk-project-hero .sk-tile{width:100%}
+  .sk-project-hero .sk-tile{width:min(100%,340px);justify-self:center}
   .sk-project-copy h1{font-size:clamp(34px,6.3vw,60px)!important}
+}
+@media (max-height:400px){
+  .sk-toolbar{padding-block:9px!important}
+  .sk-topblur{height:clamp(62px,25vh,84px)}
+  [data-sk-root]{--sk-mobile-top:clamp(62px,25vh,84px)}
+  [data-sk-view="hero"]{padding-block:70px 73px!important}
+  [data-sk-view="hero"] h1,[data-sk-view="proj"] h1{font-size:clamp(20px,min(8.5vw,12vh),56px)!important}
+  .sk-next-t{font-size:clamp(26px,min(10vw,12vh),50px)}
+  #contato h2{font-size:clamp(27px,min(13.5vw,13vh),56px)}
+  .sk-wa-wrap{bottom:12px}.sk-wa{padding:9px}
+  .sk-footblur{padding-right:calc(clamp(19px,4vw,76px) + 64px)}
+  .sk-hint{bottom:12px;min-height:44px;flex-direction:row;justify-content:center;gap:10px}
+  .sk-hint::before{top:-8px}
+  .sk-area-title{bottom:74px}
+}
+@media (max-height:350px){
+  .sk-area-labels{inset:76px clamp(19px,4vw,76px) auto}
+  .sk-area-labels [data-sk-orbit-label]{font-size:clamp(11px,3vw,15px)!important}
+}
+@media (max-width:320px) and (max-height:400px){
+  #manifesto p{font-size:clamp(15px,min(5.8vw,6.8vh),22px)}
 }'''
 
 DC_PROPS = {

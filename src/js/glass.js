@@ -13,13 +13,18 @@ function mountGlass(root, scroller) {
     const segs = Array.from(track.querySelectorAll('.sk-seg'));
     const spy = track.dataset.skGlass === 'spy';
     const restIdx = track.dataset.skGlassRest;
-    const st = { track, lens, segs, spy, rest: restIdx != null ? segs[+restIdx] : null, cur: null, rim: 0, hover: null, timer: 0 };
+    const st = { track, lens, segs, spy, rest: restIdx != null ? segs[+restIdx] : null, cur: null, rim: 0, hover: null, focus: null, timer: 0 };
 
     st.place = (seg, instant) => {
       segs.forEach(s => s.classList.toggle('is-on', s === seg));
       if (!seg) { lens.classList.add('is-off'); st.cur = null; return; }
       const prev = st.cur, x = seg.offsetLeft, y = seg.offsetTop, w = seg.offsetWidth, h = seg.offsetHeight;
-      if (instant || reduceG || !prev) lens.classList.add('no-anim');
+      if (instant || reduceG || !prev) {
+        clearTimeout(st.timer);
+        lens.classList.add('no-anim');
+        lens.style.setProperty('--sx', '1');
+        lens.style.setProperty('--sy', '1');
+      }
       lens.classList.remove('is-off');
       lens.style.setProperty('--x', x + 'px'); lens.style.setProperty('--y', y + 'px');
       lens.style.setProperty('--w', w + 'px'); lens.style.setProperty('--h', h + 'px');
@@ -28,7 +33,8 @@ function mountGlass(root, scroller) {
         const dir = Math.sign(x - prev.offsetLeft || y - prev.offsetTop);
         st.rim += dir * Math.min(160, 60 + dist * 0.35);
         lens.style.setProperty('--rim', st.rim + 'deg');
-        lens.style.setProperty('--sx', String(1 + Math.min(0.2, dist / 700)));
+        const space = Math.max(0, Math.min(x, track.clientWidth - x - w));
+        lens.style.setProperty('--sx', String(1 + Math.min(0.2, dist / 700, 2 * space / Math.max(1, w))));
         lens.style.setProperty('--sy', String(1 - Math.min(0.14, dist / 1000)));
         clearTimeout(st.timer);
         st.timer = setTimeout(() => { lens.style.setProperty('--sx', '1'); lens.style.setProperty('--sy', '1'); }, 170);
@@ -36,12 +42,12 @@ function mountGlass(root, scroller) {
       st.cur = seg;
       if (lens.classList.contains('no-anim')) { void lens.offsetWidth; lens.classList.remove('no-anim'); }
     };
-    st.settle = instant => st.place(st.hover || st.rest, instant);
+    st.settle = instant => st.place(st.hover || (st.focus?.matches(':focus-visible') ? st.focus : st.rest), instant);
 
     segs.forEach(seg => {
-      on(seg, 'pointerenter', () => { st.hover = seg; st.settle(); });
-      on(seg, 'focus', () => { st.hover = seg; st.settle(); });
-      on(seg, 'blur', () => { if (st.hover === seg) st.hover = null; st.settle(); });
+      on(seg, 'pointerenter', event => { if (event.pointerType !== 'touch') { st.hover = seg; st.settle(); } });
+      on(seg, 'focus', () => { st.focus = seg; st.settle(); });
+      on(seg, 'blur', () => { st.focus = null; st.settle(); });
     });
     on(track, 'pointerleave', () => { st.hover = null; st.settle(); });
     return st;
