@@ -28,6 +28,9 @@ Portfólio estático (pt-BR) com fundo de sakura em ASCII. Sem dependências de 
 - Design e movimento seguem [docs/MOTION.md](docs/MOTION.md): paleta `#e5e4e0 / #1d1d1d / #ffffff / #bfbebe`,
   gradiente só nas flores, uma família tipográfica (Inter), raio 0 em cards, 10px em links/pílulas, sem sombras
   (exceção: os elementos de vidro líquido da nav e do contato, ver MOTION.md).
+- Dois temas, claro e escuro. As cores ficam só em `THEMES` (`src/page/build_page.py`) e chegam ao CSS como tokens
+  (`INK`, `PARCH`, `PAPER`, `ASH`, `MUTE` = `var(--sk-*)`; `rgba(var(--sk-*-rgb), a)`). Não escreva cor fixa no CSS nem
+  na marcação. Confira toda mudança visual nos dois temas (`?theme=dark`).
   Respeite `prefers-reduced-motion` e mantenha `aria-hidden` nos elementos decorativos.
 - Desempenho: ver a seção "Desempenho" do MOTION.md. O motor roda a 30 fps, com atlas de glifos e redesenho só das
   células que mudaram. O controlador só roda quando algo muda e lê o layout em cache: não leia layout no tick. Os níveis

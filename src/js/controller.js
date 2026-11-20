@@ -158,12 +158,77 @@ function mountLang(root, scroller) {
   return () => links.forEach(a => a.removeEventListener('click', click));
 }
 
+// Tema claro/escuro. O padrão é o claro; a escolha do visitante (botões [data-sk-theme]) fica guardada em sk-theme e
+// vale em todas as páginas. O <head> aplica o tema antes da primeira pintura (?theme=, a escolha guardada ou o claro) em
+// data-theme no <html>. Uma página que reaparece sem recarregar (voltar/avançar pela bfcache, aba que volta a ser
+// exibida) e outra aba que troca o tema também seguem a escolha guardada. As cores ficam só nos tokens CSS (THEMES no
+// gerador): apply() recebe as do tema atual para o canvas da sakura e os cards. A troca pelo botão passa por uma
+// transição de vista (fade de toda a tela) quando há suporte.
+const THEME_KEY = 'sk-theme';
+function themeColors() {
+  const cs = getComputedStyle(document.documentElement);
+  const rgb = v => v.split(',').map(Number);
+  return { ink: rgb(cs.getPropertyValue('--sk-ink-rgb')), parch: rgb(cs.getPropertyValue('--sk-parch-rgb')),
+    tones: cs.getPropertyValue('--sk-tones').trim().split(/\s+/).map(rgb),
+    petalInk: rgb(cs.getPropertyValue('--sk-petal-ink-rgb')), petalA: Number(cs.getPropertyValue('--sk-petal-a')) || 1,
+    petalEnd: rgb(cs.getPropertyValue('--sk-paper-rgb')),
+    hex: cs.getPropertyValue('--sk-parch').trim() };
+}
+function mountTheme(root, apply, reduce) {
+  const html = document.documentElement, buttons = Array.from(root.querySelectorAll('[data-sk-theme]'));
+  const meta = document.querySelector('meta[name="theme-color"]');
+  const forced = /[?&]theme=(dark|light)\b/.test(location.search);
+  const stored = () => { try { const t = localStorage.getItem(THEME_KEY); return t === 'dark' || t === 'light' ? t : null; } catch (e) { return null; } };
+  const sync = () => {
+    const dark = html.getAttribute('data-theme') === 'dark', c = themeColors();
+    buttons.forEach(b => b.setAttribute('aria-pressed', String(dark)));
+    if (meta && c.hex) meta.setAttribute('content', c.hex);
+    apply(c);
+  };
+  // o tema pedido fica em `want`: com a transição, o data-theme só muda depois da captura da tela antiga, e um segundo
+  // clique nesse meio-tempo precisa partir do tema já pedido
+  let want = html.getAttribute('data-theme');
+  const set = (t, animate) => {
+    if (want === t) return;
+    want = t;
+    const go = () => { html.setAttribute('data-theme', want); sync(); };
+    // uma transição interrompida (outro clique, aba oculta) só pula a animação: a troca acontece do mesmo jeito
+    if (animate && !reduce && !document.hidden && typeof document.startViewTransition === 'function') document.startViewTransition(go).ready.catch(() => {});
+    else go();
+  };
+  const click = () => {
+    const t = want === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* sem storage: vale só nesta página */ }
+    set(t, true);
+  };
+  // Voltar/avançar pode restaurar a página congelada (bfcache), com o tema de quando ela foi deixada: nem o <head> roda de
+  // novo nem o aviso de storage chega a ela. Ao reaparecer, ela adota a escolha guardada. Sem escolha legível (storage
+  // bloqueado), fica como está, para não desfazer uma troca feita nesta página.
+  const adopt = () => { const t = !forced && stored(); if (t) set(t, false); };
+  const onShow = e => { if (e.persisted) adopt(); };
+  const onVisible = () => { if (!document.hidden) adopt(); };
+  // outra aba trocou o tema
+  const onStorage = e => { if (e.key === THEME_KEY && !forced && (e.newValue === 'dark' || e.newValue === 'light')) set(e.newValue, false); };
+  if (!want) html.setAttribute('data-theme', want = 'light'); // página sem o script do <head> (artboard)
+  buttons.forEach(b => b.addEventListener('click', click));
+  window.addEventListener('pageshow', onShow);
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('storage', onStorage);
+  sync();
+  return () => {
+    buttons.forEach(b => b.removeEventListener('click', click));
+    window.removeEventListener('pageshow', onShow);
+    document.removeEventListener('visibilitychange', onVisible);
+    window.removeEventListener('storage', onStorage);
+  };
+}
+
 function mount(root, options) {
   const o = Object.assign({ preset: 'kosa', kanji: true, wind: 1 }, options || {});
   const $ = s => root.querySelector(s), $$ = s => Array.from(root.querySelectorAll(s));
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canvas = $('[data-sk-canvas]'), scroller = $('[data-sk-scroller]') || document.scrollingElement;
-  const menuLayout = matchMedia('(max-width: 860px), (max-width: 1024px) and (pointer: coarse), (max-height: 520px) and (pointer: coarse)');
+  const menuLayout = matchMedia('(max-width: 950px), (max-width: 1024px) and (pointer: coarse), (max-height: 520px) and (pointer: coarse)');
   const singleColumn = matchMedia('(max-width: 720px), (max-width: 935px) and (pointer: coarse)');
   const unmountMenu = mountMenu(root, menuLayout), unmountColumns = mountCardColumns($('[data-sk-card-columns]'), singleColumn);
   const unmountLang = mountLang(root, scroller);
@@ -173,6 +238,13 @@ function mount(root, options) {
     onFrame: () => placeRings() });
   const glass = mountGlass(root, scroller), videos = mountVideos(root), ascii = mountAscii(root);
   const quality = mountQuality(root, engine, ascii);
+  let themed = false;
+  const unmountTheme = mountTheme(root, c => {
+    engine.setOptions({ ink: c.ink, parch: c.parch, petalInk: c.petalInk, petalA: c.petalA, petalEnd: c.petalEnd });
+    if (c.tones.length === 4) ascii.setTones(c.tones);
+    if (themed) engine.renderNow(); // troca: o quadro novo sai já com as cores novas (a transição captura este estado)
+    themed = true;
+  }, reduce);
   const F = engine.focus;
   function camOf(v, fit, compact) {
     if (v.cam.id) return { z: lerp(1, fit, compact), fx: F[0] * compact, fy: F[1] * compact, sx: 0.54 * compact, sy: 0.5 * compact };
@@ -615,7 +687,7 @@ function mount(root, options) {
     engine, ascii, get tier() { return quality.tier; },
     update(n) { Object.assign(o, n); engine.setOptions({ preset: o.preset, kanji: o.kanji, wind: o.wind }); },
     destroy() {
-      dead = true; cancelAnimationFrame(raf); unmountMenu(); unmountColumns(); unmountLang(); glass.destroy(); engine.destroy();
+      dead = true; cancelAnimationFrame(raf); unmountMenu(); unmountColumns(); unmountLang(); unmountTheme(); glass.destroy(); engine.destroy();
       if (layoutRO) layoutRO.disconnect(); if (revealIO) revealIO.disconnect(); quality.destroy();
       window.removeEventListener('resize', relayout); scrollEvents.removeEventListener('scroll', wake);
       skipEvents.forEach(ev => window.removeEventListener(ev, skip, true));

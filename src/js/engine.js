@@ -10,7 +10,11 @@ function createSakuraBackground(canvas, options) {
     preset: 'kosa', seed: null, kanji: true, wind: 1, fps: 30, interactive: true, project: false,
     intro: true, holdIntro: false, glitch: true, scramble: true,
     cell: 14, font: 12, cjk: 12,
-    ink: [29, 29, 29],
+    // tema (controller.js lê dos tokens CSS): tinta da árvore, cor do fundo, tinta que se mistura ao gradiente nos
+    // glifos das flores e quanto da opacidade das células das flores vale neste fundo (1 = como no claro)
+    // petalEnd: cor da ponta do gradiente (no claro, o #fff do papel; no escuro, o papel escuro: a ponta se funde ao
+    // papel nos dois temas)
+    ink: [29, 29, 29], parch: [229, 228, 224], petalInk: [29, 29, 29], petalA: 1, petalEnd: null,
     stops: [[0, [250, 203, 14]], [0.30, [240, 107, 168]], [0.65, [120, 186, 230]], [1, [255, 255, 255]]],
     angle: 255,
     monoFamily: '"JetBrains Mono", "DejaVu Sans Mono", ui-monospace, Menlo, Consolas, monospace',
@@ -42,19 +46,20 @@ function createSakuraBackground(canvas, options) {
   // Paleta indexada: tinta, branco, papel e o gradiente das flores em GN passos, puro (fundo da célula) e misturado
   // com a tinta (glifo da pétala, do centro e da pétala solta). Índices pequenos deixam o atlas e os estilos finitos.
   const GN = 48, C_INK = 0, C_WHITE = 1, C_PARCH = 2, C_GRAD = 3, C_PET = C_GRAD + GN, C_CEN = C_PET + GN, C_LOO = C_CEN + GN;
-  let palette = [];
+  let palette = [], stops = opts.stops;
   function buildPalette() {
     const ink = opts.ink;
-    palette = [ink, [255, 255, 255], [229, 228, 224]];
+    stops = opts.petalEnd ? opts.stops.map((s, i, a) => (i === a.length - 1 ? [s[0], opts.petalEnd] : s)) : opts.stops;
+    palette = [ink, [255, 255, 255], opts.parch];
     for (let g = 0; g < GN; g++) {
       const c = gradAt(g / (GN - 1));
-      palette[C_GRAD + g] = c; palette[C_PET + g] = mixc(c, ink, 0.55); palette[C_CEN + g] = mixc(c, ink, 0.78); palette[C_LOO + g] = mixc(c, ink, 0.6);
+      palette[C_GRAD + g] = c; const pi = opts.petalInk; palette[C_PET + g] = mixc(c, pi, 0.55); palette[C_CEN + g] = mixc(c, pi, 0.78); palette[C_LOO + g] = mixc(c, pi, 0.6);
     }
   }
   const gradIdx = (px, py) => Math.round(clamp((px * gdx + py * gdy - pmin) / (pmax - pmin || 1) + drift, 0, 1) * (GN - 1));
   function gradAt(t) {
     t = clamp(t, 0, 1);
-    const S = opts.stops;
+    const S = stops;
     for (let i = 1; i < S.length; i++) if (t <= S[i][0]) {
       const u = (t - S[i - 1][0]) / (S[i][0] - S[i - 1][0]);
       return mixc(S[i - 1][1], S[i][1], u);
@@ -512,6 +517,7 @@ function createSakuraBackground(canvas, options) {
         else if (kind === 'center') { sq = C_GRAD + g; sqA = 0.92; col = C_CEN + g; colA = 1; }
         else if (kind === 'loose') { sq = C_GRAD + g; sqA = 0.55; col = C_LOO + g; colA = 0.95; }
         if (inBlock[id]) { sq = C_GRAD + g; sqA = 0.95; col = C_WHITE; colA = 1; }
+        if (opts.petalA !== 1) sqA = Math.min(1, sqA * opts.petalA);
       }
       if (kind === 'bark') {
         const h = hl[id]; sq = C_INK; sqA = 0.03 + 0.08 * (1 - h); colA = 0.42 + 0.45 * (1 - h);
@@ -535,7 +541,7 @@ function createSakuraBackground(canvas, options) {
       push(legacy.rect, rgba(k.dc, 0.9 * k.da), c * cw + 1, r * chh + 1, cw - 2, chh - 2);
       const kana = k.f < 0 && k.sp < 140;
       const ch = kana ? KANA[(k.ph * 3) | 0] : k.sp > 700 ? '*' : k.sp > 360 ? '+' : k.sp > 140 ? ':' : '.';
-      push(kana ? legacy.cjk : legacy.text, rgba(mixc(k.dc, ink, 0.55), k.da), ch, c * cw + cw / 2, r * chh + chh / 2, 0);
+      push(kana ? legacy.cjk : legacy.text, rgba(mixc(k.dc, opts.petalInk, 0.55), k.da), ch, c * cw + cw / 2, r * chh + chh / 2, 0);
       k.pc = c; k.pr = r;
     }
     // texto da abertura, desenhado na mesma grade (uma letra por célula)

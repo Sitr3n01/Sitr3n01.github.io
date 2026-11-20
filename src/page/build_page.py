@@ -8,7 +8,40 @@ import html, json, urllib.parse
 from content import inline, load_projects
 from textos import AREA_LABELS, CHIPS, IDS, LANGS, ME_FACTS, ME_NAME, MENU, PATH_ROWS, SITE, STACK, T
 
-INK, PARCH, PAPER, ASH = '#1d1d1d', '#e5e4e0', '#ffffff', '#bfbebe'
+# Cores em tokens CSS: a marcação usa var(--sk-*) e cada tema só troca os valores (THEMES). No claro, os valores são
+# exatamente os de sempre; o escuro troca os papéis da mesma paleta: a tinta vira o fundo e o fundo vira a tinta.
+INK, PARCH, PAPER, ASH, MUTE = 'var(--sk-ink)', 'var(--sk-parch)', 'var(--sk-paper)', 'var(--sk-ash)', 'var(--sk-mute)'
+# Tons dos objetos ASCII dos cards, da tinta ao mais apagado. No escuro, cada tom fica à mesma distância relativa do
+# papel que tem no claro (o papel claro é o #ffffff).
+CARD_TONES = ((29, 29, 29), (62, 62, 61), (110, 110, 108), (175, 174, 173))
+
+
+def mirror_tones(ink, paper):
+    return tuple(tuple(round(p + (i - p) * (255 - t) / (255 - 29)) for i, p, t in zip(ink, paper, tone)) for tone in CARD_TONES)
+
+
+# Flores: o gradiente é o mesmo nos dois temas. petal_ink = tinta que se mistura ao gradiente nos glifos das pétalas (no
+# claro, glifo escuro sobre a célula tingida; no escuro, o espelho: glifo claro). petal_a = fator da opacidade das
+# células das flores.
+THEMES = {
+    'light': {'ink': (29, 29, 29), 'parch': (229, 228, 224), 'paper': (255, 255, 255), 'ash': (191, 190, 190),
+              'mute': (95, 95, 93), 'tones': CARD_TONES, 'petal_ink': (29, 29, 29), 'petal_a': 1},
+    'dark': {'ink': (229, 228, 224), 'parch': (29, 29, 29), 'paper': (38, 38, 37), 'ash': (59, 59, 57),
+             'mute': (154, 153, 149), 'tones': mirror_tones((229, 228, 224), (38, 38, 37)), 'petal_ink': (229, 228, 224), 'petal_a': 1},
+}
+
+
+def theme_vars(name):
+    t = THEMES[name]
+    hexc = lambda c: '#' + ''.join(f'{v:02x}' for v in c)
+    rgb = lambda c: ','.join(map(str, c))
+    out = [f'--sk-{k}:{hexc(t[k])};--sk-{k}-rgb:{rgb(t[k])}' for k in ('ink', 'parch', 'paper', 'ash', 'mute')]
+    out.append(f'--sk-petal-ink-rgb:{rgb(t["petal_ink"])};--sk-petal-a:{t["petal_a"]}')
+    out.append('--sk-tones:' + ' '.join(rgb(c) for c in t['tones']))
+    out.append(f'color-scheme:{name}')
+    return ';'.join(out)
+
+
 SANS = "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
 MONO = "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace"
 JP = "'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif"
@@ -65,9 +98,21 @@ def words(text):
                     for w in text.split())
 
 
-def nav_icon(path):
-    return (f'<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" '
+def nav_icon(path, cls=''):
+    cls = f' class="{cls}"' if cls else ''
+    return (f'<svg{cls} width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" '
             f'stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{path}"/></svg>')
+
+
+# tema: lua e sol no traço dos ícones do menu. O botão mostra o tema para o qual leva (lua no claro, sol no escuro);
+# aria-pressed diz se o escuro está ligado (o controlador sincroniza todos os botões [data-sk-theme])
+MOON = 'M13.3 9.8A5.6 5.6 0 0 1 6.2 2.7a5.6 5.6 0 1 0 7.1 7.1Z'
+SUN = 'M8 5.4a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2ZM8 1.7v1.4M8 12.9v1.4M1.7 8h1.4M12.9 8h1.4M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1'
+
+
+def theme_btn(L):
+    return (f'<button type="button" class="sk-lens-btn sk-theme" data-sk-theme aria-pressed="false" '
+            f'aria-label="{L["theme_dark"]}" title="{L["theme_dark"]}">{nav_icon(MOON, "sk-i-moon")}{nav_icon(SUN, "sk-i-sun")}</button>')
 
 
 def lang_switch(L, root, slug=None):
@@ -105,12 +150,16 @@ def nav(L, home='', root='', slug=None):
 <a class="sk-lens-btn" href="{home}#{L.id('contact')}">{L['contact_btn']}</a>
 </nav>
 {lang_switch(L, root, slug)}
+{theme_btn(L)}
 <button type="button" class="sk-menu-toggle sk-lens-btn" data-sk-menu-open aria-controls="sk-mobile-menu" aria-expanded="false">{L['menu']} {nav_icon('M2 5h12M2 8h12M2 11h12')}</button>
 </div>
 <dialog id="sk-mobile-menu" class="sk-menu" data-sk-menu aria-label="{L['menu_aria']}">
 <div class="sk-menu-head">
 <span class="sk-logo" aria-hidden="true">SITR3N.</span>
+<div class="sk-menu-actions">
+{theme_btn(L)}
 <button type="button" class="sk-menu-close sk-lens-btn" data-sk-menu-close autofocus aria-label="{L['menu_close']}">{nav_icon('m3.5 3.5 9 9m0-9-9 9')}</button>
+</div>
 </div>
 <nav class="sk-menu-links" aria-label="{L['menu_links_aria']}">
 {mobile_links}
@@ -256,7 +305,7 @@ def path(L):
 
 # foto em preto e branco (a única cor do site são as flores); ganha cor no hover, ver .sk-me-photo
 def me(L, root):
-    facts = '\n'.join(f'<div class="sk-fact"><span style="{CAP}; color: #5f5f5d">{L.t(k)}</span><span class="sk-fact-v">{lines(L.t(vs))}</span></div>'
+    facts = '\n'.join(f'<div class="sk-fact"><span style="{CAP}; color: {MUTE}">{L.t(k)}</span><span class="sk-fact-v">{lines(L.t(vs))}</span></div>'
                       for k, vs in ME_FACTS)
     return f'''
 <section {sec_attrs(L, 'me')} data-sk-view="me" style="position: relative; padding: 119px {PADX}">
@@ -305,7 +354,7 @@ def contact(L):
 def hint(L):
     return f'''<button type="button" data-sk-hint="1" data-sk-ui="3" class="sk-hint" aria-label="{L['hint_aria']}">
 <span style="{CAP}; color: {INK}">Scroll</span>
-<svg class="sk-hint-arrow" width="14" height="22" viewBox="0 0 14 22" fill="none" stroke="{INK}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 1v19M1.5 14.5 7 20l5.5-5.5"/></svg>
+<svg class="sk-hint-arrow" width="14" height="22" viewBox="0 0 14 22" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 1v19M1.5 14.5 7 20l5.5-5.5"/></svg>
 </button>'''
 
 
@@ -324,8 +373,8 @@ WA_RING = 'M2.1 21.9l1.35-5.05A9.9 9.9 0 1 1 7.2 20.55zM12 3.9a8.1 8.1 0 1 0 0 1
 WA_PHONE_ICON = ('M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20'
                  'c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z')
 WA_ICON = (f'<svg class="sk-wa-i" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">'
-           f'<path d="{WA_RING}" fill="{INK}" fill-rule="evenodd"/>'
-           f'<path d="{WA_PHONE_ICON}" fill="{INK}" transform="translate(12 12) scale(0.44) translate(-12 -12)"/></svg>')
+           f'<path d="{WA_RING}" fill="currentColor" fill-rule="evenodd"/>'
+           f'<path d="{WA_PHONE_ICON}" fill="currentColor" transform="translate(12 12) scale(0.44) translate(-12 -12)"/></svg>')
 
 
 # a entrada da interface (data-sk-ui) fica no invólucro: no próprio botão, a transição dela substituiria a do vidro
@@ -386,7 +435,7 @@ def video_block(L, p, root):
         attrs = f' data-sk-youtube="{yt}" data-sk-label="{label}"'
     else:
         media = (f'<div class="sk-video-empty"><span class="sk-video-k" aria-hidden="true">{p["kanji"]}</span>'
-                 f'<p style="margin: 0; {CAP}; color: #5f5f5d">{L["video_empty"]}</p></div>')
+                 f'<p style="margin: 0; {CAP}; color: {MUTE}">{L["video_empty"]}</p></div>')
     return f'''<figure class="sk-video" data-sk-read data-sk-video="1" data-sk-reveal="1" data-sk-title="{title}"{attrs}>
 <div class="sk-video-frame" style="{GRID_BG}">{media}{play}</div>
 <figcaption style="{CAP}">{E(L['video_caption'].format(p['titulo']))}{note}</figcaption>
@@ -407,7 +456,7 @@ def project_body(L, p, nxt, root):
     facts = [(L['fact_role'], p.get('papel', '')), (L['fact_period'], p.get('periodo', '')),
              (L['fact_status'], p.get('status', '')), (L['fact_stack'], ', '.join(p['stack']))]
     facts = [(k, v) for k, v in facts if v]
-    facts_html = '\n'.join(f'<div class="sk-fact"><span style="{CAP}; color: #5f5f5d">{k}</span><span class="sk-fact-v">{inline(v)}</span></div>'
+    facts_html = '\n'.join(f'<div class="sk-fact"><span style="{CAP}; color: {MUTE}">{k}</span><span class="sk-fact-v">{inline(v)}</span></div>'
                            for k, v in facts)
     secs = []
     for sec in p['sections']:
@@ -490,7 +539,9 @@ def project_root(L, p, nxt, root):
 JP_CHARS = '桜木林森さくらヽゝ゜' + ''.join(dict.fromkeys(p['kanji'] for p in PROJECTS['pt']))
 FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">\n'
          f'<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400&amp;text={urllib.parse.quote(JP_CHARS)}&amp;display=swap" rel="stylesheet">')
-CSS = f'''body{{margin:0;background:{PARCH}}}
+CSS = f''':root{{{theme_vars('light')}}}
+:root[data-theme="dark"]{{{theme_vars('dark')}}}
+body{{margin:0;background:{PARCH}}}
 a{{color:{INK}}}a:hover{{color:{INK}}}
 a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 [data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}}
@@ -498,29 +549,29 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-pill{{transition:background-color .25s ease,color .25s ease}}.sk-pill:hover{{background-color:{INK};color:{PARCH}}}
 .sk-card .sk-plus{{transition:transform .45s cubic-bezier(.2,.7,.2,1)}}.sk-card:hover .sk-plus{{transform:rotate(90deg)}}
 .sk-cell{{transition:background-color .25s ease,color .25s ease}}.sk-cell:hover{{background-color:{INK}!important;color:{PARCH}}}
-.sk-cap{{color:#5f5f5d}}.sk-cell:hover .sk-cap{{color:{ASH}}}
+.sk-cap{{color:{MUTE}}}.sk-cell:hover .sk-cap{{color:{ASH}}}
 .sk-row .sk-row-t{{transition:transform .45s cubic-bezier(.2,.7,.2,1)}}.sk-row:hover .sk-row-t{{transform:translateX(19px)}}
 @media (prefers-reduced-motion:reduce){{[data-sk-scroller]{{scroll-behavior:auto!important}}}}''' + '''
 /* ---- vidro líquido: trilho fosco + lente refrativa ---- */
 @property --rim{syntax:'<angle>';inherits:true;initial-value:0deg}
 .sk-toolbar{--sk-track-tint:.55;--sk-track-blur:14px;--sk-lens-center:.92;--sk-lens-mid:.75}
-.sk-glass{position:relative;border-radius:999px;background-color:rgba(229,228,224,var(--sk-track-tint,.44));
+.sk-glass{position:relative;border-radius:999px;background-color:rgba(var(--sk-parch-rgb),var(--sk-track-tint,.44));
   -webkit-backdrop-filter:blur(var(--sk-track-blur,9px)) saturate(1.25);backdrop-filter:blur(var(--sk-track-blur,9px)) saturate(1.25);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.7),inset 0 1px 3px rgba(29,29,29,.07),0 0 0 1px rgba(29,29,29,.06),0 1px 0 rgba(255,255,255,.8)}
-.sk-logo{display:inline-block;padding:12px 0;font-size:22px;font-weight:700;line-height:1;letter-spacing:-.02em;text-decoration:none;color:#1d1d1d}
+.sk-logo{display:inline-block;padding:12px 0;font-size:22px;font-weight:700;line-height:1;letter-spacing:-.02em;text-decoration:none;color:var(--sk-ink)}
 .sk-track{display:inline-flex;align-items:center;gap:2px;padding:4px}
 .sk-track-lg{flex-wrap:wrap;max-width:100%;box-sizing:border-box}
 .sk-seg{position:relative;z-index:1;display:inline-block;padding:10px 18px;border-radius:999px;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
-  color:#5f5f5d;text-decoration:none;white-space:nowrap;transition:color .35s ease}
-.sk-seg.is-on,.sk-seg:hover{color:#1d1d1d}
+  color:var(--sk-mute);text-decoration:none;white-space:nowrap;transition:color .35s ease}
+.sk-seg.is-on,.sk-seg:hover{color:var(--sk-ink)}
 .sk-track-lg .sk-seg{padding:14px 24px;font-size:15px;letter-spacing:.013em;text-transform:none}
 /* direita da toolbar: nav (desktop), idioma e botão Menu (celular) num grupo só */
 .sk-tools{display:flex;align-items:center;gap:10px}
 .sk-lang{pointer-events:auto}
 .sk-lang .sk-seg{padding:10px 12px}
-.sk-seg-sub{color:#5f5f5d;transition:color .35s ease}
+.sk-seg-sub{color:var(--sk-mute);transition:color .35s ease}
 .sk-lens-btn.sk-lens-btn-lg{padding:18px 28px;font-size:15px;letter-spacing:.013em;text-transform:none}
-.sk-seg:focus-visible,.sk-lens-btn:focus-visible,.sk-logo:focus-visible{outline:2px solid #1d1d1d;outline-offset:3px}
+.sk-seg:focus-visible,.sk-lens-btn:focus-visible,.sk-logo:focus-visible{outline:2px solid var(--sk-ink);outline-offset:3px}
 
 /* lente: corpo claro, borda grossa que refrata, reflexo quente no topo e brilho iridescente girando nos cantos */
 .sk-lens,.sk-lens-btn{--sx:1;--sy:1;border-radius:999px;
@@ -536,17 +587,45 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-lens.is-off{opacity:0;transform:translate3d(var(--x,0),var(--y,0),0) scale(.6,.6)}
 .sk-lens.no-anim{transition:none}
 .sk-lens-btn{position:relative;display:inline-block;padding:13px 22px;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
-  color:#1d1d1d;text-decoration:none;white-space:nowrap;transition:transform .5s cubic-bezier(.3,1.5,.5,1),--rim .9s cubic-bezier(.3,1,.4,1)}
+  color:var(--sk-ink);text-decoration:none;white-space:nowrap;transition:transform .5s cubic-bezier(.3,1.5,.5,1),--rim .9s cubic-bezier(.3,1,.4,1)}
 .sk-lens-btn:hover{transform:scale(1.04)}.sk-lens-btn:active{transform:scale(.97)}
 .sk-lens::before,.sk-lens-btn::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:2.5px;pointer-events:none;
   background:conic-gradient(from var(--rim),rgba(255,255,255,0) 18deg,rgba(250,203,14,.55) 30deg,rgba(240,107,168,.5) 38deg,rgba(120,186,230,.6) 46deg,rgba(255,255,255,0) 58deg,
     rgba(255,255,255,0) 198deg,rgba(120,186,230,.5) 210deg,rgba(240,107,168,.45) 218deg,rgba(250,203,14,.5) 226deg,rgba(255,255,255,0) 238deg);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;filter:blur(.7px)}
-.sk-lens::after,.sk-lens-btn::after{content:"";position:absolute;left:16%;right:16%;top:2px;height:4px;border-radius:4px;pointer-events:none;
-  background:linear-gradient(90deg,rgba(255,246,220,0),rgba(255,246,220,.95) 22%,#fff 50%,rgba(255,246,220,.95) 78%,rgba(255,246,220,0));filter:blur(1.2px)}
+/* reflexo quente do topo: faixa de 4 px a 2 px do topo, com 68% da largura do vidro. Ela fica numa camada com o mesmo
+   formato do vidro, recuada 2 px, e a borda arredondada dessa camada corta a faixa: o reflexo nunca sai do vidro. Nas
+   pílulas, a faixa fica onde sempre esteve; nos botões redondos (WhatsApp, tema, fechar), vira um brilho curto que
+   acompanha a curva. */
+.sk-lens::after,.sk-lens-btn::after{content:"";position:absolute;inset:2px;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(90deg,rgba(255,246,220,0),rgba(255,246,220,.95) 22%,#fff 50%,rgba(255,246,220,.95) 78%,rgba(255,246,220,0)) 50% 0/calc(68% + 2.72px) 4px no-repeat;
+  filter:blur(1.2px)}
 @media (max-width:720px){.sk-track-lg{flex-direction:column;align-items:stretch;align-self:stretch!important;border-radius:30px}
   .sk-track-lg .sk-seg{padding:14px 20px}}
 @media (prefers-reduced-motion:reduce){.sk-lens,.sk-lens-btn,.sk-seg{transition:none!important}}
+
+/* ---- tema: botão de vidro redondo depois do idioma (no celular, no cabeçalho do menu); a lua gira e vira sol ---- */
+.sk-lens-btn.sk-theme{display:inline-flex;flex:0 0 auto;width:44px;height:44px;padding:0;border:0;font:inherit;cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent}
+.sk-theme svg{position:absolute;left:50%;top:50%;margin:-9px 0 0 -9px;transition:opacity .4s ease,transform .6s cubic-bezier(.3,1.5,.5,1)}
+.sk-theme .sk-i-sun,[data-theme="dark"] .sk-theme .sk-i-moon{opacity:0;transform:rotate(-70deg) scale(.5)}
+[data-theme="dark"] .sk-theme .sk-i-sun{opacity:1;transform:none}
+.sk-menu-actions{display:flex;align-items:center;gap:10px}
+@media (prefers-reduced-motion:reduce){.sk-theme svg{transition:none}}
+
+/* ---- tema escuro: as cores vêm dos tokens (THEMES no gerador). Só o vidro precisa de regras próprias: a luz dele é
+   branca no claro e, no escuro, vira um brilho fraco na borda com sombra mais funda; o reflexo iridescente da borda
+   (cores das flores) não muda ---- */
+[data-theme="dark"] .sk-glass{box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 1px 3px rgba(0,0,0,.3),0 0 0 1px rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.05)}
+[data-theme="dark"] .sk-lens,[data-theme="dark"] .sk-lens-btn{
+  background:radial-gradient(120% 90% at 50% 50%,rgba(50,50,48,var(--sk-lens-center,.76)) 55%,rgba(64,64,61,var(--sk-lens-mid,.63)) 78%,rgba(255,255,255,.2) 100%);
+  -webkit-backdrop-filter:blur(2px) saturate(1.8) brightness(1.2);backdrop-filter:blur(2px) saturate(1.8) brightness(1.2);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.2),inset 0 0 2px 3px rgba(255,255,255,.04),inset 0 0 6px 5px rgba(0,0,0,.16),
+    inset 0 5px 6px -3px rgba(255,255,255,.16),inset 0 -6px 8px -4px rgba(0,0,0,.4),
+    inset 7px 0 9px -7px rgba(0,0,0,.32),inset -7px 0 9px -7px rgba(0,0,0,.32),
+    0 0 0 1px rgba(0,0,0,.3),0 1px 1px rgba(0,0,0,.3),0 8px 18px -8px rgba(0,0,0,.7)}
+[data-theme="dark"] .sk-lens::after,[data-theme="dark"] .sk-lens-btn::after{opacity:.4}
+[data-theme="dark"] .sk-menu[open]{border-color:rgba(255,255,255,.1);background:rgba(var(--sk-paper-rgb),.92)}
+[data-theme="dark"] .sk-menu::backdrop{background:rgba(0,0,0,.45)}
 
 /* ---- abertura: a interface entra depois que a sakura floresce ---- */
 [data-sk-ui]{transition:opacity .9s ease,transform 1s cubic-bezier(.2,.7,.2,1)}
@@ -575,18 +654,18 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-card-link{color:inherit;text-decoration:none}
 .sk-card-link::after{content:"";position:absolute;inset:0;z-index:2}
 .sk-card-link:focus-visible{outline:none}
-.sk-card:has(.sk-card-link:focus-visible){outline:2px solid #1d1d1d;outline-offset:3px}
-.sk-card .sk-open{color:#5f5f5d;transition:color .3s ease}.sk-card:hover .sk-open{color:#1d1d1d}
+.sk-card:has(.sk-card-link:focus-visible){outline:2px solid var(--sk-ink);outline-offset:3px}
+.sk-card .sk-open{color:var(--sk-mute);transition:color .3s ease}.sk-card:hover .sk-open{color:var(--sk-ink)}
 
 /* ---- página de projeto ---- */
 .sk-lead{max-width:34em;font-size:clamp(18px,1.6vw,22px);line-height:1.4;letter-spacing:.006em}
 .sk-lead p{margin:0}
-.sk-tile{position:relative;flex:0 0 auto;width:clamp(180px,24vw,340px);aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:1px solid #bfbebe;box-sizing:border-box}
+.sk-tile{position:relative;flex:0 0 auto;width:clamp(180px,24vw,340px);aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:1px solid var(--sk-ash);box-sizing:border-box}
 /* flex com quebra: cada linha estica as células até fechar a largura, então o fundo (as linhas de 1px)
    nunca aparece como célula vazia. data-c = células por linha com espaço (grid_attrs); a largura do
    contêiner (.sk-cq) decide entre 1, 2 (só contagens pares, data-pair) e data-c por linha */
 .sk-cq{container-type:inline-size}
-.sk-facts,.sk-stats{display:flex;flex-wrap:wrap;gap:1px;background-color:#bfbebe;border:1px solid #bfbebe}
+.sk-facts,.sk-stats{display:flex;flex-wrap:wrap;gap:1px;background-color:var(--sk-ash);border:1px solid var(--sk-ash)}
 .sk-fact,.sk-stat{flex:1 1 100%}
 @container (min-width:400px){.sk-stats[data-pair]>.sk-stat{flex-basis:calc((100% - 2px) / 2)}}
 @container (min-width:480px){.sk-facts[data-pair]>.sk-fact{flex-basis:calc((100% - 2px) / 2)}}
@@ -598,22 +677,22 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-stack>.sk-cell{flex:1 1 100%}
 @container (min-width:420px){.sk-stack>.sk-cell{flex-basis:calc((100% - 2px) / 2)}}
 @container (min-width:840px){.sk-stack>.sk-cell{flex-basis:calc((100% - 5px) / 5)}}
-.sk-fact,.sk-stat{min-width:0;background-color:#fff;padding:19px;display:flex;flex-direction:column;justify-content:space-between;gap:19px;box-sizing:border-box}
+.sk-fact,.sk-stat{min-width:0;background-color:var(--sk-paper);padding:19px;display:flex;flex-direction:column;justify-content:space-between;gap:19px;box-sizing:border-box}
 .sk-fact{min-height:112px}.sk-stat{min-height:150px}
 .sk-fact-v{font-size:18px;line-height:1.3}
 .sk-stat-v{font-size:clamp(30px,3vw,46px);line-height:1;letter-spacing:-.01em}
-.sk-sec{display:flex;flex-wrap:wrap;gap:19px;align-items:flex-start;padding-top:30px;border-top:1px solid #bfbebe}
+.sk-sec{display:flex;flex-wrap:wrap;gap:19px;align-items:flex-start;padding-top:30px;border-top:1px solid var(--sk-ash)}
 .sk-sec>h2{flex:0 0 200px;margin:0;font-weight:400;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase}
 .sk-sec>div{flex:1 1 560px;min-width:0;max-width:820px}
 .sk-prose{font-size:18px;line-height:1.5;letter-spacing:.006em}
 .sk-prose p{margin:0 0 .9em}.sk-prose p:last-child{margin-bottom:0}
 .sk-prose ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.7em}
-.sk-prose li{position:relative;padding-left:1.4em}.sk-prose li::before{content:"+";position:absolute;left:0;color:#5f5f5d}
+.sk-prose li{position:relative;padding-left:1.4em}.sk-prose li::before{content:"+";position:absolute;left:0;color:var(--sk-mute)}
 .sk-prose strong{font-weight:700}
-.sk-prose code,.sk-lead code{font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:.82em;padding:1px 5px;background-color:rgba(29,29,29,.06)}
+.sk-prose code,.sk-lead code{font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:.82em;padding:1px 5px;background-color:rgba(var(--sk-ink-rgb),.06)}
 .sk-pending{background-color:rgba(240,107,168,.2);color:inherit;padding:0 4px}
 .sk-video{margin:0;display:flex;flex-direction:column;gap:12px}
-.sk-video-frame{position:relative;aspect-ratio:16/9;overflow:hidden;border:1px solid #bfbebe}
+.sk-video-frame{position:relative;aspect-ratio:16/9;overflow:hidden;border:1px solid var(--sk-ash)}
 .sk-video-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;background-color:#1d1d1d}
 .sk-video.is-playing video.sk-video-media{object-fit:contain}
 .sk-video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
@@ -621,15 +700,15 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-video.is-playing .sk-play-wrap{display:none}
 .sk-play-wrap .sk-lens-btn{padding:18px 30px;font-size:12px}
 .sk-video-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:19px}
-.sk-video-k{font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif;font-size:clamp(90px,12vw,190px);line-height:1;color:rgba(29,29,29,.13)}
-.sk-next{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:19px;padding:30px 0;border-top:1px solid #bfbebe;border-bottom:1px solid #bfbebe;color:#1d1d1d;text-decoration:none}
+.sk-video-k{font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif;font-size:clamp(90px,12vw,190px);line-height:1;color:rgba(var(--sk-ink-rgb),.13)}
+.sk-next{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:19px;padding:30px 0;border-top:1px solid var(--sk-ash);border-bottom:1px solid var(--sk-ash);color:var(--sk-ink);text-decoration:none}
 .sk-next-t{display:inline-block;font-size:clamp(40px,6vw,96px);line-height:.9;letter-spacing:-.015em;transition:transform .5s cubic-bezier(.2,.7,.2,1)}
 .sk-next:hover .sk-next-t{transform:translateX(19px)}
 @media (max-width:720px){.sk-tile{width:min(60vw,240px)}.sk-sec>h2{flex-basis:100%}}
 
 /* ---- desfoque em gradiente atrás da toolbar: forte no topo, some para baixo ---- */
 .sk-topblur{position:absolute;top:0;left:0;right:0;height:168px;z-index:19;pointer-events:none;
-  background:linear-gradient(to bottom,rgba(229,228,224,.72) 0%,rgba(229,228,224,.38) 45%,rgba(229,228,224,0) 100%)}
+  background:linear-gradient(to bottom,rgba(var(--sk-parch-rgb),.72) 0%,rgba(var(--sk-parch-rgb),.38) 45%,rgba(var(--sk-parch-rgb),0) 100%)}
 .sk-topblur{--dir:to bottom}
 .sk-blurfx i{position:absolute;inset:0}
 /* duas camadas (antes eram cinco): o desfoque progressivo continua, com menos passes de GPU sobre o canvas animado */
@@ -638,7 +717,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 /* rodapé: o mesmo desfoque, de baixo para cima, sangrando até as bordas da tela */
 .sk-footblur{--dir:to top;position:relative;margin:0 calc(-1 * clamp(19px,4vw,76px)) -30px;padding:0 clamp(19px,4vw,76px) 30px;min-height:168px;
   display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 19px;box-sizing:border-box;
-  background:linear-gradient(to top,rgba(229,228,224,.60) 0%,rgba(229,228,224,.31) 45%,rgba(229,228,224,0) 100%)}
+  background:linear-gradient(to top,rgba(var(--sk-parch-rgb),.60) 0%,rgba(var(--sk-parch-rgb),.31) 45%,rgba(var(--sk-parch-rgb),0) 100%)}
 .sk-footblur>.sk-blurfx{position:absolute;inset:0;pointer-events:none}
 .sk-footblur>:not(.sk-blurfx){position:relative}
 @media (max-width:720px){.sk-topblur{height:128px}.sk-logo{font-size:19px}.sk-footblur{min-height:128px}}
@@ -649,13 +728,13 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-area-labels [data-sk-orbit-label]{position:absolute}
 .sk-area-title{bottom:46px;z-index:1;font-size:clamp(44px,5vw,76px)}
 @media (max-width:900px),(max-height:600px){
-  .sk-area-labels [data-sk-orbit-label],.sk-area-title{paint-order:stroke fill;-webkit-text-stroke:3px #e5e4e0}
+  .sk-area-labels [data-sk-orbit-label],.sk-area-title{paint-order:stroke fill;-webkit-text-stroke:3px var(--sk-parch)}
 }
 @media (min-width:721px) and (max-width:900px){.sk-area-title{bottom:86px}}
 [data-sk-view="contact"] h2{font-size:clamp(56px,7.4vw,112px)}
 
 /* ---- sobre mim: foto 3:4 em preto e branco (ganha cor no hover), nome em caixa alta, texto e fatos ---- */
-.sk-me-photo{flex:0 1 clamp(240px,26vw,420px);min-width:0;margin:0;border:1px solid #bfbebe;background-color:#fff;line-height:0}
+.sk-me-photo{flex:0 1 clamp(240px,26vw,420px);min-width:0;margin:0;border:1px solid var(--sk-ash);background-color:var(--sk-paper);line-height:0}
 .sk-me-photo img{display:block;width:100%;height:auto;aspect-ratio:960/1281;object-fit:cover;filter:grayscale(1) contrast(1.04);transition:filter .6s ease}
 .sk-me-photo:hover img{filter:none}
 .sk-me-copy{flex:1 1 380px;min-width:0;max-width:640px;display:flex;flex-direction:column;gap:46px}
@@ -691,17 +770,17 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
    baixo dele). Abaixo de 1024 px o título ocupa a largura toda: o botão desce para a linha do "Scroll", com 56 px,
    e o rodapé reserva a largura dele à direita ---- */
 .sk-wa-wrap{position:absolute;right:clamp(19px,4vw,76px);bottom:73px;z-index:21}
-.sk-wa{display:inline-flex;align-items:center;justify-content:center;padding:17px;color:#1d1d1d;text-decoration:none}
+.sk-wa{display:inline-flex;align-items:center;justify-content:center;padding:17px;color:var(--sk-ink);text-decoration:none}
 .sk-wa-i{flex:0 0 auto;display:block;width:30px;height:30px}
 @media (max-width:1023px){.sk-wa-wrap{bottom:22px}.sk-wa{padding:13px}.sk-footblur{padding-right:calc(clamp(19px,4vw,76px) + 76px)}}
 
 /* ---- indicador de scroll: centro da base, seta animada ---- */
 .sk-hint{position:absolute;left:50%;width:120px;margin:0 0 0 -60px;bottom:22px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;
   padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer}
-.sk-hint:focus-visible{outline:2px solid #1d1d1d;outline-offset:6px;border-radius:10px}
+.sk-hint:focus-visible{outline:2px solid var(--sk-ink);outline-offset:6px;border-radius:10px}
 .sk-hint:hover .sk-hint-arrow{animation-duration:.9s}
 .sk-hint::before{content:"";position:absolute;inset:-26px -34px -14px;z-index:-1;border-radius:50%;
-  background:radial-gradient(closest-side,rgba(229,228,224,.78) 35%,rgba(229,228,224,0));
+  background:radial-gradient(closest-side,rgba(var(--sk-parch-rgb),.78) 35%,rgba(var(--sk-parch-rgb),0));
   -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
   -webkit-mask-image:radial-gradient(closest-side,#000 45%,transparent);mask-image:radial-gradient(closest-side,#000 45%,transparent)}
 .sk-hint-arrow{display:block;animation:sk-bob 1.6s cubic-bezier(.45,0,.55,1) infinite}
@@ -710,12 +789,13 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 /* nível de qualidade C (aparelhos fracos, ver TIERS no controlador): vidro sem desfoque, com o fundo mais opaco */
 [data-sk-tier="c"] .sk-glass,[data-sk-tier="c"] .sk-lens,[data-sk-tier="c"] .sk-lens-btn,[data-sk-tier="c"] .sk-blurfx i,
 [data-sk-tier="c"] .sk-hint::before,[data-sk-tier="c"] .sk-menu{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
-[data-sk-tier="c"] .sk-glass{background-color:rgba(229,228,224,.9)}
+[data-sk-tier="c"] .sk-glass{background-color:rgba(var(--sk-parch-rgb),.9)}
 
-/* A toolbar e os controles cabem em uma linha também no celular deitado. Até 860 px a nav do desktop, o "Contato +" e o
-   seletor de idioma não cabem numa linha ao lado do logo: a toolbar vira logo + idioma + Menu (o mesmo do celular). */
+/* A toolbar e os controles cabem em uma linha também no celular deitado. Até 950 px a nav do desktop, o "Contato +", o
+   seletor de idioma e o botão de tema não cabem numa linha ao lado do logo (o inglês pede ~870 px mais as margens): a
+   toolbar vira logo + idioma + Menu (o mesmo do celular), e o tema vai para o cabeçalho do menu. */
 .sk-menu-toggle,.sk-menu{display:none}
-@media (max-width:860px),(max-width:1024px) and (pointer:coarse),(max-height:520px) and (pointer:coarse){
+@media (max-width:950px),(max-width:1024px) and (pointer:coarse),(max-height:520px) and (pointer:coarse){
   [data-sk-root]{--sk-mobile-edge:clamp(16px,4.5vw,32px);--sk-mobile-top:104px;height:100dvh!important}
   [data-sk-scroller]{scroll-padding-top:var(--sk-mobile-top)}
   [data-sk-view="hero"],[data-sk-view="contact"],[data-sk-view="proj"]{min-height:100dvh!important}
@@ -724,25 +804,25 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   .sk-toolbar .sk-logo,.sk-menu .sk-logo{font-size:19px;line-height:20px}
   .sk-topblur{height:var(--sk-mobile-top)}
   [data-sk-root]:not([data-sk-menu-ready]) .sk-navlinks{display:none}
-  [data-sk-menu-ready] .sk-desktop-nav,[data-sk-menu-ready] .sk-wa-wrap{display:none!important}
+  [data-sk-menu-ready] .sk-desktop-nav,[data-sk-menu-ready] .sk-wa-wrap,[data-sk-menu-ready] .sk-tools>.sk-theme{display:none!important}
   [data-sk-menu-ready] .sk-menu-toggle,.sk-menu-close{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;
     gap:10px;min-height:44px;padding:0 15px;border:0;font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
   .sk-menu-toggle[aria-expanded="true"]{opacity:0}
   .sk-menu[open]{display:block;pointer-events:auto;position:fixed;inset:12px var(--sk-mobile-edge) auto auto;
     width:min(420px,calc(100% - 2 * var(--sk-mobile-edge)));max-width:none;max-height:calc(100dvh - 24px);
     box-sizing:border-box;overflow:auto;overscroll-behavior:contain;margin:0;padding:14px 18px 8px;
-    border:1px solid rgba(255,255,255,.85);border-radius:24px;color:#1d1d1d;background:rgba(246,245,242,.92);
+    border:1px solid rgba(255,255,255,.85);border-radius:24px;color:var(--sk-ink);background:rgba(246,245,242,.92);
     -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
   .sk-menu::backdrop{background:rgba(29,29,29,.15)}
   .sk-menu-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:12px}
   .sk-menu-close{min-width:44px;padding:0}
-  .sk-menu-links{display:grid;border-top:1px solid #bfbebe}
+  .sk-menu-links{display:grid;border-top:1px solid var(--sk-ash)}
   .sk-menu-links a{display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:center;gap:12px;
-    min-height:50px;padding:0 8px;color:#1d1d1d;text-decoration:none;font-size:16px}
-  .sk-menu-links a+a{border-top:1px solid rgba(29,29,29,.16)}
-  .sk-menu-links a:active{background:rgba(29,29,29,.06)}
+    min-height:50px;padding:0 8px;color:var(--sk-ink);text-decoration:none;font-size:16px}
+  .sk-menu-links a+a{border-top:1px solid rgba(var(--sk-ink-rgb),.16)}
+  .sk-menu-links a:active{background:rgba(var(--sk-ink-rgb),.06)}
   .sk-menu-links .sk-wa-i{height:19px;width:19px}
-  .sk-menu-external{font-size:14px;color:#5f5f5d}
+  .sk-menu-external{font-size:14px;color:var(--sk-mute)}
   .sk-hint{left:auto;right:var(--sk-mobile-edge);bottom:14px;width:auto;min-height:48px;margin:0;padding:0 8px 0 12px;
     flex-direction:row;justify-content:center;gap:12px}
   .sk-hint::before{inset:-10px -16px -5px}
@@ -793,8 +873,8 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 @media (min-width:520px) and (max-height:520px) and (max-width:720px),(min-width:520px) and (max-height:520px) and (pointer:coarse){
   .sk-menu-links{grid-template-columns:repeat(2,minmax(0,1fr))}
   .sk-menu-links a+a{border-top:0}
-  .sk-menu-links a:nth-child(n+3){border-top:1px solid rgba(29,29,29,.16)}
-  .sk-menu-links a:nth-child(even){border-left:1px solid rgba(29,29,29,.16);padding-left:12px}
+  .sk-menu-links a:nth-child(n+3){border-top:1px solid rgba(var(--sk-ink-rgb),.16)}
+  .sk-menu-links a:nth-child(even){border-left:1px solid rgba(var(--sk-ink-rgb),.16);padding-left:12px}
   .sk-project-hero{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,34%);align-items:center!important}
   .sk-project-hero .sk-tile{width:min(100%,340px);justify-self:center}
   .sk-project-copy h1{font-size:clamp(34px,6.3vw,60px)!important}
@@ -876,6 +956,13 @@ def alternates(slug=None):
     return '\n'.join(tags)
 
 
+# Tema antes da primeira pintura (sem piscar): ?theme=dark|light (testes), senão a escolha guardada, senão o claro, que
+# é o padrão do site. O controlador cuida dos botões e mantém as páginas abertas em dia com a escolha (mountTheme).
+THEME_SCRIPT = ('<script>(function(d){var t=(/[?&]theme=(dark|light)\\b/.exec(location.search)||[])[1];'
+                "if(!t)try{t=localStorage.getItem('sk-theme')}catch(e){}"
+                "d.setAttribute('data-theme',t==='dark'?'dark':'light')})(document.documentElement)</script>")
+
+
 def build_standalone(L, script_src, body_html, title, desc=None, opts="{ preset: 'kosa' }", slug=None):
     sc = f'<script src="{script_src}"></script>'
     meta = f'\n<meta name="description" content="{E(desc)}">' if desc else ''
@@ -884,6 +971,8 @@ def build_standalone(L, script_src, body_html, title, desc=None, opts="{ preset:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#{''.join(f'{v:02x}' for v in THEMES['light']['parch'])}">
+{THEME_SCRIPT}
 <title>{E(title)}</title>{meta}
 <link rel="canonical" href="{SITE}{L.path(slug)}">
 {alternates(slug)}

@@ -15,6 +15,7 @@ const ASC_HOLD = 3.2, ASC_MORPH = 2.1;   // segundos parado em cada forma / desf
 const ASC_INTRO = 1.7;                   // entrada de cada palco: o que o relógio mostra brota de baixo para cima
 const ASC_SPREAD = 0.5;                  // fração da troca usada para escalonar a saída das partículas
 const ASC_CAM = 4.2;                     // distância da câmera (perspectiva leve)
+// tons do tema claro; o controlador troca pelos do tema atual (--sk-tones, ver THEMES no gerador)
 const ASC_TONES = [[29, 29, 29], [62, 62, 61], [110, 110, 108], [175, 174, 173]];
 const ASC_L = (() => { const l = [-0.5, 0.62, 0.6], n = Math.hypot(l[0], l[1], l[2]); return l.map(v => v / n); })();
 const ASC_FLY = [0, 0, 1, 1, 2, 3, 0, 1]; // glifos das partículas soltas: mais pontos e cruzes pequenas
@@ -40,7 +41,8 @@ const ASC_PIX = ASC_GLYPHS.map(pat => {
   for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) if (rows[y][x] === '#') out.push(x + 1, y + 1);
   return out;
 });
-const ASC_TONE32 = typeof Uint32Array === 'undefined' ? [] : ASC_TONES.map(c => ((255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0]) >>> 0);
+const ascPack = c => ((255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0]) >>> 0; // RGBA little-endian, opaco
+const ASC_TONE32 = ASC_TONES.map(ascPack);
 
 // ---------------------------------------------------------------- malha → nuvem de pontos
 // Uma malha é uma lista de partes; cada parte tem triângulos, um albedo (número ou função da posição e da normal;
@@ -665,7 +667,7 @@ function ascRender(S, w, A, B, ca, cb, morph, tilt, sc, itau) {
 
 function mountAscii(root) {
   const els = Array.from(root.querySelectorAll('[data-sk-ascii]'));
-  if (!els.length || typeof IntersectionObserver === 'undefined') return { stages: [], setQuality() {}, destroy() {} };
+  if (!els.length || typeof IntersectionObserver === 'undefined') return { stages: [], setQuality() {}, setTones() {}, destroy() {} };
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const store = (() => { try { return window.sessionStorage; } catch (e) { return { getItem() { return null; }, setItem() {} }; } })();
   const stages = els.map(el => ascStage(el, store, reduce));
@@ -795,6 +797,12 @@ function mountAscii(root) {
   return {
     stages,
     setQuality(q) { Object.assign(Q, q); repick(); },
+    // tema: tons dos glifos, da tinta ao mais apagado. Os palcos na tela são redesenhados na hora (no mesmo quadro
+    // da troca, que a transição captura); os outros pegam os tons novos quando aparecerem.
+    setTones(tones) {
+      tones.forEach((c, i) => { ASC_TONE32[i] = ascPack(c); });
+      for (const S of stages) if (S.visible && S.shapes && !S.building && S.frame) draw(S, 0);
+    },
     // quadro num instante qualquer do relógio (testes e capturas); t < 0 mostra a entrada do palco
     frameAt(i, t, angle, dt) {
       const S = stages[i]; if (!S || !S.shapes || S.building) return false;

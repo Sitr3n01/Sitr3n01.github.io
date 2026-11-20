@@ -40,6 +40,7 @@ T = {
     'nav_aria': ('Seções', 'Sections'),
     'contact_btn': ('Contato +', 'Contact +'),
     'menu': ('Menu', 'Menu'),
+    'theme_dark': ('Tema escuro', 'Dark theme'),
     'menu_aria': ('Menu de navegação', 'Navigation menu'),
     'menu_close': ('Fechar menu', 'Close menu'),
     'menu_links_aria': ('Seções e contato', 'Sections and contact'),

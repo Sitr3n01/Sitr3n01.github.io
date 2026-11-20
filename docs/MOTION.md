@@ -7,6 +7,16 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
 ## Regras de design (OFF+BRAND como referência)
 
 - **Cores:** canvas `#e5e4e0`, tinta `#1d1d1d`, papel `#ffffff`, linhas finas `#bfbebe`.
+- **Tema escuro:** a mesma paleta, com os papéis trocados.
+  - Cores: canvas `#1d1d1d`, tinta `#e5e4e0`, papel `#262625`, linhas finas `#3b3b39`, texto secundário `#9a9995`.
+  - Os tons intermediários guardam a mesma relação do claro.
+  - As cores dos dois temas ficam só em `THEMES` (`src/page/build_page.py`) e chegam ao CSS como tokens `--sk-*`. O
+    motor e os cards recebem do controlador os tokens do tema atual.
+  - Flores no escuro: o gradiente é o mesmo, o glifo das pétalas é claro (o espelho do glifo escuro do claro) e a ponta
+    `#fff` se funde ao papel escuro, como se funde ao papel branco no claro.
+  - Escolha: o tema inicial é sempre o claro. O botão de tema guarda a escolha (`sk-theme`), que vale em todas as
+    páginas, inclusive nas que voltam congeladas pelo voltar/avançar (bfcache) e nas outras abas. `?theme=dark|light`
+    fixa um tema para testes. Detalhes e decisões em [PLANO-TEMA-ESCURO.md](PLANO-TEMA-ESCURO.md).
 - **Único momento de cor:** as flores da sakura, pintadas com o gradiente
   `linear-gradient(255deg, #facb0e, #f06ba8 30%, #78bae6 65%, #fff)`. O gradiente é recalculado
   a cada quadro sobre a área das flores visíveis, como o disco da esfera da referência.
@@ -17,6 +27,10 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
   contato e a barra do rodapé são cápsulas de vidro (raio total, `backdrop-filter` desfocando a sakura). A lente
   que marca o item ativo é o único elemento com sombra, e seus reflexos de borda reutilizam as cores do gradiente
   das flores, em pontos pequenos. Fora desses elementos, valem as regras acima.
+  - Também são de vidro: o seletor PT | EN, o botão de tema e o WhatsApp.
+  - O reflexo quente do topo é desenhado numa camada com o formato do vidro, recuada 2 px, e nunca sai dele. Nos botões
+    redondos, vira um brilho curto que acompanha a curva.
+  - No escuro, o vidro é fumê, com brilho fraco na borda e sombra mais funda. O reflexo iridescente não muda.
 - **Única fonte monoespaçada:** a arte ASCII do canvas (JetBrains Mono + Noto Sans JP para os kanji).
 - **Cards dos projetos:** objetos em ASCII denso, só tinta (`#1d1d1d` → `#bfbebe`), sem o gradiente das flores. Os glifos
   `· + × ✚ ✳ ■` são desenhados como pixels numa grade de 6 px, 4 × 4 por quadrado do quadriculado de 24 px do card.
@@ -54,6 +68,8 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
 | 14 | Navegação em vidro líquido (segmented control com lente) | A lente desliza em 0,62 s, estica dentro do trilho por 170 ms e gira o reflexo iridescente da borda (`--rim`). Ao retirar o cursor, ela volta ao item com foco de teclado. Sem foco ou cursor, segue a seção que cruza 40% da tela na navegação e descansa no primeiro link no contato | `data-sk-glass`, `.sk-lens`, `.sk-seg`, `.sk-lens-btn`, `src/js/glass.js` |
 | 15 | Página de cada projeto | Card da home vira link (a área toda é clicável; "Ver projeto +"). A navegação usa View Transitions entre documentos: o palco ASCII e o título do card voam até a página (0,6 s); sem suporte, troca normal. A página tem a própria sakura (preset `sakura` do projeto) e só a árvore crescendo na entrada (1,1 s). Câmera: `proj` (hero), `projbody` (vídeo e texto, árvore mais fraca, alpha 0,5) e `projnext`. Vídeo 16:9 com botão de vidro; "Próximo projeto" leva o kanji do seguinte. "Voltar" restaura a rolagem da home; âncoras (`#projetos`) chegam sem abertura | `src/content/projetos/*.md`, `project_body()` no gerador, `src/js/video.js`, `view-transition-name: sk-glyph-*` / `sk-title-*` |
 | 16 | Objetos em ASCII denso nos cards (referência: flor em glifos densos) | Cada card tem um palco (`.sk-ascii`) com os objetos do projeto: uma nuvem de pontos (mesmo N em todas as formas; o ponto i de uma vira o ponto i da outra) que gira no próprio eixo, se desfaz e se remonta como o objeto seguinte, em loop. Todos os cards seguem um relógio só (guardado na sessão, vale também nas páginas de projeto) e todas as formas têm o mesmo tempo (3,2 s parada + 2,1 s de troca; 3 formas por projeto, ciclo de 15,9 s): os cinco trocam de objeto no mesmo instante. Por quadro: rotação → projeção na grade → z-buffer por célula → luz (normal · L) → glifo por dither ordenado. Quando um card aparece, o que o relógio mostra naquele momento brota de baixo para cima. Trocas por projeto: News Portal (microfone RCA 44 → Terra → tsuru; o microfone se desfaz em ondas), Local AI Provider (gabinete → placa de vídeo → cadeado; as partículas batem numa esfera invisível e voltam), XGB (monitor com a barra → controle → símbolos), Loopia (carta → anel de ilhas gerado de novo a cada volta, com o herói andando nele; as ilhas se montam na ordem do anel), ExoBeast (jogadores fora de fase → rede com o host, em sincronia → torre). Mouse em cima do card acelera o giro. O palco tem o mesmo `view-transition-name` do quadro da página do projeto, que mostra a mesma animação no mesmo relógio e com o mesmo ângulo. Só anima o que está na tela; aba oculta pausa; `prefers-reduced-motion` mostra um quadro parado. Custo: ~2–4 ms por card visível | `src/js/ascii.js` (motor), `src/js/ascii-forms.js` (formas, `ASC_PROJECTS`), `data-sk-ascii`, `data-sk-ascii-src`, `src/assets/ascii/` |
+
+| 17 | (além da referência) Tema claro/escuro | Botão de vidro redondo depois do PT \| EN; até 950 px, ele fica no cabeçalho do menu. A lua gira e vira sol. A troca é um fade da tela inteira em 0,6 s (View Transitions; instantânea sem suporte ou com `prefers-reduced-motion`). O canvas e os cards são redesenhados no mesmo quadro. Um script no `<head>` aplica o tema antes da primeira pintura | `data-sk-theme`, `data-theme` no `<html>`, `mountTheme()` no controlador, `THEMES` no gerador |
 
 Além da referência, a sakura também tem: vento com rajadas, pétalas que se soltam (kana ヽゝ゜さくら),
 blocos de glitch nas flores e caracteres que se embaralham perto do cursor.

@@ -40,6 +40,16 @@ for (const v of ['hero', 'manifesto', 'about', 'work', 'areas', 'path', 'me', 'c
 for (const h of ['data-sk-root', 'data-sk-canvas', 'data-sk-scroller', 'data-sk-rings', 'data-sk-hint', 'data-sk-read', 'data-sk-ui'])
   ok(html1.includes(h), `gancho ${h}`);
 ok(!html1.includes('\r\n') && !js1.includes('\r\n'), 'saída só com LF');
+// tema: o <head> escolhe antes da pintura, os dois temas definem os mesmos tokens e há botão no toolbar e no menu
+{
+  const vars = sel => { const m = html1.match(new RegExp(sel.replace(/[[\]"]/g, '\\$&') + '\\{([^}]*)\\}')); return m ? m[1].split(';').map(d => d.split(':')[0]).sort().join() : ''; };
+  const light = vars(':root'), dark = vars(':root[data-theme="dark"]');
+  ok(light.includes('--sk-ink-rgb') && light.includes('--sk-tones') && light === dark, 'tema claro e escuro com os mesmos tokens --sk-*');
+  ok(/<head>[\s\S]*setAttribute\('data-theme',t==='dark'\?'dark':'light'\)[\s\S]*<\/head>/.test(html1) && !html1.includes('prefers-color-scheme'),
+    'tema escolhido no <head>, antes da pintura: a escolha guardada ou o claro (padrão)');
+  ok(/function mountTheme[\s\S]*'pageshow'/.test(js1), 'página restaurada pelo voltar/avançar segue a escolha guardada (pageshow)');
+  ok((html1.match(/data-sk-theme /g) || []).length === 2 && js1.includes('[data-sk-theme]'), 'botão de tema [data-sk-theme] no toolbar e no menu');
+}
 
 // páginas de projeto: uma por card, com as seções que o controlador espera
 const slugs = [...html1.matchAll(/href="projetos\/([a-z0-9-]+)\/"/g)].map((m) => m[1]);
