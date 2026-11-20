@@ -34,19 +34,25 @@ function mount(root, options) {
   const $ = s => root.querySelector(s), $$ = s => Array.from(root.querySelectorAll(s));
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canvas = $('[data-sk-canvas]'), scroller = $('[data-sk-scroller]') || document.scrollingElement;
-  const engine = createSakuraBackground(canvas, { preset: o.preset, kanji: o.kanji, wind: o.wind, holdIntro: !reduce });
+  const project = !!$('[data-sk-view="proj"]');
+  const engine = createSakuraBackground(canvas, { preset: o.preset, kanji: o.kanji, wind: o.wind, holdIntro: !reduce, project });
   const glass = mountGlass(root, scroller), videos = mountVideos(root), ascii = mountAscii(root);
   const F = engine.focus;
-  const camOf = v => v.cam.id ? { z: 1, fx: 0, fy: 0, sx: 0, sy: 0 } : { z: v.cam.z, fx: F[0], fy: F[1], sx: v.cam.sx, sy: v.cam.sy };
+  function camOf(v, fit, compact) {
+    if (v.cam.id) return { z: lerp(1, fit, compact), fx: F[0] * compact, fy: F[1] * compact, sx: 0.54 * compact, sy: 0.5 * compact };
+    return { z: v.cam.z * fit, fx: F[0], fy: F[1], sx: v.cam.sx - 0.1 * compact, sy: v.cam.sy };
+  }
 
   const sections = $$('[data-sk-view]');
   const letters = $$('[data-sk-letter]');
   const words = $$('[data-sk-word]');
   const parallax = $$('[data-sk-parallax]');
   const reveals = $$('[data-sk-reveal]');
+  const readGroups = $$('[data-sk-read]');
   const chips = $$('[data-sk-chip]');
   const orbit = $('[data-sk-orbit]'), orbitLabels = $$('[data-sk-orbit-label]');
   const rings = $('[data-sk-rings]'), hint = $('[data-sk-hint]');
+  const toolbar = $('.sk-toolbar'), topBlur = $('.sk-topblur'), whatsApp = $('.sk-wa-wrap');
 
   // valores aleatórios estáveis por elemento
   const R = rngFrom(2026);
@@ -140,14 +146,92 @@ function mount(root, options) {
     }
     return items;
   }
-  // clique no "Scroll": desce até o começo da próxima seção (ou até o fim, se não houver outra). Nas páginas de projeto,
-  // o vídeo e cada bloco com título (.sk-sec) também são paradas, com folga para o título não ficar sob a barra do topo;
-  // paradas a menos de 120 px da anterior se juntam, para nenhum clique andar quase nada
+  function translateY(transform) {
+    return transform && transform !== 'none' ? new DOMMatrixReadOnly(transform).m42 : 0;
+  }
+
+  function parallaxPosition(el, viewportTop, height) {
+    const r = el.getBoundingClientRect(), current = translateY(el.style.transform);
+    const speed = Number(el.dataset.skParallax);
+    const mid = r.top - viewportTop - current + (r.height - height) / 2;
+    return { current, offset: -mid * speed / (1 + speed), rate: 1 / (1 + speed) };
+  }
+
+  const intersect = (a, b) => ({ from: Math.max(a.from, b.from), to: Math.min(a.to, b.to) });
+  const textBlock = 'h1,h2,h3,h4,p,li,figcaption,.sk-cell,.sk-fact,.sk-stat,.sk-next,.sk-video-empty';
+
+  function showReveal(el, animate) {
+    el.__shown = true;
+    el.style.transition = animate ? 'transform 1s cubic-bezier(.2,.7,.2,1), opacity 1s ease' : 'none';
+    el.style.opacity = '1'; el.style.transform = 'translate3d(0,0,0)';
+  }
+
+  // Planeja as paradas pela área de leitura e pelas linhas reais, inclusive após redimensionar ou carregar as fontes.
   const nextSection = () => {
-    const stops = [...sections.map(topOf), ...$$('.sk-video, .sk-sec').map(el => topOf(el) - 140)].sort((a, b) => a - b)
-      .filter((t, i, a) => i === 0 || t - a[i - 1] >= 120);
-    const st = scroller.scrollTop, next = stops.find(t => t > st + 24);
-    scroller.scrollTo({ top: next != null ? next : scroller.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+    const st = scroller.scrollTop, height = scroller.clientHeight, max = scroller.scrollHeight - height;
+    const viewportTop = scroller.getBoundingClientRect().top;
+    const headerEdge = Math.max(toolbar?.getBoundingClientRect().bottom ?? viewportTop, topBlur?.getBoundingClientRect().bottom ?? viewportTop);
+    const halo = parseFloat(getComputedStyle(hint, '::before').top) || 0;
+    const bottomEdge = Math.min(hint.getBoundingClientRect().top + Math.min(0, halo), whatsApp?.getBoundingClientRect().top ?? viewportTop + height);
+    const top = headerEdge - viewportTop + 8, bottom = bottomEdge - viewportTop - 8;
+    const columns = new Map(parallax.map(el => [el, parallaxPosition(el, viewportTop, height)]));
+    const shifts = new Map();
+    function readRect(el, rect) {
+      const reveal = el.closest('[data-sk-reveal]');
+      if (reveal && !shifts.has(reveal)) shifts.set(reveal, translateY(getComputedStyle(reveal).transform));
+      const column = columns.get(el.closest('[data-sk-parallax]'));
+      const offset = (column ? column.offset - column.current : 0) - (shifts.get(reveal) || 0) - viewportTop;
+      return { top: rect.top + offset, bottom: rect.bottom + offset, rate: column?.rate ?? 1 };
+    }
+    const stops = [max];
+    function addStop(page) {
+      if (page.from <= 0 && page.to >= 0) return; // o texto já cabe na vista inicial
+      const target = Math.min(max, Math.floor(page.to));
+      if (target >= page.from - 1 && target > 0) stops.push(target);
+    }
+    const range = document.createRange();
+    for (const group of readGroups) {
+      const blocks = new Map(), walker = document.createTreeWalker(group, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const el = node.parentElement;
+        if (!node.data.trim() || el.closest('footer,.sk-video-k,[hidden]')) continue;
+        range.selectNodeContents(node);
+        const block = el.closest(textBlock) || el.closest('a') || el;
+        for (const rect of range.getClientRects()) {
+          if (!rect.width || !rect.height) continue;
+          const line = readRect(el, rect);
+          const window = { from: st + (line.bottom - bottom) / line.rate, to: st + (line.top - top) / line.rate };
+          if (!blocks.has(block)) blocks.set(block, []);
+          blocks.get(block).push(window);
+        }
+      }
+      // Tenta manter todo o bloco na mesma vista. Se for alto, continua por parágrafos ou por linhas inteiras.
+      const chunks = Array.from(blocks.values()).flatMap(lines => {
+        const block = lines.reduce(intersect);
+        return block.from <= block.to ? [block] : lines;
+      }).sort((a, b) => a.to - b.to);
+      let page = null;
+      for (const chunk of chunks) {
+        const joined = page ? intersect(page, chunk) : chunk;
+        if (page && joined.from > joined.to) { addStop(page); page = chunk; }
+        else page = joined;
+      }
+      if (page) addStop(page);
+    }
+    if (words.length) {
+      const manifesto = words[0].closest('[data-sk-view]');
+      // Aqui as palavras já terminaram de se montar e a saída ainda não começou.
+      stops.push(topOf(manifesto) + 0.84 * (manifesto.offsetHeight - height * 0.4) - height * 0.6);
+    }
+    if (orbit) stops.push(topOf(orbit.closest('[data-sk-view]')));
+
+    const next = Math.min(...stops.filter(stop => stop > st + 1));
+    if (!Number.isFinite(next)) return;
+    if (!reduce) for (const el of reveals) {
+      const rect = readRect(el, el.getBoundingClientRect()), shift = (next - st) * rect.rate;
+      if (rect.top - shift < bottom && rect.bottom - shift > top) showReveal(el, false);
+    }
+    scroller.scrollTo({ top: next, behavior: reduce ? 'auto' : 'smooth' });
   };
   if (hint) hint.addEventListener('click', nextSection);
   const skipEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
@@ -176,9 +260,19 @@ function mount(root, options) {
     const span = (tops[j] - tops[i]) || 1;
     const f = i === j ? 0 : smooth(0.55, 1.0, (anchor - tops[i]) / span);
     const va = VIEWS[sections[i].getAttribute('data-sk-view')] || VIEWS.hero, vb = VIEWS[sections[j].getAttribute('data-sk-view')] || VIEWS.hero;
-    const ca = camOf(va), cb = camOf(vb), cam = {};
+    const size = engine.size;
+    // Em telas estreitas, recua a câmera e abre espaço para o texto, que passa a ocupar quase toda a largura.
+    const aspect = project ? size.W / size.H : 4 / 3;
+    const fit = Math.sqrt(Math.min(1, aspect / (4 / 3)));
+    const compact = 1 - smooth(0.5, 4 / 3, aspect);
+    const ca = camOf(va, fit, compact), cb = camOf(vb, fit, compact), cam = {};
     for (const k in ca) cam[k] = lerp(ca[k], cb[k], f);
     const safe = {}; for (const k in va.safe) safe[k] = lerp(va.safe[k], vb.safe[k], f);
+    if (compact > 0) {
+      safe.x = lerp(safe.x, 0.5, compact);
+      safe.y = lerp(safe.y, 0.46, compact * 0.7);
+      safe.rx = lerp(safe.rx, Math.max(safe.rx, 0.64), compact);
+    }
     let alpha = lerp(va.alpha, vb.alpha, f);
 
     // ---------------- órbita (seção "áreas" fixada): gira, depois explode e a câmera mergulha
@@ -238,7 +332,7 @@ function mount(root, options) {
       }
     }
     if (zooming) {
-      const size = engine.size, ez = inOut((ti - IN.zoom[0]) / (IN.zoom[1] - IN.zoom[0]));
+      const ez = inOut((ti - IN.zoom[0]) / (IN.zoom[1] - IN.zoom[0]));
       engine.setCamera({ z: Math.pow(IN.z0, 1 - ez), fx: bud.x, fy: bud.y, sx: lerp(0.5, bud.x * size.H / size.W, ez), sy: lerp(0.5, bud.y, ez) }, true);
       const hs = VIEWS.hero.safe; engine.setSafe({ ...hs, s: hs.s * ez }); engine.setAlpha(1);
     } else {
@@ -247,7 +341,7 @@ function mount(root, options) {
 
     // ---------------- anéis concêntricos seguem o foco da câmera
     if (rings) {
-      const cc = engine.camera, size = engine.size;
+      const cc = engine.camera;
       const px = (F[0] - cc.fx) * size.H * cc.z + cc.sx * size.W, py = (F[1] - cc.fy) * size.H * cc.z + cc.sy * size.H;
       rings.style.transform = `translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0) scale(${(0.7 + 0.35 * cc.z).toFixed(3)})`;
     }
@@ -280,27 +374,23 @@ function mount(root, options) {
 
     // ---------------- colunas com velocidades diferentes
     parallax.forEach(el => {
-      const r = el.getBoundingClientRect(), sr = scroller.getBoundingClientRect();
-      const mid = r.top - sr.top + r.height / 2 - vh / 2;
-      el.style.transform = `translate3d(0, ${(-mid * parseFloat(el.getAttribute('data-sk-parallax'))).toFixed(1)}px, 0)`;
+      const p = parallaxPosition(el, scroller.getBoundingClientRect().top, vh);
+      el.style.transform = `translate3d(0, ${p.offset.toFixed(1)}px, 0)`;
     });
 
     // ---------------- entradas
     if (!reduce) reveals.forEach(el => {
       if (el.__shown) return;
       const r = el.getBoundingClientRect(), sr = scroller.getBoundingClientRect();
-      if (r.top - sr.top < vh * 0.9) {
-        el.__shown = true;
-        el.style.transition = 'transform 1s cubic-bezier(.2,.7,.2,1), opacity 1s ease';
-        el.style.opacity = '1'; el.style.transform = 'translate3d(0,0,0)';
-      }
+      if (r.top - sr.top < vh * 0.9) showReveal(el, true);
     });
 
     // "Scroll": fica enquanto houver o que rolar abaixo; no fim da página some e deixa de ser clicável
     if (hint) {
-      const more = st + vh < scroller.scrollHeight - 4;
+      const more = st + vh < scroller.scrollHeight - 1;
       hint.style.opacity = more ? '1' : '0';
       hint.style.pointerEvents = more ? '' : 'none';
+      hint.disabled = !more;
     }
   }
   raf = requestAnimationFrame(tick);

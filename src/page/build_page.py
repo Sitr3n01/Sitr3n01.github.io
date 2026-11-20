@@ -55,9 +55,9 @@ HERO = f'''
 </section>'''
 
 MANIFESTO = f'''
-<section id="manifesto" data-sk-view="manifesto" style="position: relative; height: 1700px">
+<section id="manifesto" data-sk-view="manifesto" style="position: relative; height: max(1700px, 150vh)">
 <div style="position: sticky; top: 0; height: 100vh; display: flex; align-items: center; padding: 0 {PADX}; box-sizing: border-box">
-<p style="margin: 0; max-width: 17em; font-size: clamp(30px, 3.6vw, 54px); line-height: 1; letter-spacing: 0.006em; text-transform: uppercase; color: {INK}">{words("Do sistema invisível à interface que encanta. Engenharia, design e movimento em cada detalhe.")}</p>
+<p style="margin: 0; max-width: 17em; line-height: 1; letter-spacing: 0.006em; text-transform: uppercase; color: {INK}">{words("Do sistema invisível à interface que encanta. Engenharia, design e movimento em cada detalhe.")}</p>
 </div>
 </section>'''
 
@@ -73,7 +73,7 @@ cells = '\n'.join(f'''<div class="sk-cell" style="background-color: {PAPER}; min
 ABOUT = f'''
 <section id="sobre" data-sk-view="about" style="position: relative; padding: 119px {PADX}">
 <div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 119px">
-<div data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-start">
+<div data-sk-read data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-start">
 <div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 19px">
 <p style="margin: 0; font-size: 15px; line-height: 1.4; letter-spacing: 0.013em; text-transform: uppercase; max-width: 26em">Desenvolvedor full-stack e formado em Jogos Digitais no IESB, em Brasília.</p>
 <a class="sk-link" href="https://github.com/Sitr3n01" style="align-self: flex-start; font-size: 15px; color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">GitHub ↗</a>
@@ -82,7 +82,7 @@ ABOUT = f'''
 <p style="margin: 0; font-size: 18px; line-height: 1.4; letter-spacing: 0.013em">Da lógica que sustenta um sistema à interface que o torna intuitivo, desenvolvo produtos digitais com atenção à técnica e à experiência. Atuo com web, desktop e jogos, com experiência nos projetos Loopia e ExoBeast durante seis meses no Brasília Game Hub. A fotografia amplia minha perspectiva sobre estética, composição e comunicação visual.</p>
 </div>
 </div>
-<div data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 19px; align-items: flex-start">
+<div data-sk-read data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 19px; align-items: flex-start">
 <p style="flex: 0 0 140px; margin: 0; {CAP}">Stack<br>de trabalho</p>
 <div class="sk-cq" style="flex: 1 1 560px; min-width: 0; max-width: 1200px">
 <div class="sk-stack" style="display: flex; flex-wrap: wrap; gap: 1px; background-color: {ASH}; border: 1px solid {ASH}">
@@ -105,7 +105,7 @@ def ascii_stage(slug, base, style):
 
 def card(p):
     slug = p['slug']
-    return f'''<article class="sk-card" data-sk-reveal="1" style="background-color: {PAPER}; background-image: linear-gradient(to right, {PARCH} 1px, transparent 1px), linear-gradient(to bottom, {PARCH} 1px, transparent 1px); background-size: 24px 24px; min-height: 560px; padding: 30px; box-sizing: border-box; display: flex; flex-direction: column; gap: 19px">
+    return f'''<article class="sk-card" data-sk-read data-sk-reveal="1" style="background-color: {PAPER}; background-image: linear-gradient(to right, {PARCH} 1px, transparent 1px), linear-gradient(to bottom, {PARCH} 1px, transparent 1px); background-size: 24px 24px; min-height: 560px; padding: 30px; box-sizing: border-box; display: flex; flex-direction: column; gap: 19px">
 <div style="display: flex; justify-content: space-between; align-items: center">
 <span style="{CAP}">{E(p['cap'])}</span>
 <span class="sk-open" aria-hidden="true" style="{CAP}; display: inline-flex; align-items: center; gap: 10px">Ver projeto <span class="sk-plus" style="font-size: 24px; line-height: 1; display: inline-block">+</span></span>
@@ -122,7 +122,7 @@ colB = '\n'.join(card(p) for p in PROJECTS[1::2])
 WORK = f'''
 <section id="projetos" data-sk-view="work" style="position: relative; padding: 119px {PADX} 160px">
 <div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 46px">
-<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 19px">
+<div data-sk-read style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 19px">
 <h2 style="margin: 0; font-weight: 400; {CAP}">Projetos em destaque</h2>
 <a class="sk-lens-btn" href="https://github.com/Sitr3n01" rel="noopener">Todos no GitHub +</a>
 </div>
@@ -153,18 +153,20 @@ def chip(t):
 
 
 chips = '\n'.join(chip(t) for t in CHIPS)
-LBL = f"position: absolute; margin: 0; font-size: 15px; line-height: 1.1; letter-spacing: 0.013em; text-transform: uppercase; color: {INK}"
+LBL = f"margin: 0; font-size: 15px; line-height: 1.1; letter-spacing: 0.013em; text-transform: uppercase; color: {INK}"
 AREAS = f'''
-<section id="areas" data-sk-view="areas" aria-label="Áreas de trabalho" style="position: relative; height: 2600px">
+<section id="areas" data-sk-view="areas" aria-label="Áreas de trabalho" style="position: relative; height: max(2600px, 120vh)">
 <div style="position: sticky; top: 0; height: 100vh; overflow: hidden">
 <div data-sk-orbit="1" style="position: absolute; left: 50%; top: 48%; width: 0; height: 0">
 {chips}
 </div>
+<div class="sk-area-labels">
 <p data-sk-orbit-label="1" style="{LBL}; left: 18%; top: 24%">Full-<br>stack</p>
 <p data-sk-orbit-label="1" style="{LBL}; left: 72%; top: 20%">Jogos<br>Unity</p>
 <p data-sk-orbit-label="1" style="{LBL}; left: 76%; top: 66%">IA<br>local</p>
 <p data-sk-orbit-label="1" style="{LBL}; left: 26%; top: 70%">Foto-<br>grafia</p>
-<h2 style="position: absolute; left: {PADX}; bottom: 46px; margin: 0; font-weight: 400; font-size: clamp(44px, 5vw, 76px); line-height: 0.8; letter-spacing: -0.01em; text-transform: uppercase; color: {INK}">Frentes de<br>trabalho.</h2>
+</div>
+<h2 class="sk-area-title" style="position: absolute; left: {PADX}; margin: 0; font-weight: 400; line-height: 0.8; letter-spacing: -0.01em; text-transform: uppercase; color: {INK}">Frentes de<br>trabalho.</h2>
 </div>
 </section>'''
 
@@ -182,7 +184,7 @@ rows = '\n'.join(f'''<li class="sk-row" data-sk-reveal="1" style="display: flex;
 
 PATH = f'''
 <section id="trajetoria" data-sk-view="path" style="position: relative; padding: 119px {PADX}">
-<div style="max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px">
+<div data-sk-read style="max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px">
 <h2 style="flex: 0 0 200px; margin: 0; font-weight: 400; {CAP}">Trajetória<br>+ formação</h2>
 <ol style="flex: 1 1 560px; list-style: none; margin: 0; padding: 0; border-bottom: 1px solid {ASH}">
 {rows}
@@ -191,8 +193,8 @@ PATH = f'''
 </section>'''
 
 CONTACT = f'''
-<section id="contato" data-sk-view="contact" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; gap: 46px; padding: 119px {PADX} 30px; box-sizing: border-box">
-<h2 data-sk-reveal="1" style="margin: 0; font-weight: 400; font-size: clamp(56px, 7.4vw, 112px); line-height: 0.8; letter-spacing: -0.015em; text-transform: uppercase">Vamos<br>conversar.</h2>
+<section id="contato" data-sk-read data-sk-view="contact" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; gap: 46px; padding: 119px {PADX} 30px; box-sizing: border-box">
+<h2 data-sk-reveal="1" style="margin: 0; font-weight: 400; line-height: 0.8; letter-spacing: -0.015em; text-transform: uppercase">Vamos<br>conversar.</h2>
 <div class="sk-glass sk-track sk-track-lg" data-sk-glass="links" data-sk-glass-rest="0" style="align-self: flex-start">
 <span class="sk-lens" aria-hidden="true"></span>
 <a class="sk-seg" href="https://github.com/Sitr3n01">GitHub <span class="sk-seg-sub">Sitr3n01</span> ↗</a>
@@ -206,7 +208,7 @@ CONTACT = f'''
 </section>'''
 
 # "Scroll" centralizado na base, com a seta descendo e subindo (para em prefers-reduced-motion). É um botão: cada
-# clique desce até o começo da próxima seção; some no fim da página (controller.js)
+# clique avança até uma próxima parada de leitura; some no fim da página (controller.js)
 HINT = f'''<button type="button" data-sk-hint="1" data-sk-ui="3" class="sk-hint" aria-label="Ir para a próxima seção">
 <span style="{CAP}; color: {INK}">Scroll</span>
 <svg class="sk-hint-arrow" width="14" height="22" viewBox="0 0 14 22" fill="none" stroke="{INK}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 1v19M1.5 14.5 7 20l5.5-5.5"/></svg>
@@ -275,7 +277,7 @@ def video_block(p, base):
     else:
         media = (f'<div class="sk-video-empty"><span class="sk-video-k" aria-hidden="true">{p["kanji"]}</span>'
                  f'<p style="margin: 0; {CAP}; color: #5f5f5d">Vídeo de apresentação em produção</p></div>')
-    return f'''<figure class="sk-video" data-sk-video="1" data-sk-reveal="1" data-sk-title="{title}"{attrs}>
+    return f'''<figure class="sk-video" data-sk-read data-sk-video="1" data-sk-reveal="1" data-sk-title="{title}"{attrs}>
 <div class="sk-video-frame" style="{GRID_BG}">{media}{play}</div>
 <figcaption style="{CAP}">Apresentação — {title}</figcaption>
 </figure>'''
@@ -303,7 +305,7 @@ def project_body(p, nxt):
                 f'<div class="sk-stat"><span class="sk-stat-v">{E(v)}</span><span style="{CAP}">{inline(l)}</span></div>' for v, l in sec['stats']) + '</div></div>'
         else:
             inner = f'<div class="sk-prose">{sec["html"]}</div>'
-        secs.append(f'<div class="sk-sec" data-sk-reveal="1"><h2>{E(sec["title"])}</h2><div>{inner}</div></div>')
+        secs.append(f'<div class="sk-sec" data-sk-read data-sk-reveal="1"><h2>{E(sec["title"])}</h2><div>{inner}</div></div>')
     links = []
     if p.get('repo'):
         links.append(f'<a class="sk-seg" href="{E(p["repo"])}" rel="noopener">Repositório <span class="sk-seg-sub">GitHub</span> ↗</a>')
@@ -316,17 +318,17 @@ def project_body(p, nxt):
     # nele e nada mudaria). A entrada (data-sk-reveal) fica no invólucro, para o transform dela não travar o hover.
     if len(links) == 1:
         solo = links[0].replace('class="sk-seg"', 'class="sk-lens-btn sk-lens-btn-lg"')
-        links_html = f'<div data-sk-reveal="1" style="align-self: flex-start">{solo}</div>'
+        links_html = f'<div data-sk-read data-sk-reveal="1" style="align-self: flex-start">{solo}</div>'
     else:
-        links_html = (f'''<div class="sk-glass sk-track sk-track-lg" data-sk-glass="links" data-sk-glass-rest="0" data-sk-reveal="1" style="align-self: flex-start">
+        links_html = (f'''<div class="sk-glass sk-track sk-track-lg" data-sk-read data-sk-glass="links" data-sk-glass-rest="0" data-sk-reveal="1" style="align-self: flex-start">
 <span class="sk-lens" aria-hidden="true"></span>
 {''.join(links)}
 </div>''') if links else ''
     ns = nxt['slug']
     return f'''
-<section id="inicio" data-sk-view="proj" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 120px {PADX} 150px; box-sizing: border-box">
+<section id="inicio" data-sk-view="proj" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: var(--sk-project-top,184px) {PADX} 150px; box-sizing: border-box">
 <div style="max-width: 1400px; width: 100%; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-end; justify-content: space-between">
-<div style="flex: 1 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 30px">
+<div data-sk-read style="flex: 1 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 30px">
 <a class="sk-link" href="{base}#projetos" style="align-self: flex-start; {CAP}; color: {INK}; text-decoration: none; padding: 5px 0">← Todos os projetos</a>
 <p style="margin: 0; {CAP}">{E(p['cap'])} · {inline(p.get('status', ''))}</p>
 <h1 style="margin: 0; font-weight: 400; font-size: clamp(44px, 7.4vw, 120px); line-height: 0.9; letter-spacing: -0.015em; overflow-wrap: anywhere"><span style="display: inline-block; view-transition-name: sk-title-{slug}">{E(p['titulo'])}</span></h1>
@@ -339,7 +341,7 @@ def project_body(p, nxt):
 <section id="detalhes" data-sk-view="projbody" style="position: relative; padding: 46px {PADX} 119px">
 <div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 76px">
 {video_block(p, base)}
-<div class="sk-cq" data-sk-reveal="1"><div class="sk-facts" {grid_attrs(len(facts))}>
+<div class="sk-cq" data-sk-read data-sk-reveal="1"><div class="sk-facts" {grid_attrs(len(facts))}>
 {facts_html}
 </div></div>
 {''.join(secs)}
@@ -347,7 +349,7 @@ def project_body(p, nxt):
 </div>
 </section>
 <section id="proximo" data-sk-view="projnext" style="position: relative; display: flex; flex-direction: column; justify-content: flex-end; gap: 46px; padding: 30px {PADX} 30px; box-sizing: border-box">
-<a class="sk-next" href="../{ns}/">
+<a class="sk-next" data-sk-read href="../{ns}/">
 <span style="flex: 1 1 100%; {CAP}">Próximo projeto · {E(nxt['cap'])}</span>
 <span class="sk-next-t"><span style="display: inline-block; view-transition-name: sk-title-{ns}">{E(nxt['titulo'])}</span> →</span>
 </a>
@@ -526,6 +528,30 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 .sk-footblur>.sk-blurfx{position:absolute;inset:0;pointer-events:none}
 .sk-footblur>:not(.sk-blurfx){position:relative}
 @media (max-width:720px){.sk-topblur{height:128px}.sk-logo{font-size:19px}.sk-footblur{min-height:128px}}
+
+#manifesto p{font-size:clamp(30px,3.6vw,54px)}
+.sk-area-labels{position:absolute;inset:0;pointer-events:none}
+.sk-area-labels [data-sk-orbit-label]{position:absolute}
+.sk-area-title{bottom:46px;font-size:clamp(44px,5vw,76px)}
+#contato h2{font-size:clamp(56px,7.4vw,112px)}
+@media (max-width:720px){
+  [data-sk-view="proj"]{--sk-project-top:144px}
+  .sk-area-labels{inset:64px 0 100px}
+  .sk-area-title{bottom:100px}
+  .sk-track-lg .sk-seg{min-width:0;white-space:normal;overflow-wrap:anywhere}
+  #contato h2{font-size:clamp(32px,13.5vw,56px)}
+}
+@media (max-height:520px){
+  [data-sk-view="proj"]{--sk-project-top:120px}
+  .sk-topblur{height:clamp(72px,27vh,116px)}
+  #manifesto p{font-size:clamp(22px,min(3.6vw,7vh),34px)}
+  .sk-area-labels{inset:100px 0 165px}
+  .sk-area-title{bottom:92px;font-size:clamp(26px,8vh,40px)}
+}
+@media (max-height:350px){
+  .sk-area-labels{inset:100px clamp(19px,4vw,76px) auto;display:flex;justify-content:space-between;gap:8px}
+  .sk-area-labels [data-sk-orbit-label]{position:static}
+}
 
 /* ---- WhatsApp: só a logo, num círculo de vidro de 64 px no canto inferior direito, alinhado à margem do site e
    acima da linha do rodapé (o topo das páginas de projeto termina a 150 px da base para o quadro ASCII não ficar por

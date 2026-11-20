@@ -7,7 +7,7 @@ const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a
 
 function createSakuraBackground(canvas, options) {
   const opts = Object.assign({
-    preset: 'kosa', seed: null, kanji: true, wind: 1, fps: 30, interactive: true,
+    preset: 'kosa', seed: null, kanji: true, wind: 1, fps: 30, interactive: true, project: false,
     intro: true, holdIntro: false, glitch: true, scramble: true,
     cell: 14, font: 12, cjk: 12,
     ink: [29, 29, 29],
@@ -21,7 +21,7 @@ function createSakuraBackground(canvas, options) {
   const ctx = canvas.getContext('2d');
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   let W = 0, H = 0, dpr = 1, cols = 0, rows = 0, cw = opts.cell, chh = opts.cell;
-  let scene = null, att = null, prevGrid = null;
+  let scene = null, stems = [], att = null, prevGrid = null;
   let particles = [], blocks = [], nextBlock = 0, gust = 0, gustBoost = 0, gustPlan = null;
   let t0 = performance.now(), growStart = opts.holdIntro ? Infinity : 0, growDur = 1.6, last = 0, raf = 0, running = true, destroyed = false;
   // abertura: crescimento a partir do tronco, faíscas que viram flores, flor-broto (versão curta) e texto na grade
@@ -55,7 +55,17 @@ function createSakuraBackground(canvas, options) {
     cols = Math.ceil(W / cw); rows = Math.ceil(H / chh);
     att = new Float32Array(cols * rows);
     prevGrid = new Uint32Array(cols * rows);
-    scene = generate(opts.preset, opts.seed, W / H);
+    scene = generate(opts.preset, opts.seed, opts.project ? PROJECT_ASPECT : W / H, opts.project);
+    if (opts.project) {
+      const starts = new Set();
+      stems = scene.branches.filter(b => {
+        if (b.parent >= 0) return false;
+        const start = `${b.xs[0]},${b.ys[0]}`;
+        if (starts.has(start)) return false;
+        starts.add(start);
+        return true;
+      });
+    }
     growthOrder();
     if (budTarget) pickBud(budTarget[0], budTarget[1]);
     particles = []; blocks = [];
@@ -227,35 +237,51 @@ function createSakuraBackground(canvas, options) {
   const LX = -0.51, LY = -0.86;
   function splatBark(cb, hl, thinPx, P, G, fr) {
     const soft = 0.5 * Math.sqrt(cw * chh);
+    function segment(ax, ay, bx, by, r, fresh) {
+      if (Math.max(ax, bx) + r < 0 || Math.min(ax, bx) - r > W || Math.max(ay, by) + r < 0 || Math.min(ay, by) - r > H) return;
+      const ex = bx - ax, ey = by - ay, el = ex * ex + ey * ey || 1;
+      const c0 = Math.max(0, Math.floor((Math.min(ax, bx) - r) / cw)), c1 = Math.min(cols - 1, Math.floor((Math.max(ax, bx) + r) / cw));
+      const r0 = Math.max(0, Math.floor((Math.min(ay, by) - r) / chh)), r1 = Math.min(rows - 1, Math.floor((Math.max(ay, by) + r) / chh));
+      for (let rr = r0; rr <= r1; rr++) {
+        const py = (rr + 0.5) * chh;
+        for (let cc = c0; cc <= c1; cc++) {
+          const px = (cc + 0.5) * cw;
+          let u = ((px - ax) * ex + (py - ay) * ey) / el; u = u < 0 ? 0 : u > 1 ? 1 : u;
+          const qx = px - (ax + ex * u), qy = py - (ay + ey * u), d = Math.sqrt(qx * qx + qy * qy);
+          const cov = (r - d) / soft + 0.5;
+          if (cov <= 0) continue;
+          const id = rr * cols + cc, cv = cov > 1 ? 1 : cov;
+          if (fresh > fr[id]) fr[id] = fresh;
+          if (cv > cb[id]) {
+            cb[id] = cv;
+            const lit = d > 1e-6 ? (qx * LX + qy * LY) / d * Math.min(1, d / r) : 0;
+            hl[id] = 0.35 + 0.65 * (lit > 0 ? lit : 0) - 0.15 * (lit < 0 ? -lit : 0);
+          }
+        }
+      }
+    }
     for (const b of scene.branches) {
       const n = b.xs.length;
       for (let k = 2; k < n; k += 2) {
         const age = G - b.g[k]; if (age <= 0) continue;
         const r = b.rs[k] * P.zH * (G < 1 ? 0.45 + 0.55 * smooth(0, 0.06, age) : 1); if (r < thinPx) continue;
         const fresh = G < 1 ? 1 - smooth(0, 0.05, age) : 0;
-        const ax = P.X(b.ax[k - 2]), ay = P.Y(b.ay[k - 2]), bx = P.X(b.ax[k]), by = P.Y(b.ay[k]);
-        if (Math.max(ax, bx) + r < 0 || Math.min(ax, bx) - r > W || Math.max(ay, by) + r < 0 || Math.min(ay, by) - r > H) continue;
-        const ex = bx - ax, ey = by - ay, el = ex * ex + ey * ey || 1;
-        const c0 = Math.max(0, Math.floor((Math.min(ax, bx) - r) / cw)), c1 = Math.min(cols - 1, Math.floor((Math.max(ax, bx) + r) / cw));
-        const r0 = Math.max(0, Math.floor((Math.min(ay, by) - r) / chh)), r1 = Math.min(rows - 1, Math.floor((Math.max(ay, by) + r) / chh));
-        for (let rr = r0; rr <= r1; rr++) {
-          const py = (rr + 0.5) * chh;
-          for (let cc = c0; cc <= c1; cc++) {
-            const px = (cc + 0.5) * cw;
-            let u = ((px - ax) * ex + (py - ay) * ey) / el; u = u < 0 ? 0 : u > 1 ? 1 : u;
-            const qx = px - (ax + ex * u), qy = py - (ay + ey * u), d = Math.sqrt(qx * qx + qy * qy);
-            const cov = (r - d) / soft + 0.5;
-            if (cov <= 0) continue;
-            const id = rr * cols + cc, cv = cov > 1 ? 1 : cov;
-            if (fresh > fr[id]) fr[id] = fresh;
-            if (cv > cb[id]) {
-              cb[id] = cv;
-              const lit = d > 1e-6 ? (qx * LX + qy * LY) / d * Math.min(1, d / r) : 0;
-              hl[id] = 0.35 + 0.65 * (lit > 0 ? lit : 0) - 0.15 * (lit < 0 ? -lit : 0);
-            }
-          }
-        }
+        segment(P.X(b.ax[k - 2]), P.Y(b.ay[k - 2]), P.X(b.ax[k]), P.Y(b.ay[k]), r, fresh);
       }
+    }
+    if (G <= 0 || !stems.length) return;
+    // Prolonga a base até sair do quadro quando um movimento da câmera expõe o início do galho.
+    const grown = smooth(0, 0.06, G);
+    for (const b of stems) {
+      const x = P.X(b.ax[0]), y = P.Y(b.ay[0]), r = b.r0 * P.zH;
+      const dx = x - P.X(b.ax[2]), dy = y - P.Y(b.ay[2]);
+      if ((!dx && (x < -r || x > W + r)) || (!dy && (y < -r || y > H + r))) continue;
+      const enterX = dx ? ((dx < 0 ? W + r : -r) - x) / dx : -Infinity;
+      const enterY = dy ? ((dy < 0 ? H + r : -r) - y) / dy : -Infinity;
+      const exitX = dx ? ((dx < 0 ? -r : W + r) - x) / dx : Infinity;
+      const exitY = dy ? ((dy < 0 ? -r : H + r) - y) / dy : Infinity;
+      const exit = Math.min(exitX, exitY), start = Math.max(0, enterX, enterY, exit * (1 - grown));
+      if (Number.isFinite(exit) && start < exit) segment(x + dx * start, y + dy * start, x + dx * exit, y + dy * exit, r * (0.45 + 0.55 * grown), 1 - grown);
     }
   }
   function splatFlowers(cp, cc, t, P, G, fr) {
@@ -509,8 +535,9 @@ function createSakuraBackground(canvas, options) {
     get camera() { return { ...cam }; },
     get size() { return { W, H }; },
     get focus() {
-      let sx = 0, sy = 0, n = 0;
-      for (const f of scene.flowers) { const b = scene.branches[f.b]; sx += b.xs[f.k]; sy += b.ys[f.k]; n++; }
+      let sx = 0, sy = 0;
+      const n = scene.focusCount || scene.flowers.length;
+      for (let i = 0; i < n; i++) { const f = scene.flowers[i], b = scene.branches[f.b]; sx += b.xs[f.k]; sy += b.ys[f.k]; }
       return n ? [sx / n, sy / n] : [0.5 * W / H, 0.5];
     },
     pause() { running = false; }, resume() { running = true; last = 0; },

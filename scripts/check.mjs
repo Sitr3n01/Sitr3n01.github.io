@@ -28,7 +28,7 @@ ok(S.PRESETS && ['kosa', 'sanbon', 'ogi', 'itozakura', 'koeda'].every((p) => p i
 
 for (const v of ['hero', 'manifesto', 'about', 'work', 'areas', 'path', 'contact'])
   ok(html1.includes(`data-sk-view="${v}"`), `seção data-sk-view="${v}"`);
-for (const h of ['data-sk-root', 'data-sk-canvas', 'data-sk-scroller', 'data-sk-rings', 'data-sk-hint', 'data-sk-ui'])
+for (const h of ['data-sk-root', 'data-sk-canvas', 'data-sk-scroller', 'data-sk-rings', 'data-sk-hint', 'data-sk-read', 'data-sk-ui'])
   ok(html1.includes(h), `gancho ${h}`);
 ok(!html1.includes('\r\n') && !js1.includes('\r\n'), 'saída só com LF');
 
@@ -41,6 +41,7 @@ for (const slug of slugs) {
   try { page = read(`projetos/${slug}/index.html`); } catch { /* falta */ }
   ok(page.includes('data-sk-view="proj"') && page.includes('data-sk-view="projbody"') && page.includes('data-sk-video'),
     `projetos/${slug}/ existe e tem hero, corpo e vídeo`);
+  ok(page.includes('data-sk-read') && page.includes('data-sk-hint'), `projetos/${slug}/ tem paradas de leitura`);
   ok(page.includes(`view-transition-name: sk-glyph-${slug}`) && html1.includes(`view-transition-name: sk-glyph-${slug}`),
     `transição do palco ASCII de ${slug} nos dois lados`);
   ok(html1.includes(`data-sk-ascii="${slug}"`) && page.includes(`data-sk-ascii="${slug}"`) && js1.includes(`'${slug}': {`),

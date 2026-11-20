@@ -1,4 +1,5 @@
 const REF_H = 2160; // geometria definida numa referência de 2160 px de altura
+const PROJECT_ASPECT = 1440 / 900;
 
 const R3 = { spurGap: [[65, 125], [110, 200]], umbel: [3, 5], tipUmbel: [3, 5], keepFrom: 0.88, minDist: 112 };
 const PRESETS = {
@@ -47,7 +48,7 @@ const smooth = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); ret
 const hash2 = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
 // ------------------------------------------------------------------ geração da cena
-function generate(presetName, seed, aspect) {
+function generate(presetName, seed, aspect, complete = false) {
   const P = PRESETS[presetName] || PRESETS.kosa;
   const rng = rngFrom(seed ?? P.seed);
   const W = REF_H * aspect, H = REF_H;
@@ -152,20 +153,30 @@ function generate(presetName, seed, aspect) {
     }
   }
   const [tlo, thi] = P.tipUmbel;
-  for (const t of tips) {
-    const b = branches[t.b], x = b.xs[t.k], y = b.ys[t.k];
-    if (inside(x, y) && free(x, y)) { umbel(t.b, t.k, t.ang, rng.int(tlo, thi), 'tip'); take(x, y); }
+  function bloomTips(inFrame) {
+    for (const t of tips) {
+      const b = branches[t.b], x = b.xs[t.k], y = b.ys[t.k];
+      if (inside(x, y) === inFrame && free(x, y)) { umbel(t.b, t.k, t.ang, rng.int(tlo, thi), 'tip'); take(x, y); }
+    }
   }
+  bloomTips(true);
   const order = spurs.map((_, i) => i);
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-  for (const i of order) {
-    const s = spurs[i], b = branches[s.b], x = b.xs[s.k], y = b.ys[s.k];
-    if (!inside(x, y)) continue;
-    const keep = x < W * P.keepFrom ? 1 : 1 - 0.7 * (x - W * P.keepFrom) / (W * (1 - P.keepFrom) + 1);
-    if (rng.random() > keep || !free(x, y)) continue;
-    const [ulo, uhi] = s.kind === 'spur' ? P.umbel : [1, 3];
-    umbel(s.b, s.k, s.ang, rng.int(ulo, uhi), s.kind); take(x, y);
+  function bloomSpurs(inFrame) {
+    for (const i of order) {
+      const s = spurs[i], b = branches[s.b], x = b.xs[s.k], y = b.ys[s.k];
+      if (inside(x, y) !== inFrame) continue;
+      const edge = inFrame ? x : Math.min(x, W);
+      const keep = edge < W * P.keepFrom ? 1 : 1 - 0.7 * (edge - W * P.keepFrom) / (W * (1 - P.keepFrom) + 1);
+      if (rng.random() > keep || !free(x, y)) continue;
+      const [ulo, uhi] = s.kind === 'spur' ? P.umbel : [1, 3];
+      umbel(s.b, s.k, s.ang, rng.int(ulo, uhi), s.kind); take(x, y);
+    }
   }
+  bloomSpurs(true);
+  const focusCount = flowers.length;
+  // Completa a copa depois de compor o quadro de referência, preservando seus cachos e o foco da câmera.
+  if (complete) { bloomTips(false); bloomSpurs(false); }
 
   // converte para unidades de mundo (1 = altura da tela)
   const u = 1 / REF_H;
@@ -176,6 +187,6 @@ function generate(presetName, seed, aspect) {
     b.ax = new Float32Array(n); b.ay = new Float32Array(n); b.arot = new Float32Array(n);
   }
   for (const f of flowers) { f.ox *= u; f.oy *= u; f.R *= u; }
-  return { branches, flowers, aspect, ambient: P.ambient || 30, rng };
+  return { branches, flowers, focusCount, aspect, ambient: P.ambient || 30, rng };
 }
 
