@@ -795,7 +795,7 @@ def build_dc(script_url):
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Sitr3n — portfólio com sakura em ASCII</title>
+<title>Sitr3n — portfólio</title>
 <script src="./support.js"></script>
 <script src="{script_url}"></script>
 </head>
@@ -817,7 +817,7 @@ def build_dc(script_url):
 '''
 
 
-def build_standalone(script_src, body_html=None, title='Sitr3n — portfólio com sakura em ASCII', desc=None, opts="{ preset: 'kosa' }"):
+def build_standalone(script_src, body_html=None, title='Sitr3n — portfólio', desc=None, opts="{ preset: 'kosa' }"):
     sc = f'<script src="{script_src}"></script>'
     meta = f'\n<meta name="description" content="{E(desc)}">' if desc else ''
     return f'''<!DOCTYPE html>
