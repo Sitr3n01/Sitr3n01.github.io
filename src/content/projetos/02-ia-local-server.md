@@ -5,7 +5,7 @@ kanji: 知
 sakura: koeda
 categoria: IA privada
 titulo: Local AI Provider
-card: Assistentes de programação com IA rodando no próprio computador. Código, conversas e senhas não saem da máquina.
+card: Servidor que permite usar assistentes de programação com IA sem enviar código, conversas ou credenciais a serviços de terceiros.
 tags: IA privada · MCP · LLM local
 papel: Projeto pessoal · arquitetura e desenvolvimento
 periodo: 2026
@@ -14,20 +14,20 @@ stack: Go, llama.cpp, Model Context Protocol, Windows API, PowerShell, AMD ROCm,
 repo: https://github.com/Sitr3n01/local-ai-provider
 ---
 
-Um servidor que coloca a IA para trabalhar dentro do próprio computador. Ferramentas como Claude Code, Codex e OpenCode passam a conversar com um modelo local, e código, conversas e credenciais ficam na máquina.
+Um servidor que executa modelos de IA no próprio computador. Ferramentas como Claude Code, Codex e OpenCode passam a se comunicar com um modelo local, e código, conversas e credenciais permanecem na máquina.
 
 ## O desafio
 
-Assistentes de programação com IA costumam enviar tudo o que você digita para servidores de terceiros. Para quem lida com código confidencial ou dados sensíveis, esse é um risco difícil de aceitar.
+Assistentes de programação com IA costumam enviar todo o conteúdo digitado a servidores de terceiros. Para quem trabalha com código confidencial ou dados sensíveis, esse risco é difícil de aceitar.
 
 ## A solução
 
-- **Privado por construção.** O servidor só aceita conexões vindas do próprio computador e não tem plano B na nuvem: se algo dá errado, ele para em vez de enviar dados para fora.
-- **Encaixa no que já existe.** Fala o mesmo idioma da API da OpenAI, então basta apontar as ferramentas de IA mais usadas para ele.
-- **Memória longa.** Acertou 120 de 120 testes de memória com até 240 mil tokens na conversa, o equivalente a centenas de páginas de texto.
-- **Rápido.** Gera cerca de 50 tokens por segundo mesmo com 120 mil tokens no contexto, e o próprio servidor acrescenta menos de 20 ms de espera.
-- **Funciona sozinho.** Roda como serviço do Windows, com ícone na bandeja e um painel de monitoramento no navegador.
-- **Transparente quando erra.** Quando o primeiro protótipo gravou uma credencial nos logs locais, publiquei um [relatório de incidente](https://github.com/Sitr3n01/local-ai-provider/blob/main/incident-reports/2026-07-20-panel-zstd-credential-exposure.md) e transformei "logs só com metadados" em regra verificada por testes.
+- **Privacidade por padrão.** O servidor aceita apenas conexões do próprio computador e não tem alternativa na nuvem: em caso de falha, interrompe a operação em vez de enviar dados para fora.
+- **Compatibilidade.** Segue o mesmo formato da API da OpenAI, o que permite conectar as ferramentas de IA mais usadas sem adaptações.
+- **Contexto longo.** Obteve 120 acertos em 120 testes de memória com até 240 mil tokens na conversa, o equivalente a centenas de páginas de texto.
+- **Desempenho.** Gera cerca de 50 tokens por segundo mesmo com 120 mil tokens no contexto, e o servidor acrescenta menos de 20 ms de latência.
+- **Operação autônoma.** Funciona como serviço do Windows, com ícone na área de notificação e um painel de monitoramento no navegador.
+- **Transparência em incidentes.** Quando o primeiro protótipo registrou uma credencial nos logs locais, publiquei um [relatório de incidente](https://github.com/Sitr3n01/local-ai-provider/blob/main/incident-reports/2026-07-20-panel-zstd-credential-exposure.md) e tornei "logs apenas com metadados" uma regra verificada por testes.
 
 ## Em números
 
@@ -39,7 +39,7 @@ Assistentes de programação com IA costumam enviar tudo o que você digita para
 
 ## Por dentro
 
-É um plano de inferência e controle de admissão na frente do llama.cpp, mais o encanamento de Windows para rodá-lo como serviço supervisionado.
+É uma camada de inferência e controle de admissão à frente do llama.cpp, com a integração ao Windows necessária para executá-lo como serviço supervisionado.
 
 - **11 executáveis Go:** edge, supervisor com contenção por Job Object do Windows, app de bandeja, monitor no navegador e servidores MCP.
 - **Invariantes de segurança verificados por testes.** Todo listener é loopback literal, o header `Authorization` do cliente nunca chega ao modelo, não existe fallback para a nuvem e os logs só têm metadados. Rota, modelo ou encoding desconhecido falha fechado.
@@ -47,4 +47,4 @@ Assistentes de programação com IA costumam enviar tudo o que você digita para
 
 ## Status
 
-Construído para uso pessoal com agentes de código e em uso para esse fim, ainda identificado como canary. Os modelos passam por um gate de promoção, e a produção fica bloqueada até a última evidência chegar. O próximo passo é qualificar o servidor para produção, a começar pela revalidação física do perfil de contexto longo.
+Construído para uso pessoal com agentes de código e em uso para esse fim, ainda identificado como canary. Os modelos passam por um gate de promoção, e a produção permanece bloqueada até que a última evidência seja obtida. O próximo passo é qualificar o servidor para produção, a começar pela revalidação física do perfil de contexto longo.

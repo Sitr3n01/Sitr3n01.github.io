@@ -108,7 +108,7 @@ ABOUT = f'''
 <a class="sk-link" href="https://github.com/Sitr3n01" style="align-self: flex-start; font-size: 15px; color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">GitHub ↗</a>
 </div>
 <div style="flex: 1 1 420px; max-width: 640px">
-<p style="margin: 0; font-size: 18px; line-height: 1.4; letter-spacing: 0.013em">Da lógica que sustenta um sistema à interface que o torna intuitivo, desenvolvo produtos digitais com atenção à técnica e à experiência. Atuo com web, desktop e jogos, com experiência nos projetos Loopia e ExoBeast durante seis meses no Brasília Game Hub. A fotografia amplia minha perspectiva sobre estética, composição e comunicação visual.</p>
+<p style="margin: 0; font-size: 18px; line-height: 1.4; letter-spacing: 0.013em">Da lógica que sustenta um sistema à interface que o torna intuitivo, desenvolvo produtos digitais com atenção à técnica e à experiência. Atuo com web, desktop e jogos e, durante seis meses no Brasília Game Hub, participei dos projetos Loopia e ExoBeast. A fotografia amplia minha perspectiva sobre estética, composição e comunicação visual.</p>
 </div>
 </div>
 <div data-sk-read data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 19px; align-items: flex-start">
@@ -203,7 +203,7 @@ PATH_ROWS = [
     ('01', 'Brasília Game Hub', ['6 meses', 'Loopia', 'ExoBeast']),
     ('02', 'IESB', ['Tecnólogo em Jogos Digitais', 'Concluído em 2026']),
     ('03', 'Game jams', ['2 participações']),
-    ('04', 'Komuniki e Blog da Kelly', ['Dois sites para um cliente real', 'No ar desde jun. 2026']),
+    ('04', 'Komuniki e Blog da Kelly', ['Dois sites para um cliente real', 'Em produção desde jun. 2026']),
 ]
 rows = '\n'.join(f'''<li class="sk-row" data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 8px 19px; align-items: flex-start; padding: 30px 0; border-top: 1px solid {ASH}">
 <span style="flex: 0 0 48px; {CAP}">{n}</span>
@@ -280,7 +280,7 @@ HINT = f'''<button type="button" data-sk-hint="1" data-sk-ui="3" class="sk-hint"
 # WhatsApp fixo no canto inferior direito (fora do scroller, como a nav), em vidro líquido. A logo é
 # monocromática, na tinta do site: a paleta não tem o verde da marca. Abre a conversa com a mensagem pronta.
 WA_PHONE = '5561996805059'
-WA_TEXT = 'Olá! Vi seu portfólio e quero conversar sobre um projeto.'
+WA_TEXT = 'Olá! Conheci seu portfólio e gostaria de conversar sobre um projeto.'
 WA_HREF = f'https://wa.me/{WA_PHONE}?text={urllib.parse.quote(WA_TEXT)}'
 # logo: anel com o rabicho numa peça só (contorno externo menos o círculo interno, sem emenda) e o fone no meio
 WA_RING = 'M2.1 21.9l1.35-5.05A9.9 9.9 0 1 1 7.2 20.55zM12 3.9a8.1 8.1 0 1 0 0 16.2a8.1 8.1 0 1 0 0-16.2z'
