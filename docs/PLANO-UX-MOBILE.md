@@ -85,6 +85,34 @@ Para revisar na prévia:
   curto para ler, 150svh dá ~200 px.
 - Falta conferir em aparelho real: Android e iPhone, com a barra de endereço recolhendo de verdade.
 
+**Fase 3 feita na branch `preview/leitura`** (2026-11-21, a partir da `preview/rolagem`). O que entrou:
+- **Respiro guiado pelo texto:** o controlador mede as linhas de texto que ficam direto sobre o fundo e, a cada
+  rolagem, passa ao motor as que estão na tela (`engine.setText`).
+  - O motor refaz uma máscara por célula: ~10% sob o texto, com borda suave de 2 células, multiplicada pela elipse.
+  - A máscara entra suave depois da abertura. Parado, nada é recalculado.
+  - Com o papel cobrindo 80% da tela, o motor esperava. Agora ele desenha a meia velocidade enquanto o texto fora do
+    papel se move. Sem isso, o canvas congelado deixava o texto passar sobre glifos plenos.
+- **Tom:** a casca e os galhos até 6 células do texto, ou dentro da elipse, saem da tinta para o cinza. O cinza é a
+  mistura da tinta com o fundo (#8a8986 no claro, e o espelho no escuro), então não há cor nova fora de `THEMES`.
+- **Câmeras com a tela em pé:** a cena da home já é gerada na proporção da tela, e o hero já tinha a árvore em cima e o
+  título na base. Com a tela em pé, as seções de leitura ficam mais fracas (sobre 0,70, trajetória 0,75, sobre mim
+  0,65, corpo do projeto 0,40), e no sobre e no sobre mim as flores vão para a borda (`tall` em `VIEWS`).
+- **Tamanhos mínimos no celular:** rótulos com 12 px e corpo com 16 px, por tokens (`--sk-cap`, `--sk-small`).
+
+Meta da leitura (seção 5): a pior célula sob texto teve 10% de opacidade, na home e em três projetos, no celular e no
+desktop, nos dois temas e idiomas (meta: 15%).
+
+Desempenho, `preview/rolagem` → `preview/leitura`, duas rodadas intercaladas:
+
+| Cenário | Parado | Rolagem p95 (maior quadro) | Sobre os cards |
+|---|---|---|---|
+| Desktop 1080p, CPU 4× | 36 → 33% / 34 → 33% | 38 → 33 ms / 33 → 33 ms | 78 → 79% / 77 → 77% |
+| Notebook 1366, CPU 6× | 47 → 45% / 42 → 42% | 38 → 38 ms (63 → 86) / 33 → 37 ms (0 → 83) | 74 → 74% / 70 → 72% |
+| Celular 360, CPU 6× | 36 → 36% / 34 → 32% | 13 → 13 ms / 13 → 13 ms | 36 → 38% / 34 → 35% |
+
+Empate dentro do ruído. Rolando no celular, o motor gasta ~20 ms/s a mais para a máscara acompanhar o texto (de 125–128
+para 146–152), cerca de 2 pontos de ocupação. As metas do celular 360 seguem cumpridas.
+
 ## 1. Diagnóstico medido
 
 **Método.** Chrome 157 headless controlado via CDP. A CPU foi emulada 4× e 6× mais lenta, e o celular foi emulado com

@@ -46,7 +46,7 @@ SANS = "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans
 MONO = "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace"
 JP = "'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif"
 PADX = 'clamp(19px, 4vw, 76px)'
-CAP = f"font-size: 11px; line-height: 1.4; letter-spacing: 0.05em; text-transform: uppercase"
+CAP = f"font-size: var(--sk-cap, 11px); line-height: 1.4; letter-spacing: 0.05em; text-transform: uppercase"
 E = html.escape
 
 
@@ -199,8 +199,8 @@ def about(L):
 <div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 119px">
 <div data-sk-read data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-start">
 <div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 19px">
-<p style="margin: 0; font-size: 15px; line-height: 1.4; letter-spacing: 0.013em; text-transform: uppercase; max-width: 26em">{E(L['about_intro'])}</p>
-<a class="sk-link" href="https://github.com/Sitr3n01" style="align-self: flex-start; font-size: 15px; color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">GitHub ↗</a>
+<p style="margin: 0; font-size: var(--sk-small, 15px); line-height: 1.4; letter-spacing: 0.013em; text-transform: uppercase; max-width: 26em">{E(L['about_intro'])}</p>
+<a class="sk-link" href="https://github.com/Sitr3n01" style="align-self: flex-start; font-size: var(--sk-small, 15px); color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">GitHub ↗</a>
 </div>
 <div style="flex: 1 1 420px; max-width: 640px">
 <p style="margin: 0; font-size: 18px; line-height: 1.4; letter-spacing: 0.013em">{E(L['about_text'])}</p>
@@ -234,7 +234,7 @@ def card(L, p, root):
 </div>
 {ascii_stage(slug, root, 'flex: 1 1 auto; min-height: 340px; margin: 0 -30px')}
 <h3 style="margin: 0; font-weight: 400; font-size: clamp(34px, 3.2vw, 46px); line-height: 1; letter-spacing: 0.006em"><a class="sk-card-link" href="{L['proj_dir']}/{slug}/" data-sk-project="{slug}"><span style="display: inline-block; view-transition-name: sk-title-{slug}">{E(p['titulo'])}</span></a></h3>
-<p style="margin: 0; font-size: 15px; line-height: 1.4; max-width: 34em">{E(p['card'])}</p>
+<p style="margin: 0; font-size: var(--sk-small, 15px); line-height: 1.4; max-width: 34em">{E(p['card'])}</p>
 <p style="margin: 0; {CAP}">{E(p['tags'])}</p>
 </article>'''
 
@@ -605,16 +605,16 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
 .sk-logo{display:inline-block;padding:12px 0;font-size:22px;font-weight:700;line-height:1;letter-spacing:-.02em;text-decoration:none;color:var(--sk-ink)}
 .sk-track{display:inline-flex;align-items:center;gap:2px;padding:4px}
 .sk-track-lg{flex-wrap:wrap;max-width:100%;box-sizing:border-box}
-.sk-seg{position:relative;z-index:1;display:inline-block;padding:10px 18px;border-radius:999px;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
+.sk-seg{position:relative;z-index:1;display:inline-block;padding:10px 18px;border-radius:999px;font-size:var(--sk-cap,11px);line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
   color:var(--sk-mute);text-decoration:none;white-space:nowrap;transition:color .35s ease}
 .sk-seg.is-on,.sk-seg:hover{color:var(--sk-ink)}
-.sk-track-lg .sk-seg{padding:14px 24px;font-size:15px;letter-spacing:.013em;text-transform:none}
+.sk-track-lg .sk-seg{padding:14px 24px;font-size:var(--sk-small,15px);letter-spacing:.013em;text-transform:none}
 /* direita da toolbar: nav (desktop), idioma e botão Menu (celular) num grupo só */
 .sk-tools{display:flex;align-items:center;gap:10px}
 .sk-lang{pointer-events:auto}
 .sk-lang .sk-seg{padding:10px 12px}
 .sk-seg-sub{color:var(--sk-mute);transition:color .35s ease}
-.sk-lens-btn.sk-lens-btn-lg{padding:18px 28px;font-size:15px;letter-spacing:.013em;text-transform:none}
+.sk-lens-btn.sk-lens-btn-lg{padding:18px 28px;font-size:var(--sk-small,15px);letter-spacing:.013em;text-transform:none}
 .sk-seg:focus-visible,.sk-lens-btn:focus-visible,.sk-logo:focus-visible{outline:2px solid var(--sk-ink);outline-offset:3px}
 
 /* lente: corpo claro, borda grossa que refrata, reflexo quente no topo e brilho iridescente girando nos cantos */
@@ -630,7 +630,7 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
   transition:transform .62s cubic-bezier(.25,.85,.35,1),width .62s cubic-bezier(.25,.85,.35,1),height .62s cubic-bezier(.25,.85,.35,1),opacity .3s ease,--rim .9s cubic-bezier(.3,1,.4,1)}
 .sk-lens.is-off{opacity:0;transform:translate3d(var(--x,0),var(--y,0),0) scale(.6,.6)}
 .sk-lens.no-anim{transition:none}
-.sk-lens-btn{position:relative;display:inline-block;padding:13px 22px;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
+.sk-lens-btn{position:relative;display:inline-block;padding:13px 22px;font-size:var(--sk-cap,11px);line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
   color:var(--sk-ink);text-decoration:none;white-space:nowrap;transition:transform .5s cubic-bezier(.3,1.5,.5,1),--rim .9s cubic-bezier(.3,1,.4,1)}
 .sk-lens-btn:hover{transform:scale(1.04)}.sk-lens-btn:active{transform:scale(.97)}
 .sk-lens::before,.sk-lens-btn::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:2.5px;pointer-events:none;
@@ -726,7 +726,7 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
 .sk-fact-v{font-size:18px;line-height:1.3}
 .sk-stat-v{font-size:clamp(30px,3vw,46px);line-height:1;letter-spacing:-.01em}
 .sk-sec{display:flex;flex-wrap:wrap;gap:19px;align-items:flex-start;padding-top:30px;border-top:1px solid var(--sk-ash)}
-.sk-sec>h2{flex:0 0 200px;margin:0;font-weight:400;font-size:11px;line-height:1.4;letter-spacing:.05em;text-transform:uppercase}
+.sk-sec>h2{flex:0 0 200px;margin:0;font-weight:400;font-size:var(--sk-cap,11px);line-height:1.4;letter-spacing:.05em;text-transform:uppercase}
 .sk-sec>div{flex:1 1 560px;min-width:0;max-width:820px}
 .sk-prose{font-size:18px;line-height:1.5;letter-spacing:.006em}
 .sk-prose p{margin:0 0 .9em}.sk-prose p:last-child{margin-bottom:0}
@@ -876,7 +876,9 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
   [data-sk-card-columns]>[data-sk-parallax]{padding-top:0!important}
   [data-sk-card-columns]>[data-sk-parallax]:not(:has(.sk-card)){display:none!important}
 }
+/* tamanhos mínimos no celular: rótulos com 12 px e corpo com 16 px */
 @media (max-width:720px){
+  :root{--sk-cap:12px;--sk-small:16px}
   [data-sk-view="hero"]{padding-bottom:max(92px,12svh)!important}
   [data-sk-view="hero"] h1{font-size:clamp(27px,9.2vw,60px)!important}
   [data-sk-view="about"],[data-sk-view="work"],[data-sk-view="path"],[data-sk-view="me"]{padding-block:84px!important}

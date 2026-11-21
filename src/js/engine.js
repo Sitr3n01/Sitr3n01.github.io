@@ -45,12 +45,15 @@ function createSakuraBackground(canvas, options) {
   }
   // Paleta indexada: tinta, branco, papel e o gradiente das flores em GN passos, puro (fundo da célula) e misturado
   // com a tinta (glifo da pétala, do centro e da pétala solta). Índices pequenos deixam o atlas e os estilos finitos.
-  const GN = 48, C_INK = 0, C_WHITE = 1, C_PARCH = 2, C_GRAD = 3, C_PET = C_GRAD + GN, C_CEN = C_PET + GN, C_LOO = C_CEN + GN;
+  // C_GREY: a casca e os galhos perto do texto saem da tinta para o cinza (no claro, #8a8986), e a tinta plena fica para
+  // o texto. É a mistura da tinta com o fundo, então segue o tema sem cor nova.
+  const GN = 48, C_INK = 0, C_WHITE = 1, C_PARCH = 2, C_GRAD = 3, C_PET = C_GRAD + GN, C_CEN = C_PET + GN, C_LOO = C_CEN + GN, C_GREY = C_LOO + GN;
   let palette = [], stops = opts.stops;
   function buildPalette() {
     const ink = opts.ink;
     stops = opts.petalEnd ? opts.stops.map((s, i, a) => (i === a.length - 1 ? [s[0], opts.petalEnd] : s)) : opts.stops;
     palette = [ink, [255, 255, 255], opts.parch];
+    palette[C_GREY] = mixc(ink, opts.parch, 0.545);
     for (let g = 0; g < GN; g++) {
       const c = gradAt(g / (GN - 1));
       palette[C_GRAD + g] = c; const pi = opts.petalInk; palette[C_PET + g] = mixc(c, pi, 0.55); palette[C_CEN + g] = mixc(c, pi, 0.78); palette[C_LOO + g] = mixc(c, pi, 0.6);
@@ -76,6 +79,7 @@ function createSakuraBackground(canvas, options) {
     cols = Math.ceil(W / cw); rows = Math.ceil(H / chh);
     const N = cols * rows;
     att = new Float32Array(N); attKey = null;
+    attE = new Float32Array(N); attT = new Float32Array(N).fill(1); tone = new Uint8Array(N); toneT = new Uint8Array(N); text.dirty = true;
     prevGrid = new Uint32Array(N);
     // buffers por célula, reaproveitados a cada quadro
     buf = { cb: new Float32Array(N), hl: new Float32Array(N), cp: new Float32Array(N), cc: new Float32Array(N), fr: new Float32Array(N),
@@ -180,20 +184,53 @@ function createSakuraBackground(canvas, options) {
     return u <= 0 ? 0 : u >= 1 ? 1 : 1 - Math.pow(1 - u, 2.2);
   }
 
-  // a atenuação por célula só muda quando a zona de respiro ou a opacidade mudam
+  // Atenuação por célula = elipse de respiro × opacidade da vista (attE) × máscara do texto (attT). Cada parte só é
+  // recalculada quando muda: a elipse com a zona ou a opacidade, a máscara com as linhas de texto na tela (rolagem).
+  // tone marca as células de casca e galho que vão para o cinza: dentro da elipse ou perto do texto (toneT).
+  let attE = null, attT = null, tone = null, toneT = null;
+  const text = { rects: [], amt: 0, target: 0, dirty: true };
+  const TEXT_FLOOR = 0.1, TEXT_EDGE = 2, TONE_EDGE = 6; // sob o texto: 10%; borda suave de 2 células; cinza até 6
+  function updateText() {
+    text.dirty = false;
+    attT.fill(1); toneT.fill(0);
+    const R = text.rects, amt = text.amt;
+    if (amt < 0.001) return;
+    const ky = chh / cw; // distância em larguras de célula
+    for (let i = 0; i + 3 < R.length; i += 4) {
+      const x0 = R[i] / cw, y0 = R[i + 1] / chh, x1 = (R[i] + R[i + 2]) / cw, y1 = (R[i + 1] + R[i + 3]) / chh;
+      const c0 = Math.max(0, Math.floor(x0 - TONE_EDGE)), c1 = Math.min(cols - 1, Math.ceil(x1 + TONE_EDGE));
+      const r0 = Math.max(0, Math.floor(y0 - TONE_EDGE / ky)), r1 = Math.min(rows - 1, Math.ceil(y1 + TONE_EDGE / ky));
+      for (let r = r0; r <= r1; r++) {
+        const yc = r + 0.5, dy = (yc < y0 ? y0 - yc : yc > y1 ? yc - y1 : 0) * ky;
+        for (let c = c0; c <= c1; c++) {
+          const xc = c + 0.5, dx = xc < x0 ? x0 - xc : xc > x1 ? xc - x1 : 0, d = Math.hypot(dx, dy), id = r * cols + c;
+          if (d < TONE_EDGE) toneT[id] = 1;
+          if (d >= TEXT_EDGE) continue;
+          const f = 1 - amt * (1 - TEXT_FLOOR) * (1 - smooth(0.25, TEXT_EDGE, d));
+          if (f < attT[id]) attT[id] = f;
+        }
+      }
+    }
+  }
   function updateAtt() {
     const A = alpha;
-    if (attKey && Math.abs(attKey[0] - A) < 1e-4 && Math.abs(attKey[1] - safe.x) < 1e-4 && Math.abs(attKey[2] - safe.y) < 1e-4 &&
-      Math.abs(attKey[3] - safe.rx) < 1e-4 && Math.abs(attKey[4] - safe.ry) < 1e-4 && Math.abs(attKey[5] - safe.s) < 1e-4) return;
-    attKey = [A, safe.x, safe.y, safe.rx, safe.ry, safe.s];
-    for (let r2 = 0; r2 < rows; r2++) for (let c = 0; c < cols; c++) {
-      let a = 1;
-      if (safe.s > 0.001) {
-        const dx = ((c + 0.5) * cw / W - safe.x) / safe.rx, dy = ((r2 + 0.5) * chh / H - safe.y) / safe.ry;
-        a = 1 - safe.s * (1 - smooth(0.6, 1.25, Math.hypot(dx, dy)));
+    let changed = false;
+    if (!(attKey && Math.abs(attKey[0] - A) < 1e-4 && Math.abs(attKey[1] - safe.x) < 1e-4 && Math.abs(attKey[2] - safe.y) < 1e-4 &&
+      Math.abs(attKey[3] - safe.rx) < 1e-4 && Math.abs(attKey[4] - safe.ry) < 1e-4 && Math.abs(attKey[5] - safe.s) < 1e-4)) {
+      attKey = [A, safe.x, safe.y, safe.rx, safe.ry, safe.s];
+      for (let r2 = 0; r2 < rows; r2++) for (let c = 0; c < cols; c++) {
+        let a = 1;
+        if (safe.s > 0.001) {
+          const dx = ((c + 0.5) * cw / W - safe.x) / safe.rx, dy = ((r2 + 0.5) * chh / H - safe.y) / safe.ry;
+          a = 1 - safe.s * (1 - smooth(0.6, 1.25, Math.hypot(dx, dy)));
+        }
+        attE[r2 * cols + c] = a * A;
+        tone[r2 * cols + c] = a < 0.75 ? 1 : 0;
       }
-      att[r2 * cols + c] = a * A;
+      changed = true;
     }
+    if (text.dirty) { updateText(); changed = true; }
+    if (changed) for (let i = 0; i < att.length; i++) att[i] = attE[i] * attT[i];
   }
 
   // ---------------------------------------------------------------- vento
@@ -370,6 +407,11 @@ function createSakuraBackground(canvas, options) {
     for (const key in cam) cam[key] += (camT[key] - cam[key]) * k;
     for (const key in safe) safe[key] += (safeT[key] - safe[key]) * k;
     alpha += (alphaT - alpha) * k;
+    // a máscara do texto entra e sai suave (o título aparece depois da abertura)
+    if (text.amt !== text.target) {
+      const na = text.amt + (text.target - text.amt) * k;
+      text.amt = Math.abs(na - text.target) < 0.01 ? text.target : na; text.dirty = true;
+    }
     updateAtt();
     drift = 0.05 * Math.sin(t * 0.35);
     gust = reduce ? 0 : windAt(t);
@@ -519,13 +561,15 @@ function createSakuraBackground(canvas, options) {
         if (inBlock[id]) { sq = C_GRAD + g; sqA = 0.95; col = C_WHITE; colA = 1; }
         if (opts.petalA !== 1) sqA = Math.min(1, sqA * opts.petalA);
       }
+      // casca e galhos: tinta, ou cinza dentro do respiro e perto do texto
+      const wood = tone[id] || toneT[id] ? C_GREY : C_INK;
       if (kind === 'bark') {
-        const h = hl[id]; sq = C_INK; sqA = 0.03 + 0.08 * (1 - h); colA = 0.42 + 0.45 * (1 - h);
+        const h = hl[id]; sq = wood; sqA = 0.03 + 0.08 * (1 - h); col = wood; colA = 0.42 + 0.45 * (1 - h);
         if (opts.kanji && hash2(c, r) < 0.28) { ch = h > 0.62 ? '木' : h > 0.35 ? '林' : '森'; cjk = true; }
         else ch = hash2(c + 7, r) < 0.14 ? ':' : (h > 0.62 ? '-' : h > 0.35 ? '=' : '#');
         if (inBlock[id]) { sq = C_INK; sqA = 0.85; col = C_PARCH; colA = 1; }
-      } else if (kind === 'edge') { sq = C_INK; sqA = 0.05 * val; colA = 0.3 + 0.45 * val; ch = val < 0.3 ? '' : val < 0.6 ? '.' : ':'; }
-      else if (kind === 'twig') { colA = 0.78; }
+      } else if (kind === 'edge') { sq = wood; sqA = 0.05 * val; col = wood; colA = 0.3 + 0.45 * val; ch = val < 0.3 ? '' : val < 0.6 ? '.' : ':'; }
+      else if (kind === 'twig') { col = wood; colA = 0.78; }
       if (near) { sqA += 0.18 * near; if (Math.random() < 0.35 * near && !cjk) ch = SCRAMBLE[(Math.random() * SCRAMBLE.length) | 0]; }
       const m = motion(id, ch, cjk, t, kind, fr[id]); ch = m[0]; cjk = m[1];
       const rk = sq >= 0 && sqA > 0.01 ? rectKey(sq, sqA * A) : -1, gk = ch && ch !== ' ' ? glyphKey(ch, cjk, col, colA * A) : -1;
@@ -606,8 +650,9 @@ function createSakuraBackground(canvas, options) {
   function loop(now) {
     raf = requestAnimationFrame(loop);
     if (!running) return;
-    // com o papel tapando a tela (cards, stack, fotos), o fundo quase não aparece: meia velocidade ou espera
-    const fps = cover >= 0.8 ? 0 : cover >= 0.5 ? opts.fps / 2 : opts.fps;
+    // com o papel tapando a tela (cards, stack, fotos), o fundo quase não aparece: meia velocidade ou espera. Se o texto
+    // que está fora do papel se moveu (rolagem), a máscara dele precisa acompanhar: meia velocidade até alcançar.
+    const fps = cover >= 0.8 ? (text.dirty ? opts.fps / 2 : 0) : cover >= 0.5 ? opts.fps / 2 : opts.fps;
     if (!fps || now - lastDraw < 1000 / fps - 2) return;
     lastDraw = now;
     const s0 = performance.now();
@@ -657,6 +702,10 @@ function createSakuraBackground(canvas, options) {
   return {
     setCamera(c, snap) { Object.assign(camT, c); if (snap) camSnap = true; if (reduce) frame(performance.now()); },
     setSafe(s) { Object.assign(safeT, s); },
+    // linhas de texto sobre o fundo, em px do canvas ([x, y, largura, altura, ...]); on = false tira a máscara (suave)
+    setText(rects, on = true) { text.rects = rects; text.target = on ? 1 : 0; text.dirty = true; },
+    // opacidade efetiva de cada célula (testes da leitura)
+    get mask() { return { att, cols, rows, cw, chh, text: text.rects }; },
     setAlpha(a) { alphaT = a; },
     setCover(c) { cover = c; },
     // nível de qualidade: { fps, dpr (máximo), glitch, scramble, ambient (fração das pétalas soltas) }

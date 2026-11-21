@@ -18,15 +18,17 @@ const VIEWS = {
   //        câmera (z, foco no centro das flores → posição na tela sx/sy)      zona de respiro                         opacidade
   hero:      { cam: { id: true },                     safe: { x: 0.40, y: 0.78, rx: 0.44, ry: 0.22, s: 0.42 }, alpha: 1.00 },
   manifesto: { cam: { z: 1.75, sx: 0.80, sy: 0.50 },  safe: { x: 0.34, y: 0.50, rx: 0.40, ry: 0.36, s: 0.90 }, alpha: 1.00 },
-  about:     { cam: { z: 2.20, sx: 0.96, sy: 0.40 },  safe: { x: 0.40, y: 0.52, rx: 0.62, ry: 0.56, s: 0.93 }, alpha: 0.85 },
+  // tall: com a tela em pé, o texto ocupa a coluna inteira; nas seções de leitura o fundo fica mais fraco e as flores
+  // vão para a borda (posição sx/sy na tela e opacidade com a tela em pé)
+  about:     { cam: { z: 2.20, sx: 0.96, sy: 0.40 },  safe: { x: 0.40, y: 0.52, rx: 0.62, ry: 0.56, s: 0.93 }, alpha: 0.85, tall: { sx: 1.08, sy: 0.18, alpha: 0.70 } },
   work:      { cam: { z: 1.35, sx: 0.28, sy: 0.55 },  safe: { x: 0.50, y: 0.50, rx: 0.60, ry: 0.60, s: 0.45 }, alpha: 0.70 },
   areas:     { cam: { z: 1.05, sx: 0.50, sy: 0.50 },  safe: { x: 0.18, y: 0.86, rx: 0.26, ry: 0.16, s: 0.75 }, alpha: 0.95 },
-  path:      { cam: { z: 1.60, sx: 0.12, sy: 0.88 },  safe: { x: 0.62, y: 0.50, rx: 0.50, ry: 0.62, s: 0.92 }, alpha: 0.90 },
-  me:        { cam: { z: 1.90, sx: 1.00, sy: 0.30 },  safe: { x: 0.52, y: 0.55, rx: 0.66, ry: 0.62, s: 0.94 }, alpha: 0.80 },
+  path:      { cam: { z: 1.60, sx: 0.12, sy: 0.88 },  safe: { x: 0.62, y: 0.50, rx: 0.50, ry: 0.62, s: 0.92 }, alpha: 0.90, tall: { alpha: 0.75 } },
+  me:        { cam: { z: 1.90, sx: 1.00, sy: 0.30 },  safe: { x: 0.52, y: 0.55, rx: 0.66, ry: 0.62, s: 0.94 }, alpha: 0.80, tall: { sx: 1.10, sy: 0.14, alpha: 0.65 } },
   contact:   { cam: { id: true },                    safe: { x: 0.40, y: 0.55, rx: 0.48, ry: 0.42, s: 0.88 }, alpha: 1.00 },
   // páginas de projeto
   proj:      { cam: { z: 1.55, sx: 0.80, sy: 0.42 },  safe: { x: 0.34, y: 0.62, rx: 0.48, ry: 0.46, s: 0.86 }, alpha: 0.95 },
-  projbody:  { cam: { z: 2.40, sx: 1.02, sy: 0.22 },  safe: { x: 0.45, y: 0.52, rx: 0.72, ry: 0.70, s: 0.96 }, alpha: 0.50 },
+  projbody:  { cam: { z: 2.40, sx: 1.02, sy: 0.22 },  safe: { x: 0.45, y: 0.52, rx: 0.72, ry: 0.70, s: 0.96 }, alpha: 0.50, tall: { alpha: 0.40 } },
   projnext:  { cam: { id: true },                     safe: { x: 0.40, y: 0.60, rx: 0.52, ry: 0.40, s: 0.80 }, alpha: 1.00 },
 };
 
@@ -258,10 +260,13 @@ function mount(root, options) {
     themed = true;
   }, reduce);
   const F = engine.focus;
-  function camOf(v, fit, compact) {
+  // tall (0 → 1): o quanto a tela está em pé; mistura a vista com a versão dela para a tela em pé (v.tall)
+  function camOf(v, fit, compact, tall) {
     if (v.cam.id) return { z: lerp(1, fit, compact), fx: F[0] * compact, fy: F[1] * compact, sx: 0.54 * compact, sy: 0.5 * compact };
-    return { z: v.cam.z * fit, fx: F[0], fy: F[1], sx: v.cam.sx - 0.1 * compact, sy: v.cam.sy };
+    const T = v.tall || {}, sx = v.cam.sx - 0.1 * compact;
+    return { z: v.cam.z * fit, fx: F[0], fy: F[1], sx: lerp(sx, T.sx ?? sx, tall), sy: lerp(v.cam.sy, T.sy ?? v.cam.sy, tall) };
   }
+  const alphaOf = (v, tall) => lerp(v.alpha, v.tall && v.tall.alpha !== undefined ? v.tall.alpha : v.alpha, tall);
 
   const sections = $$('[data-sk-view]');
   const letters = $$('[data-sk-letter]');
@@ -308,7 +313,7 @@ function mount(root, options) {
   // seções, colunas com parallax, tamanho da área de rolagem) fica em cache e só é medida de novo quando o layout muda,
   // para o quadro não ler o layout depois de escrever transforms.
   const scrollEvents = scroller === document.scrollingElement ? window : scroller;
-  const geo = { dirty: true, vh: 0, vw: 0, tops: [], heights: [], cols: [], paper: [], orbitTop: 0, orbitH: 0, wordsTop: 0, wordsH: 0 };
+  const geo = { dirty: true, vh: 0, vw: 0, tops: [], heights: [], cols: [], paper: [], text: [], orbitTop: 0, orbitH: 0, wordsTop: 0, wordsH: 0 };
   const paper = $$('.sk-card, .sk-stack, .sk-facts, .sk-stats, .sk-video-frame, .sk-me-photo, .sk-tile');
   const wake = () => { if (!raf && !dead) raf = requestAnimationFrame(tick); };
   const relayout = () => { geo.dirty = true; wake(); };
@@ -330,6 +335,61 @@ function mount(root, options) {
       return { top: topOf(el) - (col ? shiftOf(col.el) : 0) - shiftOf(el.closest('[data-sk-reveal]') || el), h: r.height, w, col };
     });
     if (timeline) timelineRanges();
+    geo.text = measureText(left);
+  }
+  // Texto direto sobre o fundo (fora do papel e do vidro): as linhas, em coordenadas do documento, para o motor apagar a
+  // sakura embaixo delas (engine.setText). O título do hero usa as palavras (as letras se movem), o manifesto usa o
+  // parágrafo (as palavras se movem) e o resto usa as linhas reais. O que está numa cena fixada (sticky) guarda a
+  // posição dentro do painel, que fica parado na tela enquanto a seção passa.
+  const TEXT_SEL = 'h1,h2,h3,p,li,figcaption,.sk-lead,.sk-next,.sk-link,footer>span';
+  const COVER_SEL = '.sk-card,.sk-stack,.sk-facts,.sk-stats,.sk-video-frame,.sk-me-photo,.sk-tile,.sk-glass,.sk-lens-btn,[data-sk-chip]';
+  const textEls = $$('main ' + TEXT_SEL.split(',').join(',main ')).filter(el => !el.closest(COVER_SEL) && !el.parentElement.closest(TEXT_SEL));
+  const textRange = document.createRange();
+  function measureText(left) {
+    const out = [], vt = viewTop(), st = scroller.scrollTop;
+    for (const el of textEls) {
+      const boxes = [];
+      // caixas com line-height < 1 (título e manifesto): os glifos passam um pouco da caixa, então ganham 0,12em
+      const padded = r => { const p = 0.12 * parseFloat(getComputedStyle(el).fontSize); return { left: r.left, right: r.right, top: r.top - p, bottom: r.bottom + p }; };
+      if (el.matches('[data-sk-view="hero"] h1')) el.querySelectorAll(':scope > span > span').forEach(w => boxes.push(padded(w.getBoundingClientRect())));
+      else if (words.length && el === manifestoText) boxes.push(padded(el.getBoundingClientRect()));
+      else {
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          if (!n.data.trim()) continue;
+          textRange.selectNodeContents(n);
+          for (const r of textRange.getClientRects()) if (r.width > 0 && r.height > 0) boxes.push(r);
+        }
+      }
+      if (!boxes.length) continue;
+      // uma faixa por linha
+      boxes.sort((a, b) => a.top - b.top);
+      const lines = [];
+      for (const b of boxes) {
+        const l = lines[lines.length - 1];
+        if (l && b.top < l.bottom - 0.4 * (b.bottom - b.top)) { l.left = Math.min(l.left, b.left); l.right = Math.max(l.right, b.right); l.bottom = Math.max(l.bottom, b.bottom); }
+        else lines.push({ left: b.left, right: b.right, top: b.top, bottom: b.bottom });
+      }
+      const reveal = el.closest('[data-sk-reveal]'), shift = reveal ? shiftOf(reveal) : 0;
+      const sec = el.closest('[data-sk-view="manifesto"],[data-sk-view="areas"]'), panel = sec && sec.firstElementChild;
+      const pin = panel ? { sec: topOf(sec), secH: sec.offsetHeight, panelH: panel.offsetHeight, top: panel.getBoundingClientRect().top } : null;
+      for (const l of lines) {
+        const o = { x: l.left - left, w: l.right - l.left, h: l.bottom - l.top };
+        if (pin) Object.assign(o, { off: l.top - pin.top, sec: pin.sec, secH: pin.secH, panelH: pin.panelH });
+        else o.top = l.top - shift - vt + st;
+        out.push(o);
+      }
+    }
+    return out;
+  }
+  // linhas de texto na tela agora, em px do canvas (que começa no topo da área visível)
+  function textOnScreen(st, vh) {
+    const out = [];
+    for (const t of geo.text) {
+      const y = t.off !== undefined ? Math.min(Math.max(t.sec - st, 0), t.sec + t.secH - t.panelH - st) + t.off : t.top - st;
+      if (y + t.h > 0 && y < vh) out.push(t.x, y, t.w, t.h);
+    }
+    return out;
   }
   // As faixas de rolagem (em px) dos efeitos no compositor, com as mesmas contas do quadro (tick): cada palavra do
   // manifesto no próprio trecho e o parallax linear na página inteira.
@@ -606,7 +666,8 @@ function mount(root, options) {
     const aspect = project ? size.W / size.H : 4 / 3;
     const fit = Math.sqrt(Math.min(1, aspect / (4 / 3)));
     const compact = 1 - smooth(0.5, 4 / 3, aspect);
-    const ca = camOf(va, fit, compact), cb = camOf(vb, fit, compact), cam = {};
+    const tall = 1 - smooth(0.62, 0.9, size.W / size.H); // celular em pé ≈ 0,46; deitado e desktop > 1
+    const ca = camOf(va, fit, compact, tall), cb = camOf(vb, fit, compact, tall), cam = {};
     for (const k in ca) cam[k] = lerp(ca[k], cb[k], f);
     const safe = {}; for (const k in va.safe) safe[k] = lerp(va.safe[k], vb.safe[k], f);
     if (compact > 0) {
@@ -614,7 +675,7 @@ function mount(root, options) {
       safe.y = lerp(safe.y, 0.46, compact * 0.7);
       safe.rx = lerp(safe.rx, Math.max(safe.rx, 0.64), compact);
     }
-    let alpha = lerp(va.alpha, vb.alpha, f);
+    let alpha = lerp(alphaOf(va, tall), alphaOf(vb, tall), f);
 
     // ---------------- órbita (seção "áreas" fixada): gira, depois explode e a câmera mergulha
     if (orbit) {
@@ -671,6 +732,12 @@ function mount(root, options) {
       if (IN.band && !bandOff) {
         if (ti < IN.burst + 0.3) engine.setOverlay(band(ti)); else { engine.setOverlay([]); bandOff = true; }
       }
+    }
+    // texto sobre o fundo: a sakura recua sob as linhas na tela (só depois que a interface entra). Só muda com a
+    // rolagem ou o layout; a órbita pede quadros sem rolagem e não refaz a máscara.
+    if (st !== last.textSt || geo.text !== last.text || uiShown !== last.textOn) {
+      engine.setText(textOnScreen(st, vh), uiShown);
+      last.textSt = st; last.text = geo.text; last.textOn = uiShown;
     }
     if (zooming) {
       const ez = inOut((ti - IN.zoom[0]) / (IN.zoom[1] - IN.zoom[0]));

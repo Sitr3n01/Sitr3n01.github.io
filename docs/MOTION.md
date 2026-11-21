@@ -68,7 +68,7 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
 | 3 | No scroll, as letras se dispersam em tempos diferentes ("A P CH") | Progresso = scroll / 0,9·viewport; cada letra sobe com deslocamento próprio e some num limiar próprio (0,05–0,6). Fica no quadro (ver "Efeitos no compositor") | `data-sk-letter` |
 | 4 | A esfera cresce e vai para a direita, ficando de fundo | Câmera da sakura com zoom e foco por seção, interpolada entre seções (`smooth(0.55→1)`) e suavizada no motor (5/s) | tabela `VIEWS` no controlador |
 | 5 | Manifesto com palavras desalinhadas que se alinham | Seção fixada (sticky, 1700px; 130svh no celular); cada palavra começa ±28–96px fora da linha e assenta em sequência. No compositor | `data-sk-word`, `.sk-manifesto` |
-| 6 | Texto legível sobre o objeto | Zona de respiro elíptica por seção: as células da sakura esmaecem ali | `safe` em `VIEWS` |
+| 6 | Texto legível sobre o objeto | Zona de respiro elíptica por seção: as células da sakura esmaecem ali. Além dela, a sakura recua sob cada linha de texto que fica direto sobre o fundo: ~10% de opacidade, com borda suave de 2 células, e a casca e os galhos perto do texto passam da tinta para o cinza. Com a tela em pé, as seções de leitura ficam mais fracas e as flores vão para a borda | `safe` e `tall` em `VIEWS`; `engine.setText`, `measureText()` no controlador |
 | 7 | Grade 2×5 com linhas finas | Grid com `gap: 1px` sobre fundo `#bfbebe`; hover inverte tinta e papel | `.sk-cell` |
 | 8 | Duas colunas de cards em velocidades diferentes | A coluna 2 tem parallax (`translateY = −distância ao centro × 0,16`) e começa 180px abaixo. No compositor | `data-sk-parallax="0.16"` |
 | 9 | Cards entram ao aparecer | Fade + 40px para cima em 1s, uma vez, ao passar da linha de 90% da tela. No celular, 16px em 0,5s, começando a 20% da tela antes de o bloco entrar. No nível C, nada fica escondido | `data-sk-reveal` |
@@ -112,6 +112,18 @@ blocos de glitch nas flores e caracteres que se embaralham perto do cursor.
     - As letras do título (80) ficam no quadro: no compositor, custariam ~20% da thread principal parado no hero.
   - Sem suporte (Firefox, Safari antes do 26) ou no artboard, o controlador anima no quadro, com as mesmas contas.
 - **Toque:** não embaralha os glifos nem empurra as pétalas, como o cursor faz.
+- **Leitura:** a sakura recua sob o texto que fica direto sobre o fundo.
+  - O controlador mede as linhas de texto (fora do papel e do vidro) quando o layout muda: o título pelas palavras, o
+    manifesto pelo parágrafo e o resto pelas linhas reais.
+  - A cada rolagem, ele passa ao motor as linhas na tela (`engine.setText`), e o motor refaz a máscara por célula.
+  - Sob o texto, a opacidade cai para ~10%, com borda suave de 2 células. A máscara entra suave depois da abertura.
+  - A casca e os galhos até 6 células do texto, ou dentro da elipse, saem da tinta para o cinza: a mistura da tinta com
+    o fundo, #8a8986 no claro.
+  - Parado, nada é recalculado. Com o papel tapando a tela, o motor volta a desenhar a meia velocidade só enquanto a
+    máscara precisa acompanhar o texto.
+  - Meta: nenhum glifo acima de 15% de opacidade sob o texto. Medido: no máximo 10%, na home e nos projetos, nos dois
+    temas e idiomas.
+- **Tamanhos mínimos no celular (até 720 px):** rótulos com 12 px (`--sk-cap`) e corpo com 16 px (`--sk-small`).
 - **Níveis de qualidade** (`TIERS` no controlador, `data-sk-tier` na raiz):
 
   | Nível | Motor | Cards | Vidro |
