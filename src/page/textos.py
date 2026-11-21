@@ -16,6 +16,7 @@ IDS = {
     'manifesto': ('manifesto', 'manifesto'),
     'about': ('sobre', 'overview'),
     'work': ('projetos', 'projects'),
+    'stack': ('stack', 'stack'),
     'areas': ('areas', 'areas'),
     'path': ('trajetoria', 'experience'),
     'me': ('sobre-mim', 'about-me'),
@@ -109,7 +110,7 @@ T = {
 }
 
 # menu: (data-sk-view, rótulo, ícone). A nav do desktop usa todos menos o contato, que vira o botão "Contato +".
-# "Sobre" (visão geral e stack) e "Sobre mim" viram Overview e About me: "About" e "About me" lado a lado confundem.
+# "Sobre" (visão geral) e "Sobre mim" viram Overview e About me: "About" e "About me" lado a lado confundem.
 MENU = (
     ('hero', ('Início', 'Home'), 'm2 8 6-5 6 5v6H2zM7 14v-4h2v4'),
     ('about', ('Sobre', 'Overview'), 'M10.5 5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0ZM3 14v-1a5 3.5 0 0 1 10 0v1'),

@@ -190,14 +190,9 @@ def manifesto(L):
 
 
 def about(L):
-    cells = '\n'.join(f'''<div class="sk-cell" style="background-color: {PAPER}; min-width: 0; min-height: 112px; padding: 19px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box">
-<span style="font-size: 18px; line-height: 1.2">{E(n)}</span>
-<span class="sk-cap" style="{CAP}">{E(L.t(c))}</span>
-</div>''' for n, c in STACK)
     return f'''
 <section {sec_attrs(L, 'about')} data-sk-view="about" style="position: relative; padding: 119px {PADX}">
-<div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 119px">
-<div data-sk-read data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-start">
+<div data-sk-read data-sk-reveal="1" style="max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-start">
 <div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 19px">
 <p style="margin: 0; font-size: var(--sk-small, 15px); line-height: 1.4; letter-spacing: 0.013em; text-transform: uppercase; max-width: 26em">{E(L['about_intro'])}</p>
 <a class="sk-link" href="https://github.com/Sitr3n01" style="align-self: flex-start; font-size: var(--sk-small, 15px); color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">GitHub ↗</a>
@@ -206,12 +201,22 @@ def about(L):
 <p style="margin: 0; font-size: 18px; line-height: 1.4; letter-spacing: 0.013em">{E(L['about_text'])}</p>
 </div>
 </div>
-<div data-sk-read data-sk-reveal="1" style="display: flex; flex-wrap: wrap; gap: 19px; align-items: flex-start">
-<p style="flex: 0 0 140px; margin: 0; {CAP}">{lines(L['stack_title'])}</p>
+</section>'''
+
+
+# stack de trabalho: vem depois dos projetos em destaque (a visão geral leva direto aos projetos)
+def stack(L):
+    cells = '\n'.join(f'''<div class="sk-cell" style="background-color: {PAPER}; min-width: 0; min-height: 112px; padding: 19px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box">
+<span style="font-size: 18px; line-height: 1.2">{E(n)}</span>
+<span class="sk-cap" style="{CAP}">{E(L.t(c))}</span>
+</div>''' for n, c in STACK)
+    return f'''
+<section {sec_attrs(L, 'stack')} data-sk-view="stack" style="position: relative; padding: 119px {PADX}">
+<div data-sk-read data-sk-reveal="1" style="max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 19px; align-items: flex-start">
+<h2 style="flex: 0 0 140px; margin: 0; font-weight: 400; {CAP}">{lines(L['stack_title'])}</h2>
 <div class="sk-cq" style="flex: 1 1 560px; min-width: 0; max-width: 1200px">
 <div class="sk-stack" style="display: flex; flex-wrap: wrap; gap: 1px; background-color: {ASH}; border: 1px solid {ASH}">
 {cells}
-</div>
 </div>
 </div>
 </div>
@@ -427,7 +432,7 @@ def frame(L, nav_html, main_html, doc=True, ref='', main_attrs=''):
 
 
 def body(L, root='', ref='', doc=True):
-    main = '\n'.join([hero(L), manifesto(L), about(L), work(L, PROJECTS[L.code], root), areas(L), path(L), me(L, root), contact(L)])
+    main = '\n'.join([hero(L), manifesto(L), about(L), work(L, PROJECTS[L.code], root), stack(L), areas(L), path(L), me(L, root), contact(L)])
     return frame(L, nav(L, '', root), main, doc, ref)
 
 
@@ -886,8 +891,7 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
   :root{--sk-cap:12px;--sk-small:16px}
   [data-sk-view="hero"]{padding-bottom:max(92px,12svh)!important}
   [data-sk-view="hero"] h1{font-size:clamp(27px,9.2vw,60px)!important}
-  [data-sk-view="about"],[data-sk-view="work"],[data-sk-view="path"],[data-sk-view="me"]{padding-block:84px!important}
-  [data-sk-view="about"]>div{gap:76px!important}
+  [data-sk-view="about"],[data-sk-view="work"],[data-sk-view="stack"],[data-sk-view="path"],[data-sk-view="me"]{padding-block:84px!important}
   [data-sk-view="work"] .sk-lens-btn{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
   .sk-card{min-height:0!important;padding:20px!important;gap:16px!important}
   .sk-card .sk-ascii{min-height:clamp(220px,70vw,340px)!important;margin-inline:-20px!important}

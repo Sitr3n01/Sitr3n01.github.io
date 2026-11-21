@@ -43,7 +43,7 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
 ├─ canvas[data-sk-canvas]      sakura em ASCII, fixa atrás de tudo, com 100lvh de altura
 ├─ header (nav fixa)
 ├─ main
-│   └─ section[data-sk-view=hero|manifesto|about|work|areas|path|me|contact]
+│   └─ section[data-sk-view=hero|manifesto|about|work|stack|areas|path|me|contact]
 ├─ [data-sk-hint] "SCROLL ↓" · WhatsApp (fixos)    [data-sk-ui]: entram depois da abertura
 ```
 

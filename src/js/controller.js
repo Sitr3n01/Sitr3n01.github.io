@@ -22,6 +22,8 @@ const VIEWS = {
   // vão para a borda (posição sx/sy na tela e opacidade com a tela em pé)
   about:     { cam: { z: 2.20, sx: 0.96, sy: 0.40 },  safe: { x: 0.40, y: 0.52, rx: 0.62, ry: 0.56, s: 0.93 }, alpha: 0.85, tall: { sx: 1.08, sy: 0.18, alpha: 0.70 } },
   work:      { cam: { z: 1.35, sx: 0.28, sy: 0.55 },  safe: { x: 0.50, y: 0.50, rx: 0.60, ry: 0.60, s: 0.45 }, alpha: 0.70 },
+  // a stack vem logo depois dos projetos e fica na mesma vista: a câmera só se move de novo a caminho das áreas
+  stack:     { cam: { z: 1.35, sx: 0.28, sy: 0.55 },  safe: { x: 0.50, y: 0.50, rx: 0.60, ry: 0.60, s: 0.45 }, alpha: 0.70 },
   areas:     { cam: { z: 1.05, sx: 0.50, sy: 0.50 },  safe: { x: 0.18, y: 0.86, rx: 0.26, ry: 0.16, s: 0.75 }, alpha: 0.95 },
   path:      { cam: { z: 1.60, sx: 0.12, sy: 0.88 },  safe: { x: 0.62, y: 0.50, rx: 0.50, ry: 0.62, s: 0.92 }, alpha: 0.90, tall: { alpha: 0.75 } },
   me:        { cam: { z: 1.90, sx: 1.00, sy: 0.30 },  safe: { x: 0.52, y: 0.55, rx: 0.66, ry: 0.62, s: 0.94 }, alpha: 0.80, tall: { sx: 1.10, sy: 0.14, alpha: 0.65 } },

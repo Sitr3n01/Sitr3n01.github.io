@@ -35,7 +35,7 @@ try {
 }
 ok(S.PRESETS && ['kosa', 'sanbon', 'ogi', 'itozakura', 'koeda'].every((p) => p in S.PRESETS), 'os 5 presets existem');
 
-for (const v of ['hero', 'manifesto', 'about', 'work', 'areas', 'path', 'me', 'contact'])
+for (const v of ['hero', 'manifesto', 'about', 'work', 'stack', 'areas', 'path', 'me', 'contact'])
   ok(html1.includes(`data-sk-view="${v}"`), `seção data-sk-view="${v}"`);
 for (const h of ['data-sk-root', 'data-sk-canvas', 'data-sk-rings', 'data-sk-hint', 'data-sk-read', 'data-sk-ui'])
   ok(html1.includes(h), `gancho ${h}`);
@@ -83,7 +83,7 @@ for (const slug of slugs) {
 let htmlEn = '';
 try { htmlEn = read('en/index.html'); } catch { /* falta */ }
 ok(htmlEn.includes('<html lang="en">') && html1.includes('<html lang="pt-BR">'), 'home em inglês (en/) e lang certo nas duas');
-for (const v of ['hero', 'manifesto', 'about', 'work', 'areas', 'path', 'me', 'contact'])
+for (const v of ['hero', 'manifesto', 'about', 'work', 'stack', 'areas', 'path', 'me', 'contact'])
   if (!htmlEn.includes(`data-sk-view="${v}"`)) ok(false, `en/: seção data-sk-view="${v}"`);
 const slugsEn = [...htmlEn.matchAll(/href="projects\/([a-z0-9-]+)\/"/g)].map((m) => m[1]);
 ok(slugsEn.join() === slugs.join(), 'en/: os mesmos cards, na mesma ordem');
