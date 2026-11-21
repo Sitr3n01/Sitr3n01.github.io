@@ -471,6 +471,8 @@ function mount(root, options) {
   const on = !!IN && (!IN.zoom || !!bud);
   let skew = 0, grown = false, burstDone = false, bandOff = false, uiShown = !on, introSkipped = false;
   if (on) root.setAttribute('data-sk-intro', 'on');
+  // daqui em diante a abertura (ou a falta dela) decide o que aparece: sai o estado de antes da montagem (THEME_SCRIPT)
+  document.documentElement.removeAttribute('data-sk-boot');
   const showUI = () => { uiShown = true; root.setAttribute('data-sk-intro', 'off'); };
   const skip = () => {
     restore = null;

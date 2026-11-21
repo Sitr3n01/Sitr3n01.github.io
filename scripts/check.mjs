@@ -50,6 +50,11 @@ ok(js1.includes("setAttribute('data-sk-timeline'") && js1.includes("'data-sk-liv
   html1.includes('[data-sk-timeline] [data-sk-live] [data-sk-word]') && html1.includes('[data-sk-timeline] [data-sk-parallax]'),
   'efeitos no compositor: data-sk-timeline, data-sk-live e as faixas --off, --w0, --x0, --y0 nos dois lados');
 ok(!html1.includes('\r\n') && !js1.includes('\r\n'), 'saída só com LF');
+// abertura: nada da interface aparece num quadro antes dela (data-sk-boot do <head> até a montagem), e a página não
+// vaza na horizontal com as letras espalhadas (o celular afastaria o zoom e esticaria o canvas)
+ok(/<head>[\s\S]*setAttribute\('data-sk-boot'[\s\S]*<\/head>/.test(html1) && html1.includes('[data-sk-boot] [data-sk-ui]') &&
+  js1.includes("removeAttribute('data-sk-boot')"), 'interface escondida desde o <head> até a abertura (data-sk-boot)');
+ok(html1.includes('[data-sk-doc]{overflow-x:clip}'), 'página sem vazamento horizontal na abertura (overflow-x: clip)');
 // tema: o <head> escolhe antes da pintura, os dois temas definem os mesmos tokens e há botão no toolbar e no menu
 {
   const vars = sel => { const m = html1.match(new RegExp(sel.replace(/[[\]"]/g, '\\$&') + '\\{([^}]*)\\}')); return m ? m[1].split(';').map(d => d.split(':')[0]).sort().join() : ''; };

@@ -694,6 +694,13 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
 @media (prefers-reduced-motion:reduce){[data-sk-ui]{transition:none}}
 [data-sk-rings]{transition:opacity 1.4s ease}
 [data-sk-intro="on"] [data-sk-rings]{opacity:0;transition:none}
+/* antes da montagem (data-sk-boot, ver THEME_SCRIPT): o mesmo estado escondido da abertura */
+[data-sk-boot] [data-sk-ui]{opacity:0!important;transform:translate3d(0,-10px,0);transition:none}
+[data-sk-boot] [data-sk-rings],[data-sk-boot] [data-sk-view="hero"] h1{opacity:0;transition:none}
+/* As letras do título começam espalhadas (até 420 px para os lados) e o que passa da largura da tela faria o celular
+   afastar o zoom no meio da abertura, esticando o canvas (medido na largura certa). clip corta sem criar rolagem, e
+   as cenas fixadas (sticky) continuam funcionando. */
+[data-sk-doc]{overflow-x:clip}
 
 /* ---- transição entre páginas: kanji e título do card voam até a página do projeto ---- */
 @view-transition{navigation:auto}
@@ -1052,9 +1059,14 @@ def alternates(slug=None):
 
 # Tema antes da primeira pintura (sem piscar): ?theme=dark|light (testes), senão a escolha guardada, senão o claro, que
 # é o padrão do site. O controlador cuida dos botões e mantém as páginas abertas em dia com a escolha (mountTheme).
+# data-sk-boot: até o script do site montar (fim do <body>), a interface, os anéis e o título ficam escondidos como na
+# abertura; sem isso, o navegador pinta um quadro com tudo à vista antes dela. O controlador tira a marca ao montar; se
+# o script falhar, o load tira. Com movimento reduzido não há abertura, então a página já começa à vista.
 THEME_SCRIPT = ('<script>(function(d){var t=(/[?&]theme=(dark|light)\\b/.exec(location.search)||[])[1];'
                 "if(!t)try{t=localStorage.getItem('sk-theme')}catch(e){}"
-                "d.setAttribute('data-theme',t==='dark'?'dark':'light')})(document.documentElement)</script>")
+                "d.setAttribute('data-theme',t==='dark'?'dark':'light');"
+                "if(!matchMedia('(prefers-reduced-motion: reduce)').matches){d.setAttribute('data-sk-boot','');"
+                "addEventListener('load',function(){d.removeAttribute('data-sk-boot')})}})(document.documentElement)</script>")
 
 
 def build_standalone(L, script_src, body_html, title, desc=None, opts="{ preset: 'kosa' }", slug=None):
