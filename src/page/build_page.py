@@ -151,7 +151,7 @@ def nav(L, home='', root='', slug=None):
 </nav>
 {lang_switch(L, root, slug)}
 {theme_btn(L)}
-<button type="button" class="sk-menu-toggle sk-lens-btn" data-sk-menu-open aria-controls="sk-mobile-menu" aria-expanded="false">{L['menu']} {nav_icon('M2 5h12M2 8h12M2 11h12')}</button>
+<button type="button" class="sk-menu-toggle sk-lens-btn" data-sk-menu-open aria-controls="sk-mobile-menu" aria-expanded="false" aria-label="{L['menu']}"><span class="sk-menu-label" aria-hidden="true">{L['menu']}</span> {nav_icon('M2 5h12M2 8h12M2 11h12')}</button>
 </div>
 <dialog id="sk-mobile-menu" class="sk-menu" data-sk-menu aria-label="{L['menu_aria']}">
 <div class="sk-menu-head">
@@ -609,7 +609,7 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
 /* ---- vidro líquido: trilho fosco + lente refrativa ---- */
 @property --rim{syntax:'<angle>';inherits:true;initial-value:0deg}
 .sk-toolbar{--sk-track-tint:.55;--sk-track-blur:14px;--sk-lens-center:.92;--sk-lens-mid:.75}
-.sk-glass{position:relative;border-radius:999px;background-color:rgba(var(--sk-parch-rgb),var(--sk-track-tint,.44));
+.sk-glass{position:relative;border-radius:999px;touch-action:pan-y pinch-zoom;background-color:rgba(var(--sk-parch-rgb),var(--sk-track-tint,.44));
   -webkit-backdrop-filter:blur(var(--sk-track-blur,9px)) saturate(1.25);backdrop-filter:blur(var(--sk-track-blur,9px)) saturate(1.25);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.7),inset 0 1px 3px rgba(29,29,29,.07),0 0 0 1px rgba(29,29,29,.06),0 1px 0 rgba(255,255,255,.8)}
 .sk-logo{display:inline-block;padding:12px 0;font-size:22px;font-weight:700;line-height:1;letter-spacing:-.02em;text-decoration:none;color:var(--sk-ink)}
@@ -617,7 +617,7 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
 .sk-track-lg{flex-wrap:wrap;max-width:100%;box-sizing:border-box}
 .sk-seg{position:relative;z-index:1;display:inline-block;padding:10px 18px;border-radius:999px;font-size:var(--sk-cap,11px);line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
   color:var(--sk-mute);text-decoration:none;white-space:nowrap;transition:color .35s ease}
-.sk-seg.is-on,.sk-seg:hover{color:var(--sk-ink)}
+.sk-seg.is-on{color:var(--sk-ink)}@media (hover:hover){.sk-seg:hover{color:var(--sk-ink)}}
 .sk-track-lg .sk-seg{padding:14px 24px;font-size:var(--sk-small,15px);letter-spacing:.013em;text-transform:none}
 /* direita da toolbar: nav (desktop), idioma e botão Menu (celular) num grupo só */
 .sk-tools{display:flex;align-items:center;gap:10px}
@@ -640,9 +640,13 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
   transition:transform .62s cubic-bezier(.25,.85,.35,1),width .62s cubic-bezier(.25,.85,.35,1),height .62s cubic-bezier(.25,.85,.35,1),opacity .3s ease,--rim .9s cubic-bezier(.3,1,.4,1)}
 .sk-lens.is-off{opacity:0;transform:translate3d(var(--x,0),var(--y,0),0) scale(.6,.6)}
 .sk-lens.no-anim{transition:none}
+/* toque: a lente incha sob o dedo enquanto ele está no trilho (glass.js) */
+.sk-lens.is-held{transform:translate3d(var(--x,0),var(--y,0),0) scale(calc(var(--sx) * 1.08),calc(var(--sy) * 1.12))}
 .sk-lens-btn{position:relative;display:inline-block;padding:13px 22px;font-size:var(--sk-cap,11px);line-height:1.4;letter-spacing:.05em;text-transform:uppercase;
   color:var(--sk-ink);text-decoration:none;white-space:nowrap;transition:transform .5s cubic-bezier(.3,1.5,.5,1),--rim .9s cubic-bezier(.3,1,.4,1)}
-.sk-lens-btn:hover{transform:scale(1.04)}.sk-lens-btn:active{transform:scale(.97)}
+@media (hover:hover){.sk-lens-btn:hover{transform:scale(1.04)}}.sk-lens-btn:active{transform:scale(.97)}
+/* toque: sem hover, o vidro incha enquanto é pressionado e volta com a mola da transição (glass.js) */
+.sk-lens-btn.is-press{transform:scale(1.1)}
 .sk-lens::before,.sk-lens-btn::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:2.5px;pointer-events:none;
   background:conic-gradient(from var(--rim),rgba(255,255,255,0) 18deg,rgba(250,203,14,.55) 30deg,rgba(240,107,168,.5) 38deg,rgba(120,186,230,.6) 46deg,rgba(255,255,255,0) 58deg,
     rgba(255,255,255,0) 198deg,rgba(120,186,230,.5) 210deg,rgba(240,107,168,.45) 218deg,rgba(250,203,14,.5) 226deg,rgba(255,255,255,0) 238deg);
@@ -658,7 +662,8 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
   .sk-track-lg .sk-seg{padding:14px 20px}}
 @media (prefers-reduced-motion:reduce){.sk-lens,.sk-lens-btn,.sk-seg{transition:none!important}}
 
-/* ---- tema: botão de vidro redondo depois do idioma (no celular, no cabeçalho do menu); a lua gira e vira sol ---- */
+/* ---- tema: botão de vidro redondo depois do idioma, sempre visível (com o menu aberto, também no cabeçalho dele);
+   a lua gira e vira sol ---- */
 .sk-lens-btn.sk-theme{display:inline-flex;flex:0 0 auto;width:44px;height:44px;padding:0;border:0;font:inherit;cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent}
 .sk-theme svg{position:absolute;left:50%;top:50%;margin:-9px 0 0 -9px;transition:opacity .4s ease,transform .6s cubic-bezier(.3,1.5,.5,1)}
 .sk-theme .sk-i-sun,[data-theme="dark"] .sk-theme .sk-i-moon{opacity:0;transform:rotate(-70deg) scale(.5)}
@@ -847,7 +852,7 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
 
 /* A toolbar e os controles cabem em uma linha também no celular deitado. Até 950 px a nav do desktop, o "Contato +", o
    seletor de idioma e o botão de tema não cabem numa linha ao lado do logo (o inglês pede ~870 px mais as margens): a
-   toolbar vira logo + idioma + Menu (o mesmo do celular), e o tema vai para o cabeçalho do menu. */
+   toolbar vira logo + idioma + tema + Menu (o mesmo do celular). Com a tela em pé, o Menu fica só com o ícone. */
 .sk-menu-toggle,.sk-menu{display:none}
 @media (max-width:950px),(max-width:1024px) and (pointer:coarse),(max-height:520px) and (pointer:coarse){
   :root{--sk-mobile-edge:clamp(16px,4.5vw,32px);--sk-mobile-top:104px}
@@ -856,7 +861,7 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
   .sk-toolbar .sk-logo,.sk-menu .sk-logo{font-size:19px;line-height:20px}
   .sk-topblur{height:var(--sk-mobile-top)}
   [data-sk-root]:not([data-sk-menu-ready]) .sk-navlinks{display:none}
-  [data-sk-menu-ready] .sk-desktop-nav,[data-sk-menu-ready] .sk-wa-wrap,[data-sk-menu-ready] .sk-tools>.sk-theme{display:none!important}
+  [data-sk-menu-ready] .sk-desktop-nav,[data-sk-menu-ready] .sk-wa-wrap{display:none!important}
   [data-sk-menu-ready] .sk-menu-toggle,.sk-menu-close{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;
     gap:10px;min-height:44px;padding:0 15px;border:0;font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
   .sk-menu-toggle[aria-expanded="true"]{opacity:0}
@@ -893,6 +898,12 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
   [data-sk-view="hero"] h1{font-size:clamp(27px,9.2vw,60px)!important}
   [data-sk-view="about"],[data-sk-view="work"],[data-sk-view="stack"],[data-sk-view="path"],[data-sk-view="me"]{padding-block:84px!important}
   [data-sk-view="work"] .sk-lens-btn{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
+  /* toolbar em pé: logo + idioma + tema + Menu cabem em 320 px com o Menu redondo, só com o ícone (o nome vem do
+     aria-label), redondo como o tema e o botão de fechar do menu */
+  .sk-toolbar{gap:12px!important}
+  .sk-tools{gap:8px}
+  [data-sk-menu-ready] .sk-menu-toggle{width:44px;padding:0}
+  .sk-menu-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   .sk-card{min-height:0!important;padding:20px!important;gap:16px!important}
   .sk-card .sk-ascii{min-height:clamp(220px,70vw,340px)!important;margin-inline:-20px!important}
   .sk-row{display:grid!important;grid-template-columns:28px minmax(0,1fr);gap:10px 8px!important}

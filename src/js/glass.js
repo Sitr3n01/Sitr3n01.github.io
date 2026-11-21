@@ -3,6 +3,11 @@
 // A lente estica na direção do movimento (efeito "gelatina") e gira o reflexo iridescente da borda.
 //   data-sk-glass="spy"   → o item ativo segue a seção visível (href="#id"); sem seção, a lente some
 //   data-sk-glass-rest=N  → índice do item onde a lente descansa quando não há hover/foco
+// No toque (e na caneta) não há hover: a lente vai até o item tocado, incha sob o dedo e segue o dedo pelo trilho; ao
+// soltar sobre outro item, ele é acionado (como arrastar numa barra de abas). Se a página começar a rolar, o navegador
+// cancela o toque e a lente volta. Os botões de vidro avulsos incham e giram o reflexo no toque.
+const GLASS_HOLD = 650; // ms que a lente fica no item tocado depois de soltar
+const GLASS_PRESS_MIN = 160; // ms mínimos de botão pressionado, para um toque rápido ainda aparecer
 function mountGlass(root, scroller) {
   const reduceG = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const offs = [];
@@ -13,7 +18,8 @@ function mountGlass(root, scroller) {
     const segs = Array.from(track.querySelectorAll('.sk-seg'));
     const spy = track.dataset.skGlass === 'spy';
     const restIdx = track.dataset.skGlassRest;
-    const st = { track, lens, segs, spy, rest: restIdx != null ? segs[+restIdx] : null, cur: null, rim: 0, hover: null, focus: null, timer: 0 };
+    const st = { track, lens, segs, spy, rest: restIdx != null ? segs[+restIdx] : null, cur: null, rim: 0, hover: null, focus: null, timer: 0,
+      press: null, from: null, pointer: null, release: 0 };
 
     st.place = (seg, instant) => {
       segs.forEach(s => s.classList.toggle('is-on', s === seg));
@@ -42,22 +48,63 @@ function mountGlass(root, scroller) {
       st.cur = seg;
       if (lens.classList.contains('no-anim')) { void lens.offsetWidth; lens.classList.remove('no-anim'); }
     };
-    st.settle = instant => st.place(st.hover || (st.focus?.matches(':focus-visible') ? st.focus : st.rest), instant);
+    st.settle = instant => st.place(st.press || st.hover || (st.focus?.matches(':focus-visible') ? st.focus : st.rest), instant);
 
     segs.forEach(seg => {
-      on(seg, 'pointerenter', event => { if (event.pointerType !== 'touch') { st.hover = seg; st.settle(); } });
+      on(seg, 'pointerenter', event => { if (event.pointerType === 'mouse') { st.hover = seg; st.settle(); } });
       on(seg, 'focus', () => { st.focus = seg; st.settle(); });
       on(seg, 'blur', () => { st.focus = null; st.settle(); });
     });
-    on(track, 'pointerleave', () => { st.hover = null; st.settle(); });
+    on(track, 'pointerleave', event => { if (event.pointerType === 'mouse') { st.hover = null; st.settle(); } });
+
+    // toque: o item sob o dedo (o toque fica preso ao item onde começou, então a posição decide)
+    const segAt = (x, y) => { const seg = document.elementFromPoint(x, y)?.closest('.sk-seg'); return seg && segs.includes(seg) ? seg : null; };
+    on(track, 'pointerdown', event => {
+      const seg = event.pointerType !== 'mouse' && event.target.closest('.sk-seg');
+      if (!seg || !segs.includes(seg)) return;
+      clearTimeout(st.release);
+      st.pointer = event.pointerId; st.press = st.from = seg;
+      lens.classList.add('is-held');
+      st.settle();
+    });
+    on(track, 'pointermove', event => {
+      if (event.pointerId !== st.pointer) return;
+      const seg = segAt(event.clientX, event.clientY);
+      if (seg && seg !== st.press) { st.press = seg; st.settle(); }
+    });
+    const lift = (event, cancel) => {
+      if (event.pointerId !== st.pointer) return;
+      st.pointer = null;
+      lens.classList.remove('is-held');
+      // arrastou até outro item: o navegador não gera o clique (o dedo saiu do lugar), então ele é acionado aqui
+      if (!cancel && st.press !== st.from) st.press.click();
+      st.release = setTimeout(() => { st.press = null; st.settle(); }, cancel ? 0 : GLASS_HOLD);
+    };
+    on(track, 'pointerup', event => lift(event, false));
+    on(track, 'pointercancel', event => lift(event, true));
     return st;
   });
 
-  // lente avulsa (botão "Contato +"): o reflexo gira no hover
+  // lente avulsa (botão "Contato +", tema, menu, WhatsApp...): o reflexo gira no hover; no toque, o vidro incha
+  // (.is-press) e o reflexo dá meia volta
   root.querySelectorAll('.sk-lens-btn').forEach(btn => {
-    let rim = 0;
+    let rim = 0, downAt = 0, timer = 0;
     const spin = d => { rim += d; btn.style.setProperty('--rim', rim + 'deg'); };
-    on(btn, 'pointerenter', () => spin(140)); on(btn, 'pointerleave', () => spin(-140));
+    on(btn, 'pointerenter', event => { if (event.pointerType === 'mouse') spin(140); });
+    on(btn, 'pointerleave', event => { if (event.pointerType === 'mouse') spin(-140); });
+    on(btn, 'pointerdown', event => {
+      if (event.pointerType === 'mouse') return;
+      clearTimeout(timer); downAt = performance.now();
+      btn.classList.add('is-press'); spin(180);
+    });
+    const up = () => {
+      if (!downAt) return;
+      const wait = Math.max(0, GLASS_PRESS_MIN - (performance.now() - downAt));
+      downAt = 0;
+      timer = setTimeout(() => btn.classList.remove('is-press'), wait);
+    };
+    on(btn, 'pointerup', up); on(btn, 'pointercancel', up);
+    offs.push(() => clearTimeout(timer));
   });
 
   // scroll spy contínuo: vale o último destino da nav que já passou de 40% da tela. Seções sem botão
@@ -102,6 +149,6 @@ function mountGlass(root, scroller) {
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { anchors = null; relayout(); if (spies.length) spyNow(); });
 
   return {
-    destroy() { offs.forEach(f => f()); if (ro) ro.disconnect(); cancelAnimationFrame(sraf); tracks.forEach(t => clearTimeout(t.timer)); },
+    destroy() { offs.forEach(f => f()); if (ro) ro.disconnect(); cancelAnimationFrame(sraf); tracks.forEach(t => { clearTimeout(t.timer); clearTimeout(t.release); }); },
   };
 }
