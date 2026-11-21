@@ -113,6 +113,37 @@ Desempenho, `preview/rolagem` → `preview/leitura`, duas rodadas intercaladas:
 Empate dentro do ruído. Rolando no celular, o motor gasta ~20 ms/s a mais para a máscara acompanhar o texto (de 125–128
 para 146–152), cerca de 2 pontos de ocupação. As metas do celular 360 seguem cumpridas.
 
+**Fase 4 feita na branch `preview/layout-mobile`** (2026-11-21, a partir da `preview/leitura`). Tudo até 720 px; o desktop
+e o tablet não mudam. O que entrou:
+- **Stack em 2 × 5**, com células mais baixas (84 px).
+- **Fatos e números:** os fatos curtos (período, status) dois por linha e os longos (papel, stack) na linha inteira;
+  números aos pares quando a contagem é par (a regra de não deixar célula sozinha esticada continua).
+- **Cards:** palco de 62vw (antes 70vw), com o objeto 10% maior: fica do mesmo tamanho num card mais baixo.
+- **Frentes de trabalho:** 14 chips, que cobrem as quatro áreas, e os rótulos numa linha fixa no topo, fora da órbita.
+  O título já não tem flor por baixo (fase 3).
+- **Sobre mim:** a foto ocupa 36% da largura, ao lado do nome e da frase.
+
+Opções renderizadas para as duas escolhas visuais (a A é a implementada):
+- Frentes: A, rótulos numa linha no topo; B, rótulos em 2 × 2 no topo; C, rótulos numa linha acima do título.
+- Sobre mim: A, foto 36% ao lado do nome e da frase; B, foto 26% ao lado só do nome; C, foto em faixa 16:9 com o nome
+  embaixo.
+
+Rolagem da home no celular 390 × 844: 14,6 telas na main → 12,5 (fase 2) → 12,6 (fase 3) → 10,8 (fase 4), 26% a
+menos no total. O sobre caiu de 1.820 para 1.115 px. A página de projeto foi de 5,6 para 5,3 telas. A meta da leitura
+segue cumprida (pior célula com 10%).
+
+Desempenho, `preview/leitura` → `preview/layout-mobile`, duas rodadas intercaladas: empate. Celular 360 com CPU 6×:
+parado 33 → 33% / 33 → 34%, rolagem p95 13 → 13 ms nas duas, sobre os cards 35 → 33% / 34 → 33%. No desktop, parado
+32–43% e rolagem p95 33–38 ms nas duas versões.
+
+**Depois das fases 2, 3 e 4:**
+- Falta conferir em aparelho real (Android e iPhone): a barra de endereço, as animações presas à rolagem no Safari 26 e
+  o desempenho com GPU de verdade.
+- Seguem abertos:
+  - O p95 da rolagem no desktop fraco (o fundo é refeito inteiro com a câmera andando; o item 1.7, motor em worker,
+    atacaria isso).
+  - A ocupação sobre os cards no desktop 1080p com CPU 4×, que oscila em torno da meta de 70%.
+
 ## 1. Diagnóstico medido
 
 **Método.** Chrome 157 headless controlado via CDP. A CPU foi emulada 4× e 6× mais lenta, e o celular foi emulado com

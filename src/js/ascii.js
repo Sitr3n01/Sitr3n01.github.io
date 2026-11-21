@@ -365,6 +365,8 @@ function ascStage(el, store, reduce) {
 function ascLayout(S) {
   const r = S.el.getBoundingClientRect(), g = S.grid.getBoundingClientRect();
   S.W = Math.max(1, Math.round(r.width)); S.H = Math.max(1, Math.round(r.height));
+  // --sk-ascii-fit: o CSS pode aumentar o objeto num palco mais baixo (cards no celular)
+  S.fit = parseFloat(getComputedStyle(S.el).getPropertyValue('--sk-ascii-fit')) || 1;
   S.canvas.width = S.W; S.canvas.height = S.H;
   S.canvas.style.width = S.W + 'px'; S.canvas.style.height = S.H + 'px';
   S.img = S.ctx.createImageData(S.W, S.H); S.px = new Uint32Array(S.img.data.buffer);
@@ -492,7 +494,7 @@ function ascOrder(S, kind, A, Bc, shA) {
 
 function ascFit(S, sh, tilt) {
   const vr = sh.rv * Math.cos(tilt) + sh.rh * Math.abs(Math.sin(tilt));
-  return Math.min(S.W * 0.46 / sh.rh, S.H * 0.47 / Math.max(0.2, vr)) * (sh.view.scale || 1);
+  return Math.min(S.W * 0.46 / sh.rh, S.H * 0.47 / Math.max(0.2, vr)) * (sh.view.scale || 1) * (S.fit || 1);
 }
 
 function ascStep(S, dt) {

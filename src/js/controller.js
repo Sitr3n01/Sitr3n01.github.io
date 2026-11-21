@@ -302,7 +302,8 @@ function mount(root, options) {
   const Ch = chips.map((_, i) => ({ a: i * 2.39996, rad: R.uniform(0.72, 1.18), lift: R.uniform(-0.35, 0.35), spd: R.uniform(0.08, 0.16), out: R.uniform(1.8, 3.4),
     ox: 0, oy: 0, w: 0, h: 0 }));
   // tamanhos dos chips (sem transform), lidos uma vez e de novo quando as fontes carregam
-  const sizeChips = () => chips.forEach((el, n) => { Ch[n].w = el.offsetWidth; Ch[n].h = el.offsetHeight; });
+  // off: chip escondido (no celular ficam 14, ver .sk-chip-extra), fora da órbita e das colisões
+  const sizeChips = () => chips.forEach((el, n) => { Ch[n].w = el.offsetWidth; Ch[n].h = el.offsetHeight; Ch[n].off = !Ch[n].w; });
   let orbitT = 0;
   if (chips.length && document.fonts && document.fonts.ready) document.fonts.ready.then(sizeChips);
 
@@ -327,6 +328,7 @@ function mount(root, options) {
     geo.cols = parallax.map(el => ({ el, top: topOf(el) - shiftOf(el), h: el.offsetHeight, speed: Number(el.dataset.skParallax), y: NaN }));
     if (orbit) { const sec = orbit.closest('[data-sk-view]'); geo.orbitTop = topOf(sec); geo.orbitH = sec.offsetHeight; }
     if (words.length) { const sec = words[0].closest('[data-sk-view]'); geo.wordsTop = topOf(sec); geo.wordsH = sec.offsetHeight; }
+    if (chips.length) sizeChips(); // a largura da tela decide quantos chips aparecem
     // superfícies de papel (opacas): quanto da tela elas tapam decide a velocidade do fundo (engine.setCover)
     const left = docScroll ? 0 : scroller.getBoundingClientRect().left;
     geo.paper = paper.map(el => {
@@ -706,6 +708,7 @@ function mount(root, options) {
           for (let i = 0; i < P.length; i++) {
             for (let j = i + 1; j < P.length; j++) {
               const A = P[i], B = P[j], ci = Ch[i], cj = Ch[j];
+              if (ci.off || cj.off) continue;
               const dx = (B.x + cj.ox) - (A.x + ci.ox), dy = (B.y + cj.oy) - (A.y + ci.oy);
               const px = A.hw + B.hw - Math.abs(dx), py = A.hh + B.hh - Math.abs(dy);
               if (px <= 0 || py <= 0) continue;
@@ -716,6 +719,7 @@ function mount(root, options) {
         }
         chips.forEach((el, n) => {
           const c = Ch[n], p = P[n];
+          if (c.off) return;
           c.ox *= keep; c.oy *= keep;
           el.style.transform = `translate3d(${(p.x + c.ox).toFixed(1)}px, ${(p.y + c.oy).toFixed(1)}px, 0) translate(-50%, -50%) scale(${p.sc.toFixed(3)})`;
           el.style.opacity = String(((0.55 + 0.45 * p.depth) * (1 - e)).toFixed(3));

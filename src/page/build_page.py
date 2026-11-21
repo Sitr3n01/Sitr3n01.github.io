@@ -261,16 +261,19 @@ def work(L, projects, root):
 </section>'''
 
 
-def chip(t):
-    return (f'<span data-sk-chip="1" aria-hidden="true" style="position: absolute; left: 0; top: 0; display: block; padding: 8px 12px; background-color: {PAPER}; border: 1px solid {ASH}; '
+def chip(t, extra=False):
+    """Chip da órbita. extra: some no celular, que fica com os 14 primeiros (as quatro áreas)."""
+    cls = ' class="sk-chip-extra"' if extra else ''
+    return (f'<span data-sk-chip="1"{cls} aria-hidden="true" style="position: absolute; left: 0; top: 0; display: block; padding: 8px 12px; background-color: {PAPER}; border: 1px solid {ASH}; '
             f'font-family: {MONO}; font-size: 12px; line-height: 1.2; white-space: nowrap; color: {INK}">{E(t)}</span>')
 
 
+MOBILE_CHIPS = 14
 LBL = f"margin: 0; font-size: 15px; line-height: 1.1; letter-spacing: 0.013em; text-transform: uppercase; color: {INK}"
 
 
 def areas(L):
-    chips = '\n'.join(chip(L.t(t)) for t in CHIPS)
+    chips = '\n'.join(chip(L.t(t), i >= MOBILE_CHIPS) for i, t in enumerate(CHIPS))
     labels = '\n'.join(f'<p data-sk-orbit-label="1" style="{LBL}; {pos}">{lines(L.t(txt))}</p>' for txt, pos in AREA_LABELS)
     return f'''
 <section {sec_attrs(L, 'areas')} data-sk-view="areas" aria-label="{L['areas_aria']}" style="position: relative; height: max(2600px, 120vh)">
@@ -311,7 +314,7 @@ def me(L, root):
 <section {sec_attrs(L, 'me')} data-sk-view="me" style="position: relative; padding: 119px {PADX}">
 <div style="max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px">
 <h2 data-sk-read style="flex: 0 0 200px; margin: 0; font-weight: 400; {CAP}">{L['me_title']}</h2>
-<div style="flex: 1 1 560px; min-width: 0; display: flex; flex-wrap: wrap; gap: 46px; align-items: flex-start">
+<div class="sk-me-body" style="flex: 1 1 560px; min-width: 0; display: flex; flex-wrap: wrap; gap: 46px; align-items: flex-start">
 <figure class="sk-me-photo" data-sk-read data-sk-reveal="1">
 <img src="{root}assets/sobre/foto.jpg" width="960" height="1281" loading="lazy" decoding="async" alt="{E(L['me_alt'])}">
 </figure>
@@ -470,7 +473,9 @@ def project_body(L, p, nxt, root):
     facts = [(L['fact_role'], p.get('papel', '')), (L['fact_period'], p.get('periodo', '')),
              (L['fact_status'], p.get('status', '')), (L['fact_stack'], ', '.join(p['stack']))]
     facts = [(k, v) for k, v in facts if v]
-    facts_html = '\n'.join(f'<div class="sk-fact"><span style="{CAP}; color: {MUTE}">{k}</span><span class="sk-fact-v">{inline(v)}</span></div>'
+    # no celular, um valor curto (período, status) ocupa meia linha; o longo (papel, stack), a linha inteira
+    wide = lambda v: ' sk-fact-wide' if len(v) > 26 else ''
+    facts_html = '\n'.join(f'<div class="sk-fact{wide(v)}"><span style="{CAP}; color: {MUTE}">{k}</span><span class="sk-fact-v">{inline(v)}</span></div>'
                            for k, v in facts)
     secs = []
     for sec in p['sections']:
@@ -943,6 +948,31 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
 }
 @media (max-width:320px) and (max-height:400px){
   [data-sk-view="manifesto"] p{font-size:clamp(15px,min(5.8vw,6.8vh),22px)}
+}
+/* ---- layout mobile (fase 4): menos rolagem para o mesmo conteúdo ---- */
+@media (max-width:720px){
+  /* stack em 2 × 5 (antes, 10 células numa coluna) */
+  .sk-stack>.sk-cell{flex-basis:calc((100% - 2px) / 2)!important;min-height:84px!important;padding:14px 16px!important}
+  .sk-stack>.sk-cell>span:first-child{font-size:16px!important}
+  /* fatos: os curtos dois por linha, os longos na linha inteira; números aos pares */
+  .sk-facts>.sk-fact{flex-basis:calc((100% - 2px) / 2);min-height:84px;padding:16px;gap:12px}
+  .sk-facts>.sk-fact-wide{flex-basis:100%}
+  .sk-stats[data-pair]>.sk-stat{flex-basis:calc((100% - 2px) / 2)}
+  .sk-stat{min-height:112px;padding:16px}
+  /* cards: palco mais baixo, objeto do mesmo tamanho */
+  .sk-card .sk-ascii{min-height:clamp(200px,62vw,320px)!important;--sk-ascii-fit:1.1}
+  /* frentes de trabalho: 14 chips e os rótulos numa linha fixa no topo, fora da órbita */
+  .sk-chip-extra{display:none!important}
+  .sk-area-labels{inset:calc(var(--sk-mobile-top) + 12px) var(--sk-mobile-edge) auto!important;display:flex;justify-content:space-between;gap:8px}
+  .sk-area-labels [data-sk-orbit-label]{position:static!important;font-size:12px!important;line-height:1.2!important}
+  /* sobre mim: foto menor, ao lado do nome; o texto e os fatos seguem na largura toda */
+  .sk-me-body{display:grid!important;grid-template-columns:minmax(0,36%) minmax(0,1fr);gap:20px 16px!important;align-items:start!important}
+  .sk-me-copy{display:contents}
+  .sk-me-photo{grid-column:1;grid-row:1;max-width:none!important}
+  .sk-me-copy>:first-child{grid-column:2;grid-row:1;gap:14px!important}
+  .sk-me-copy>:not(:first-child){grid-column:1 / -1}
+  .sk-me-name{font-size:clamp(22px,7vw,32px)}
+  .sk-me-copy .sk-lead{font-size:16px}
 }
 /* cenas fixadas mais curtas no celular: o manifesto e as frentes de trabalho tomavam 33% da rolagem */
 @media (max-width:720px),(max-height:520px) and (pointer:coarse){

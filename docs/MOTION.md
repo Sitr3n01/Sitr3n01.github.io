@@ -124,6 +124,14 @@ blocos de glitch nas flores e caracteres que se embaralham perto do cursor.
   - Meta: nenhum glifo acima de 15% de opacidade sob o texto. Medido: no máximo 10%, na home e nos projetos, nos dois
     temas e idiomas.
 - **Tamanhos mínimos no celular (até 720 px):** rótulos com 12 px (`--sk-cap`) e corpo com 16 px (`--sk-small`).
+- **Layout no celular (até 720 px):** o mesmo conteúdo em menos rolagem.
+  - Stack em 2 × 5 (antes, 10 células numa coluna).
+  - Fatos dos projetos: os de valor curto (período, status) dois por linha, os longos (papel, stack) na linha inteira
+    (`.sk-fact-wide`, valor com mais de 26 caracteres). Números aos pares, quando a contagem é par.
+  - Cards com palco de 62vw (antes 70vw); o objeto ganha 10% (`--sk-ascii-fit`) e fica do mesmo tamanho.
+  - Frentes de trabalho com 14 chips (os outros têm `.sk-chip-extra` e saem da órbita) e os rótulos numa linha fixa
+    no topo, fora da órbita.
+  - Sobre mim: a foto ocupa 36% da largura, ao lado do nome e da frase; o texto e os fatos seguem na largura toda.
 - **Níveis de qualidade** (`TIERS` no controlador, `data-sk-tier` na raiz):
 
   | Nível | Motor | Cards | Vidro |
@@ -151,4 +159,5 @@ blocos de glitch nas flores e caracteres que se embaralham perto do cursor.
 
 - Licenciar a Ataero Retina ou manter a Inter.
 - Os kanji ainda aparecem no quadro de vídeo vazio das páginas de projeto (o link "Próximo projeto" já não tem).
-- Celular em pé: a composição da sakura fica mais esparsa, porque a cena é gerada para a proporção da tela.
+- Celular em pé: a composição da sakura fica mais esparsa, porque a cena é gerada para a proporção da tela. As seções de
+  leitura já ficam mais fracas e com as flores na borda (`tall` em `VIEWS`).
