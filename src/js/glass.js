@@ -95,7 +95,9 @@ function mountGlass(root, scroller) {
   }) : null;
   if (ro) {
     tracks.forEach(t => ro.observe(t.track));
-    if (spies.length) { ro.observe(scroller); if (scroller.firstElementChild) ro.observe(scroller.firstElementChild); }
+    // o conteúdo que rola: a raiz quando a página rola o documento, senão o filho do scroller interno
+    const content = scroller === document.scrollingElement ? root : scroller.firstElementChild;
+    if (spies.length) { ro.observe(scroller); if (content) ro.observe(content); }
   }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { anchors = null; relayout(); if (spies.length) spyNow(); });
 

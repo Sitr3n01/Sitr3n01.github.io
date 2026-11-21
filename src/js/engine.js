@@ -617,7 +617,8 @@ function createSakuraBackground(canvas, options) {
     if (opts.onFrame) opts.onFrame(ms);
   }
   function onPointer(e) {
-    if (!opts.interactive) return;
+    // o toque é para rolar: não embaralha os glifos nem empurra as pétalas como o cursor
+    if (!opts.interactive || e.pointerType === 'touch') return;
     const r = canvas.getBoundingClientRect();
     const x = (e.clientX - r.left) / H, y = (e.clientY - r.top) / H, now = performance.now();
     if (pointer.active) {
@@ -633,7 +634,14 @@ function createSakuraBackground(canvas, options) {
   const onRestore = () => { forceFull = true; };
   canvas.addEventListener('contextrestored', onRestore);
   let rt = 0;
-  const onResize = () => { clearTimeout(rt); rt = setTimeout(() => { layout(); camSnap = true; frame(performance.now()); }, 120); };
+  // Redimensionar: o tamanho igual (a barra de endereço do celular, com o canvas em 100lvh) não faz nada; só a altura ou
+  // a densidade de pixels mudando refaz o canvas com a mesma árvore; a largura mudando gera a árvore de novo.
+  const onResize = () => { clearTimeout(rt); rt = setTimeout(() => {
+    const r = canvas.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, dprMax);
+    const sameW = Math.abs(r.width - W) < 0.5, sameH = Math.abs(r.height - H) < 0.5;
+    if (sameW && sameH && d === dpr) return;
+    layout(!sameW); camSnap = true; frame(performance.now());
+  }, 120); };
 
   // fontes que chegam depois (JetBrains Mono, Noto Sans JP) refazem o atlas, que guardou os glifos de reserva
   const onFonts = () => { atlas.dirty = true; };

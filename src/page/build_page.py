@@ -139,7 +139,7 @@ def nav(L, home='', root='', slug=None):
     wa = wa_href(L)
     return f'''
 <div class="sk-topblur sk-blurfx" data-sk-ui="1" aria-hidden="true"><i></i><i></i></div>
-<header class="sk-toolbar" data-sk-ui="1" style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
+<header class="sk-toolbar" data-sk-ui="1" style="top: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 19px; padding: 19px {PADX}; pointer-events: none">
 <a class="sk-logo" href="{home}#{L.id('hero')}" style="pointer-events: auto">SITR3N.</a>
 <div class="sk-tools">
 <nav class="sk-desktop-nav" aria-label="{L['nav_aria']}" style="pointer-events: auto; display: flex; align-items: center; gap: 10px">
@@ -172,7 +172,7 @@ def nav(L, home='', root='', slug=None):
 def hero(L):
     l1, l2 = L['hero']
     return f'''
-<section id="{L.id('hero')}" data-sk-view="hero" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 96px {PADX} 96px; box-sizing: border-box">
+<section id="{L.id('hero')}" data-sk-view="hero" style="position: relative; min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end; padding: 96px {PADX} 96px; box-sizing: border-box">
 <h1 aria-label="{E(L['hero_aria'])}" style="margin: 0; font-weight: 400; font-size: clamp(36px, 5.4vw, 96px); line-height: 0.96; letter-spacing: -0.015em; text-transform: uppercase; color: {INK}">
 <span aria-hidden="true" style="display: block">{letters(l1)}</span>
 <span aria-hidden="true" style="display: block">{letters(l2)}</span>
@@ -183,8 +183,8 @@ def hero(L):
 def manifesto(L):
     return f'''
 <section {sec_attrs(L, 'manifesto')} data-sk-view="manifesto" style="position: relative; height: max(1700px, 150vh)">
-<div style="position: sticky; top: 0; height: 100vh; display: flex; align-items: center; padding: 0 {PADX}; box-sizing: border-box">
-<p style="margin: 0; max-width: 17em; line-height: 1; letter-spacing: 0.006em; text-transform: uppercase; color: {INK}">{words(L['manifesto'])}</p>
+<div style="position: sticky; top: 0; height: 100vh; height: 100svh; display: flex; align-items: center; padding: 0 {PADX}; box-sizing: border-box">
+<p class="sk-manifesto" style="margin: 0; max-width: 17em; line-height: 1; letter-spacing: 0.006em; text-transform: uppercase; color: {INK}">{words(L['manifesto'])}</p>
 </div>
 </section>'''
 
@@ -274,7 +274,7 @@ def areas(L):
     labels = '\n'.join(f'<p data-sk-orbit-label="1" style="{LBL}; {pos}">{lines(L.t(txt))}</p>' for txt, pos in AREA_LABELS)
     return f'''
 <section {sec_attrs(L, 'areas')} data-sk-view="areas" aria-label="{L['areas_aria']}" style="position: relative; height: max(2600px, 120vh)">
-<div style="position: sticky; top: 0; height: 100vh; overflow: hidden">
+<div style="position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden">
 <div data-sk-orbit="1" style="position: absolute; left: 50%; top: 48%; width: 0; height: 0">
 {chips}
 </div>
@@ -334,7 +334,7 @@ def me(L, root):
 
 def contact(L):
     return f'''
-<section {sec_attrs(L, 'contact')} data-sk-read data-sk-view="contact" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; gap: 46px; padding: 119px {PADX} 30px; box-sizing: border-box">
+<section {sec_attrs(L, 'contact')} data-sk-read data-sk-view="contact" style="position: relative; min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end; gap: 46px; padding: 119px {PADX} 30px; box-sizing: border-box">
 <h2 data-sk-reveal="1" style="margin: 0; font-weight: 400; line-height: 0.8; letter-spacing: -0.015em; text-transform: uppercase">{lines(L['contact_title'])}</h2>
 <div class="sk-glass sk-track sk-track-lg" data-sk-glass="links" data-sk-glass-rest="0" style="align-self: flex-start">
 <span class="sk-lens" aria-hidden="true"></span>
@@ -383,7 +383,7 @@ def wa(L):
             f'aria-label="{L["wa_aria"]}">{WA_ICON}</a></div>')
 
 
-RINGS = f'''<svg data-sk-rings="1" aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none">
+RINGS = f'''<svg data-sk-rings="1" aria-hidden="true" width="1" height="1" style="left: 0; top: 0; overflow: visible; pointer-events: none">
 <circle cx="0" cy="0" r="230" style="fill: none; stroke: {ASH}; stroke-width: 1"></circle>
 <circle cx="0" cy="0" r="360" style="fill: none; stroke: {ASH}; stroke-width: 1"></circle>
 <circle cx="0" cy="0" r="520" style="fill: none; stroke: {ASH}; stroke-width: 1; stroke-opacity: 0.6"></circle>
@@ -392,26 +392,40 @@ RINGS = f'''<svg data-sk-rings="1" aria-hidden="true" width="1" height="1" style
 PROJECTS = {code: load_projects(code) for code in LANGS}
 
 
-def body(L, root='', ref=''):
+def frame(L, nav_html, main_html, doc=True, ref='', main_attrs=''):
+    """Moldura das páginas: anéis, canvas da sakura, toolbar, conteúdo, "Scroll" e WhatsApp.
+    doc=True (o site): a página rola o próprio documento. O canvas, a toolbar e os controles ficam fixos na tela
+    (data-sk-doc, ver o CSS), e o canvas tem a altura da tela com a barra de endereço recolhida (100lvh): a barra do
+    celular aparece e some sem redimensionar o fundo. doc=False (artboard do canvas de Design): uma caixa da altura da
+    tela com um scroller interno (data-sk-scroller)."""
+    if doc:
+        return f'''<div data-sk-root="1" data-sk-doc="1"{ref} style="position: relative; background-color: {PARCH}; color: {INK}; font-family: {SANS}">
+{RINGS}
+<canvas data-sk-canvas="1" aria-hidden="true" style="left: 0; top: 0; width: 100%; height: 100vh; height: 100lvh; display: block"></canvas>
+{nav_html}
+<main{main_attrs} style="position: relative">
+{main_html}
+</main>
+{hint(L)}
+{wa(L)}
+</div>'''
     return f'''<div data-sk-root="1"{ref} style="position: relative; height: 100vh; overflow: hidden; background-color: {PARCH}; color: {INK}; font-family: {SANS}">
 {RINGS}
-<canvas data-sk-canvas="1" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block"></canvas>
-{nav(L, '', root)}
+<canvas data-sk-canvas="1" aria-hidden="true" style="inset: 0; width: 100%; height: 100%; display: block"></canvas>
+{nav_html}
 <div data-sk-scroller="1" style="position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth">
-<main>
-{hero(L)}
-{manifesto(L)}
-{about(L)}
-{work(L, PROJECTS[L.code], root)}
-{areas(L)}
-{path(L)}
-{me(L, root)}
-{contact(L)}
+<main{main_attrs}>
+{main_html}
 </main>
 </div>
 {hint(L)}
 {wa(L)}
 </div>'''
+
+
+def body(L, root='', ref='', doc=True):
+    main = '\n'.join([hero(L), manifesto(L), about(L), work(L, PROJECTS[L.code], root), areas(L), path(L), me(L, root), contact(L)])
+    return frame(L, nav(L, '', root), main, doc, ref)
 
 
 GRID_BG = f"background-color: {PAPER}; background-image: linear-gradient(to right, {PARCH} 1px, transparent 1px), linear-gradient(to bottom, {PARCH} 1px, transparent 1px); background-size: 24px 24px"
@@ -486,7 +500,7 @@ def project_body(L, p, nxt, root):
 </div>''') if links else ''
     ns = nxt['slug']
     return f'''
-<section id="{L.id('proj')}" data-sk-view="proj" style="position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: var(--sk-project-top,184px) {PADX} 150px; box-sizing: border-box">
+<section id="{L.id('proj')}" data-sk-view="proj" style="position: relative; min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end; padding: var(--sk-project-top,184px) {PADX} 150px; box-sizing: border-box">
 <div class="sk-project-hero" style="max-width: 1400px; width: 100%; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-end; justify-content: space-between">
 <div class="sk-project-copy" data-sk-read style="flex: 1 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 30px">
 <a class="sk-link sk-project-back" href="{home}#{L.id('work')}" style="align-self: flex-start; {CAP}; color: {INK}; text-decoration: none; padding: 5px 0">{L['back']}</a>
@@ -522,36 +536,66 @@ def project_body(L, p, nxt, root):
 
 
 def project_root(L, p, nxt, root):
-    return f'''<div data-sk-root="1" style="position: relative; height: 100vh; overflow: hidden; background-color: {PARCH}; color: {INK}; font-family: {SANS}">
-{RINGS}
-<canvas data-sk-canvas="1" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block"></canvas>
-{nav(L, '../../', root, p['slug'])}
-<div data-sk-scroller="1" style="position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth">
-<main{'' if p['translated'] else ' data-sk-untranslated'}>
-{project_body(L, p, nxt, root)}
-</main>
-</div>
-{hint(L)}
-{wa(L)}
-</div>'''
+    return frame(L, nav(L, '../../', root, p['slug']), project_body(L, p, nxt, root),
+                 main_attrs='' if p['translated'] else ' data-sk-untranslated')
 
 
 JP_CHARS = '桜木林森さくらヽゝ゜' + ''.join(dict.fromkeys(p['kanji'] for p in PROJECTS['pt']))
 FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">\n'
          f'<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400&amp;text={urllib.parse.quote(JP_CHARS)}&amp;display=swap" rel="stylesheet">')
+def _word_in(u):
+    """Entrada de uma palavra do manifesto ao longo do trecho dela (mesmas contas do controlador): loc = 1 - (1 - u)³;
+    deslocamento (1 - loc) × off e opacidade smooth(0.5, 1, loc). Devolve (fração do deslocamento, opacidade)."""
+    loc = 1 - (1 - u) ** 3
+    t = min(1, max(0, (loc - 0.5) / 0.5))
+    return 1 - loc, t * t * (3 - 2 * t)
+
+
+def _word_keyframes(n=16):
+    """As duas curvas da entrada numa animação só (uma por palavra), em n trechos lineares, mais o ponto em que a
+    opacidade começa (loc = 0,5)."""
+    us = sorted({i / n for i in range(n + 1)} | {1 - 0.5 ** (1 / 3)})
+    stops = []
+    for u in us:
+        k, o = _word_in(u)
+        stops.append(f'{u * 100:.2f}%{{transform:translate3d(0,calc(var(--off) * {k:.4f}),0);opacity:{o:.3f}}}')
+    return '@keyframes sk-word{' + ''.join(stops) + '}'
+
+
+# Efeitos presos à rolagem, no compositor. O controlador liga data-sk-timeline quando há suporte e escreve as faixas em
+# px; sem suporte, ele mesmo anima no quadro, com as mesmas contas. O Chrome atualiza cada animação dessas a cada quadro,
+# mesmo com a página parada (cerca de 0,25% da thread principal por animação com CPU 6×), então elas são poucas e só
+# ficam ligadas perto da tela: as palavras do manifesto (uma animação por palavra) só com a seção perto da tela
+# (data-sk-live), e o parallax, que é uma animação só. As letras do título (80 animações) ficam no quadro.
+# Curvas: smoothstep = cubic-bezier(1/3,0,2/3,1); a entrada das palavras vai amostrada em trechos lineares.
+TIMELINE_CSS = _word_keyframes() + '''
+@keyframes sk-rise-out{to{transform:translate3d(0,-.7em,0);opacity:0}}
+@keyframes sk-parallax{from{transform:translate3d(0,var(--y0),0)}to{transform:translate3d(0,var(--y1),0)}}
+/* manifesto: cada palavra assenta no próprio trecho; a saída sobe o parágrafo inteiro */
+[data-sk-timeline] [data-sk-live] [data-sk-word]{animation:sk-word linear both;animation-timeline:scroll(root);animation-range:var(--w0) var(--w1)}
+[data-sk-timeline] [data-sk-live] .sk-manifesto{animation:sk-rise-out cubic-bezier(.333,0,.667,1) both;animation-timeline:scroll(root);animation-range:var(--x0) var(--x1)}
+/* parallax: linear na página inteira, de --y0 (topo) a --y1 (fim) */
+[data-sk-timeline] [data-sk-parallax]{animation:sk-parallax linear both;animation-timeline:scroll(root)}'''
+
 CSS = f''':root{{{theme_vars('light')}}}
 :root[data-theme="dark"]{{{theme_vars('dark')}}}
 body{{margin:0;background:{PARCH}}}
 a{{color:{INK}}}a:hover{{color:{INK}}}
 a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
-[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}}
+/* a página rola o documento (data-sk-doc); o artboard de Design rola o [data-sk-scroller] */
+html{{background:{PARCH};scroll-behavior:smooth;scrollbar-gutter:stable}}
+html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}}
+/* com o menu aberto, a página atrás dele não rola */
+:root:has(.sk-menu[open]){{overflow:hidden}}
+[data-sk-rings],[data-sk-canvas],.sk-toolbar{{position:absolute}}
+[data-sk-doc]>:is([data-sk-rings],[data-sk-canvas],.sk-topblur,.sk-toolbar,.sk-hint,.sk-wa-wrap){{position:fixed}}
 .sk-link:hover{{text-decoration:underline;text-underline-offset:4px}}
 .sk-pill{{transition:background-color .25s ease,color .25s ease}}.sk-pill:hover{{background-color:{INK};color:{PARCH}}}
 .sk-card .sk-plus{{transition:transform .45s cubic-bezier(.2,.7,.2,1)}}.sk-card:hover .sk-plus{{transform:rotate(90deg)}}
 .sk-cell{{transition:background-color .25s ease,color .25s ease}}.sk-cell:hover{{background-color:{INK}!important;color:{PARCH}}}
 .sk-cap{{color:{MUTE}}}.sk-cell:hover .sk-cap{{color:{ASH}}}
 .sk-row .sk-row-t{{transition:transform .45s cubic-bezier(.2,.7,.2,1)}}.sk-row:hover .sk-row-t{{transform:translateX(19px)}}
-@media (prefers-reduced-motion:reduce){{[data-sk-scroller]{{scroll-behavior:auto!important}}}}''' + '''
+@media (prefers-reduced-motion:reduce){{html,[data-sk-scroller]{{scroll-behavior:auto!important}}}}''' + '''
 /* ---- vidro líquido: trilho fosco + lente refrativa ---- */
 @property --rim{syntax:'<angle>';inherits:true;initial-value:0deg}
 .sk-toolbar{--sk-track-tint:.55;--sk-track-blur:14px;--sk-lens-center:.92;--sk-lens-mid:.75}
@@ -796,10 +840,8 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
    toolbar vira logo + idioma + Menu (o mesmo do celular), e o tema vai para o cabeçalho do menu. */
 .sk-menu-toggle,.sk-menu{display:none}
 @media (max-width:950px),(max-width:1024px) and (pointer:coarse),(max-height:520px) and (pointer:coarse){
-  [data-sk-root]{--sk-mobile-edge:clamp(16px,4.5vw,32px);--sk-mobile-top:104px;height:100dvh!important}
-  [data-sk-scroller]{scroll-padding-top:var(--sk-mobile-top)}
-  [data-sk-view="hero"],[data-sk-view="contact"],[data-sk-view="proj"]{min-height:100dvh!important}
-  [data-sk-view="manifesto"]>div,[data-sk-view="areas"]>div{height:100dvh!important}
+  :root{--sk-mobile-edge:clamp(16px,4.5vw,32px);--sk-mobile-top:104px}
+  html,[data-sk-scroller]{scroll-padding-top:var(--sk-mobile-top)}
   .sk-toolbar{padding:12px var(--sk-mobile-edge)!important}
   .sk-toolbar .sk-logo,.sk-menu .sk-logo{font-size:19px;line-height:20px}
   .sk-topblur{height:var(--sk-mobile-top)}
@@ -863,7 +905,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
   .sk-project-hero .sk-tile{grid-row:4;justify-self:center;width:min(100%,320px,43svh)}
 }
 @media (max-height:520px) and (max-width:720px),(max-height:520px) and (pointer:coarse){
-  [data-sk-root]{--sk-mobile-top:78px}
+  :root{--sk-mobile-top:78px}
   [data-sk-view="hero"]{padding-bottom:92px!important}
   [data-sk-view="hero"] h1{font-size:clamp(24px,min(6.5vw,10.5vh),46px)!important}
   [data-sk-view="proj"]{--sk-project-top:92px;padding-bottom:76px!important}
@@ -882,7 +924,7 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 @media (max-height:400px){
   .sk-toolbar{padding-block:9px!important}
   .sk-topblur{height:clamp(62px,25vh,84px)}
-  [data-sk-root]{--sk-mobile-top:clamp(62px,25vh,84px)}
+  :root{--sk-mobile-top:clamp(62px,25vh,84px)}
   [data-sk-view="hero"]{padding-block:70px 73px!important}
   [data-sk-view="hero"] h1,[data-sk-view="proj"] h1{font-size:clamp(20px,min(8.5vw,12vh),56px)!important}
   .sk-next-t{font-size:clamp(26px,min(10vw,12vh),50px)}
@@ -899,7 +941,12 @@ a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
 }
 @media (max-width:320px) and (max-height:400px){
   [data-sk-view="manifesto"] p{font-size:clamp(15px,min(5.8vw,6.8vh),22px)}
-}'''
+}
+/* cenas fixadas mais curtas no celular: o manifesto e as frentes de trabalho tomavam 33% da rolagem */
+@media (max-width:720px),(max-height:520px) and (pointer:coarse){
+  [data-sk-view="manifesto"]{height:130vh!important;height:130svh!important}
+  [data-sk-view="areas"]{height:170vh!important;height:170svh!important}
+}''' + '\n' + TIMELINE_CSS
 
 DC_PROPS = {
     "preset": {"editor": "enum", "options": ["kosa", "sanbon", "ogi", "itozakura", "koeda"], "default": "kosa", "section": "Sakura"},
@@ -939,7 +986,7 @@ def build_dc(script_url):
 {CSS}
 </style>
 </helmet>
-{body(PT, '', ' ref="{{ bindRoot }}"')}
+{body(PT, '', ' ref="{{ bindRoot }}"', doc=False)}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{props}'>
 {DC_SCRIPT}

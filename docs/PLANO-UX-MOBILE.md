@@ -38,6 +38,53 @@ p95: com a câmera andando, todo quadro é refeito. Isso fica para a fase 2 (efe
 **Métricas:** o p50 do intervalo entre quadros foi trocado por p95/p99 e pela ocupação da thread principal, porque o
 rAF do headless passa de 60 Hz e os quadros vazios puxam a mediana para baixo.
 
+**Fase 2 feita na branch `preview/rolagem`** (2026-11-21). O que entrou:
+- **Rolagem do documento:** a barra de endereço recolhe, o toque na barra de status volta ao topo e o puxar para
+  atualizar funciona.
+  - O canvas, a toolbar, o "Scroll" e o WhatsApp ficam fixos (`data-sk-doc`).
+  - O canvas tem `100lvh`, e o motor não gera a árvore de novo quando só a altura muda.
+  - O hero, o contato, o topo dos projetos e as cenas fixadas usam `svh`.
+  - O F5 volta ao topo e o voltar devolve a posição (`scrollRestoration = 'manual'`).
+  - O menu aberto trava a página atrás dele.
+  - O artboard `--dc` mantém o scroller interno.
+- **Cenas fixadas mais curtas no celular:** o manifesto tem 130svh e as frentes de trabalho, 170svh. Em 390 × 844, as
+  duas ocupam 22% da página, contra 33% antes. A tela parada cai de 21% para 8% da rolagem (de 2.612 para 844 px).
+- **Efeitos no compositor:** as palavras do manifesto e o parallax são animações presas à rolagem. O controlador só
+  escreve as faixas em px, e os valores batem com os do quadro até 0,1 px. Sem suporte, o JS anima como antes.
+  - O Chrome atualiza cada animação dessas a cada quadro, mesmo parado. Com uma por letra do título (111 no total), o
+    hero parado subiu de ~62% para ~85% da thread principal (notebook, CPU 6×).
+  - Por isso, as letras do título ficam no quadro, cada palavra tem uma animação só e as palavras só ligam com o
+    manifesto perto da tela. Parado no hero, restam 2 animações.
+- **Entradas no celular:** começam a 20% da tela antes de o bloco entrar e duram 0,5 s, com 16 px. Elas continuam
+  como transição, que já roda no compositor. Presas à rolagem, deixariam texto meio apagado quando o visitante para.
+  No nível C, nada fica escondido.
+- **"Scroll" no toque:** só aparece no hero e some de vez no primeiro gesto.
+- **Toque:** não embaralha os glifos nem empurra as pétalas.
+- **Régua:** rolando o documento, a barra de endereço emulada recolhe e o fim da página passa a ser
+  `scrollHeight − innerHeight`. `npm run perf` mede esse fim a cada passo.
+
+Medido com `npm run perf`, main e branch intercaladas no mesmo dia (duas rodadas nos cenários com meta). A máquina
+oscila bastante entre rodadas; compare cada linha só dentro da mesma rodada.
+
+| Cenário | Parado, main → branch | Rolagem p95, main → branch | Sobre os cards, main → branch |
+|---|---|---|---|
+| Desktop 1080p, CPU 4× (r1 / r2) | 48 → 46% / 37 → 38% | 63 → 59 ms / 38 → 38 ms | 72 → 65% / 80 → 80% |
+| Notebook 1366, CPU 6× (r1 / r2) | 74 → 61% / 48 → 49% | 75 → 59 ms / 42 → 42 ms | 87 → 81% / 70 → 76% |
+| Celular 390 dpr 3, CPU 4× | 30 → 35% | 12 → 13 ms | 38 → 27% |
+| Celular 360 dpr 2, CPU 6× (r1 / r2) | 50 → 35% / 32 → 36% | 17 → 13 ms / 13 → 13 ms | 50 → 35% / 36 → 36% |
+
+A branch empata com a main dentro do ruído. No celular 360 com CPU 6×, ela cumpre as metas da seção 5: parado ≤ 40%,
+rolagem p95 ≤ 25 ms, nenhum quadro acima de 100 ms (o maior teve 59 ms) e cards ≤ 70% com p95 ≤ 33 ms.
+
+O p95 da rolagem no desktop fraco não cai, porque mede os quadros da thread principal e o fundo continua sendo refeito
+inteiro com a câmera andando. A fase 2 faz o conteúdo, as palavras e o parallax andarem com o compositor, o que essa
+métrica não capta.
+
+Para revisar na prévia:
+- No celular, o manifesto inteiro fica parado por ~150 px de rolagem antes de sair, contra ~300 px antes. Se ficar
+  curto para ler, 150svh dá ~200 px.
+- Falta conferir em aparelho real: Android e iPhone, com a barra de endereço recolhendo de verdade.
+
 ## 1. Diagnóstico medido
 
 **Método.** Chrome 157 headless controlado via CDP. A CPU foi emulada 4× e 6× mais lenta, e o celular foi emulado com

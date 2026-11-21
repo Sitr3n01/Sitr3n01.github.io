@@ -186,11 +186,14 @@ async function scenario(chrome, base, name) {
       const st = window.__site.ascii.stats; if (st.every(s => s.N > 0) || performance.now() - t0 > 20000) done(); else setTimeout(check, 250); }; check(); })`);
     await sleep(1000);
     const idle = await measure(c, () => sleep(4000));
+    // Fim da página: rolando o documento no celular, a barra de endereço (emulada) recolhe e a área visível
+    // (innerHeight) passa do clientHeight; o fim real é scrollHeight − a maior das duas, medido a cada passo.
     const scroll = await measure(c, () => c.evaluate(`new Promise(done => {
       const s = document.querySelector('[data-sk-scroller]') || document.scrollingElement; s.style.scrollBehavior = 'auto';
-      const max = s.scrollHeight - s.clientHeight; let last = 0;
-      const step = now => { const dt = last ? Math.min(100, now - last) : 16; last = now; s.scrollTop = Math.min(max, s.scrollTop + 1.4 * dt);
-        if (s.scrollTop >= max - 1) done(); else requestAnimationFrame(step); };
+      const doc = s === document.scrollingElement, maxOf = () => s.scrollHeight - (doc ? Math.max(s.clientHeight, innerHeight) : s.clientHeight);
+      let last = 0;
+      const step = now => { const dt = last ? Math.min(100, now - last) : 16; last = now; const max = maxOf(); s.scrollTop = Math.min(max, s.scrollTop + 1.4 * dt);
+        if (s.scrollTop >= maxOf() - 1) done(); else requestAnimationFrame(step); };
       requestAnimationFrame(step); })`));
     await c.evaluate(`(() => { const s = document.querySelector('[data-sk-scroller]') || document.scrollingElement, top = s === document.scrollingElement ? 0 : s.getBoundingClientRect().top;
       s.scrollTop += document.querySelector('.sk-card').getBoundingClientRect().top - top - 120; })()`);

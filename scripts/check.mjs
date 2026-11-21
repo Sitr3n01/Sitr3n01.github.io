@@ -37,8 +37,18 @@ ok(S.PRESETS && ['kosa', 'sanbon', 'ogi', 'itozakura', 'koeda'].every((p) => p i
 
 for (const v of ['hero', 'manifesto', 'about', 'work', 'areas', 'path', 'me', 'contact'])
   ok(html1.includes(`data-sk-view="${v}"`), `seção data-sk-view="${v}"`);
-for (const h of ['data-sk-root', 'data-sk-canvas', 'data-sk-scroller', 'data-sk-rings', 'data-sk-hint', 'data-sk-read', 'data-sk-ui'])
+for (const h of ['data-sk-root', 'data-sk-canvas', 'data-sk-rings', 'data-sk-hint', 'data-sk-read', 'data-sk-ui'])
   ok(html1.includes(h), `gancho ${h}`);
+// rolagem do documento: sem scroller interno, com o canvas e os controles fixos (o scroller fica só no artboard --dc)
+ok(html1.includes('data-sk-root="1" data-sk-doc="1"') && !html1.includes('data-sk-scroller="1"') && html1.includes('[data-sk-doc]>:is('),
+  'a página rola o documento (data-sk-doc), sem scroller interno');
+ok(html1.includes('height: 100lvh') && js1.includes('data-sk-scroller') && js1.includes('scrollRestoration'),
+  'canvas em 100lvh e controlador com os dois modos (documento e scroller do artboard)');
+// efeitos presos à rolagem: o controlador liga data-sk-timeline (e data-sk-live perto da tela) e escreve as faixas que
+// o CSS usa
+ok(js1.includes("setAttribute('data-sk-timeline'") && js1.includes("'data-sk-live'") && ['--off', '--w0', '--x0', '--y0'].every(v => js1.includes(v) && html1.includes(`var(${v})`)) &&
+  html1.includes('[data-sk-timeline] [data-sk-live] [data-sk-word]') && html1.includes('[data-sk-timeline] [data-sk-parallax]'),
+  'efeitos no compositor: data-sk-timeline, data-sk-live e as faixas --off, --w0, --x0, --y0 nos dois lados');
 ok(!html1.includes('\r\n') && !js1.includes('\r\n'), 'saída só com LF');
 // tema: o <head> escolhe antes da pintura, os dois temas definem os mesmos tokens e há botão no toolbar e no menu
 {

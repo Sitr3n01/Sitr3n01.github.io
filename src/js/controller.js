@@ -99,7 +99,7 @@ const TIERS = {
 };
 const TIER_KEY = 'sk-tier-v1', TIER_DAYS = 14;
 
-function mountQuality(root, engine, ascii) {
+function mountQuality(root, engine, ascii, hooks) {
   const order = Object.keys(TIERS);
   const local = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { /* sem storage */ } return null; };
   const forced = (/[?&]tier=([abc])\b/.exec(location.search) || [])[1];
@@ -114,6 +114,7 @@ function mountQuality(root, engine, ascii) {
     root.setAttribute('data-sk-tier', t);
     engine.setQuality(TIERS[t].engine);
     ascii.setQuality(TIERS[t].ascii);
+    if (hooks.tier) hooks.tier(t);
   };
   apply(tier);
 
@@ -228,6 +229,17 @@ function mount(root, options) {
   const $ = s => root.querySelector(s), $$ = s => Array.from(root.querySelectorAll(s));
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canvas = $('[data-sk-canvas]'), scroller = $('[data-sk-scroller]') || document.scrollingElement;
+  // O site rola o próprio documento; só o artboard de Design tem um scroller interno. Com o documento, a posição da
+  // rolagem fica com o controlador (F5 recomeça do topo, voltar devolve a posição guardada): a restauração automática
+  // do navegador chegaria depois e brigaria com a abertura.
+  const docScroll = scroller === document.scrollingElement;
+  if (docScroll && 'scrollRestoration' in history) history.scrollRestoration = 'manual';
+  const viewTop = () => (docScroll ? 0 : scroller.getBoundingClientRect().top); // topo da área visível, na tela
+  // Efeitos presos à rolagem no compositor (animation-timeline): as palavras do manifesto e o parallax andam junto com
+  // a rolagem mesmo com a thread principal ocupada. O controlador só escreve as faixas de rolagem de cada um (em px)
+  // quando o layout muda. Sem suporte, ele anima como antes, no quadro. As letras do título ficam no quadro: o Chrome
+  // atualiza cada animação dessas a cada quadro, mesmo parado, e 80 letras custariam ~20% da thread principal no hero.
+  const timeline = docScroll && !reduce && typeof CSS === 'object' && typeof CSS.supports === 'function' && CSS.supports('animation-timeline: scroll()');
   const menuLayout = matchMedia('(max-width: 950px), (max-width: 1024px) and (pointer: coarse), (max-height: 520px) and (pointer: coarse)');
   const singleColumn = matchMedia('(max-width: 720px), (max-width: 935px) and (pointer: coarse)');
   const unmountMenu = mountMenu(root, menuLayout), unmountColumns = mountCardColumns($('[data-sk-card-columns]'), singleColumn);
@@ -237,7 +249,7 @@ function mount(root, options) {
   const engine = createSakuraBackground(canvas, { preset: o.preset, kanji: o.kanji, wind: o.wind, holdIntro: !reduce, project,
     onFrame: () => placeRings() });
   const glass = mountGlass(root, scroller), videos = mountVideos(root), ascii = mountAscii(root);
-  const quality = mountQuality(root, engine, ascii);
+  const qualityHooks = {}, quality = mountQuality(root, engine, ascii, qualityHooks);
   let themed = false;
   const unmountTheme = mountTheme(root, c => {
     engine.setOptions({ ink: c.ink, parch: c.parch, petalInk: c.petalInk, petalA: c.petalA, petalEnd: c.petalEnd });
@@ -261,6 +273,8 @@ function mount(root, options) {
   const orbit = $('[data-sk-orbit]'), orbitLabels = $$('[data-sk-orbit-label]');
   const rings = $('[data-sk-rings]'), hint = $('[data-sk-hint]');
   const toolbar = $('.sk-toolbar'), topBlur = $('.sk-topblur'), whatsApp = $('.sk-wa-wrap');
+  const touchUI = matchMedia('(pointer: coarse)');
+  let hintGone = false; // toque: o "Scroll" já saiu depois do primeiro gesto
 
   // valores aleatórios estáveis por elemento
   const R = rngFrom(2026);
@@ -276,6 +290,9 @@ function mount(root, options) {
   // manifesto: deslocamento em em, sempre menor que meia linha (a palavra nunca invade a linha vizinha), e as
   // palavras entram em ordem de leitura (a variação aleatória é menor que o passo entre duas palavras)
   const Wd = words.map((_, i) => ({ off: (i % 2 ? -1 : 1) * R.uniform(0.14, 0.3), d: 0.04 + 0.34 * i / Math.max(1, words.length - 1) + R.uniform(0, 0.01) }));
+  // no compositor, cada palavra leva o próprio deslocamento numa propriedade CSS
+  const manifestoText = words.length ? words[0].parentElement : null;
+  if (timeline) words.forEach((el, n) => el.style.setProperty('--off', Wd[n].off.toFixed(3) + 'em'));
 
   const Ch = chips.map((_, i) => ({ a: i * 2.39996, rad: R.uniform(0.72, 1.18), lift: R.uniform(-0.35, 0.35), spd: R.uniform(0.08, 0.16), out: R.uniform(1.8, 3.4),
     ox: 0, oy: 0, w: 0, h: 0 }));
@@ -295,23 +312,55 @@ function mount(root, options) {
   const paper = $$('.sk-card, .sk-stack, .sk-facts, .sk-stats, .sk-video-frame, .sk-me-photo, .sk-tile');
   const wake = () => { if (!raf && !dead) raf = requestAnimationFrame(tick); };
   const relayout = () => { geo.dirty = true; wake(); };
+  // deslocamento vertical que o transform atual dá ao elemento (inline ou da animação presa à rolagem)
+  const shiftOf = el => translateY(getComputedStyle(el).transform);
+  const px = v => v.toFixed(1) + 'px';
   function measure() {
     geo.dirty = false;
     geo.vh = scroller.clientHeight; geo.vw = scroller.clientWidth; geo.scrollH = scroller.scrollHeight;
     geo.tops = sections.map(topOf); geo.heights = sections.map(el => el.offsetHeight);
-    geo.cols = parallax.map(el => ({ el, top: topOf(el) - translateY(el.style.transform), h: el.offsetHeight, speed: Number(el.dataset.skParallax), y: NaN }));
+    geo.cols = parallax.map(el => ({ el, top: topOf(el) - shiftOf(el), h: el.offsetHeight, speed: Number(el.dataset.skParallax), y: NaN }));
     if (orbit) { const sec = orbit.closest('[data-sk-view]'); geo.orbitTop = topOf(sec); geo.orbitH = sec.offsetHeight; }
     if (words.length) { const sec = words[0].closest('[data-sk-view]'); geo.wordsTop = topOf(sec); geo.wordsH = sec.offsetHeight; }
     // superfícies de papel (opacas): quanto da tela elas tapam decide a velocidade do fundo (engine.setCover)
-    const left = scroller.getBoundingClientRect().left;
+    const left = docScroll ? 0 : scroller.getBoundingClientRect().left;
     geo.paper = paper.map(el => {
       const r = el.getBoundingClientRect(), colEl = el.closest('[data-sk-parallax]'), col = geo.cols.find(c => c.el === colEl) || null;
       const w = Math.max(0, Math.min(r.right - left, geo.vw) - Math.max(r.left - left, 0));
-      return { top: topOf(el) - (col ? translateY(col.el.style.transform) : 0) - translateY(getComputedStyle(el.closest('[data-sk-reveal]') || el).transform), h: r.height, w, col };
+      return { top: topOf(el) - (col ? shiftOf(col.el) : 0) - shiftOf(el.closest('[data-sk-reveal]') || el), h: r.height, w, col };
     });
+    if (timeline) timelineRanges();
+  }
+  // As faixas de rolagem (em px) dos efeitos no compositor, com as mesmas contas do quadro (tick): cada palavra do
+  // manifesto no próprio trecho e o parallax linear na página inteira.
+  function timelineRanges() {
+    const vh = geo.vh;
+    if (words.length) {
+      const m0 = geo.wordsTop - vh * 0.6, mL = Math.max(1, geo.wordsH - vh * 0.4);
+      words.forEach((el, n) => { el.style.setProperty('--w0', px(m0 + mL * Wd[n].d)); el.style.setProperty('--w1', px(m0 + mL * (Wd[n].d + 0.26))); });
+      manifestoText.style.setProperty('--x0', px(m0 + mL * 0.86)); manifestoText.style.setProperty('--x1', px(m0 + mL));
+    }
+    const max = Math.max(0, geo.scrollH - vh), single = singleColumn.matches;
+    for (const c of geo.cols) {
+      const k = single ? 0 : c.speed / (1 + c.speed), at = st => -((c.top - st) + (c.h - vh) / 2) * k;
+      c.el.style.removeProperty('transform');
+      c.el.style.setProperty('--y0', px(at(0))); c.el.style.setProperty('--y1', px(at(max)));
+    }
+    root.setAttribute('data-sk-timeline', '');
   }
   const layoutRO = typeof ResizeObserver === 'function' ? new ResizeObserver(relayout) : null;
-  if (layoutRO) { layoutRO.observe(scroller); if (scroller.firstElementChild) layoutRO.observe(scroller.firstElementChild); }
+  const content = docScroll ? root : scroller.firstElementChild;
+  if (layoutRO) { layoutRO.observe(scroller); if (content) layoutRO.observe(content); }
+  // as faixas já valem no primeiro quadro (quem chega por âncora ou pelo voltar cai no meio das cenas)
+  if (timeline) measure();
+  // As animações das palavras só ficam ligadas (data-sk-live) com o manifesto perto da tela. Elas ligam com a seção a
+  // 10% da base da tela, quando o texto ainda está meia tela abaixo, e, vindo de baixo, com a seção a 25% acima do
+  // topo. Desligadas, as palavras ficam no estado sem animação, sempre fora da tela.
+  const manifestoSec = manifestoText && manifestoText.closest('[data-sk-view]');
+  const liveIO = timeline && manifestoSec ? new IntersectionObserver(entries => {
+    for (const en of entries) en.target.toggleAttribute('data-sk-live', en.isIntersecting);
+  }, { rootMargin: '25% 0px -10% 0px' }) : null;
+  if (liveIO) liveIO.observe(manifestoSec);
   window.addEventListener('resize', relayout);
   scrollEvents.addEventListener('scroll', wake, { passive: true });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
@@ -404,7 +453,7 @@ function mount(root, options) {
 
   function parallaxPosition(el, viewportTop, height) {
     if (singleColumn.matches) return { current: 0, offset: 0, rate: 1 };
-    const r = el.getBoundingClientRect(), current = translateY(el.style.transform);
+    const r = el.getBoundingClientRect(), current = shiftOf(el);
     const speed = Number(el.dataset.skParallax);
     const mid = r.top - viewportTop - current + (r.height - height) / 2;
     return { current, offset: -mid * speed / (1 + speed), rate: 1 / (1 + speed) };
@@ -413,17 +462,22 @@ function mount(root, options) {
   const intersect = (a, b) => ({ from: Math.max(a.from, b.from), to: Math.min(a.to, b.to) });
   const textBlock = 'h1,h2,h3,h4,p,li,figcaption,.sk-cell,.sk-fact,.sk-stat,.sk-next,.sk-video-empty';
 
+  // Entradas: o bloco sobe e aparece, uma vez. No desktop, quando passa da linha de 90% da tela (40 px em 1 s). No
+  // celular, começa antes de o bloco entrar, a 20% da tela abaixo dela, e é mais curta (16 px em 0,5 s): numa rolagem
+  // rápida, o texto já chega montado. A transição roda no compositor. No nível C, nenhum conteúdo fica escondido.
+  const compactIn = matchMedia('(max-width: 720px), (pointer: coarse)').matches;
+  const IN_FX = compactIn ? { y: 16, s: 0.5, margin: '0px 0px 20% 0px' } : { y: 40, s: 1, margin: '0px 0px -10% 0px' };
   function showReveal(el, animate) {
     el.__shown = true;
     if (revealIO) revealIO.unobserve(el);
-    el.style.transition = animate ? 'transform 1s cubic-bezier(.2,.7,.2,1), opacity 1s ease' : 'none';
+    el.style.transition = animate ? `transform ${IN_FX.s}s cubic-bezier(.2,.7,.2,1), opacity ${IN_FX.s}s ease` : 'none';
     el.style.opacity = '1'; el.style.transform = 'translate3d(0,0,0)';
   }
 
   // Planeja as paradas pela área de leitura e pelas linhas reais, inclusive após redimensionar ou carregar as fontes.
   const nextSection = () => {
     const st = scroller.scrollTop, height = scroller.clientHeight, max = scroller.scrollHeight - height;
-    const viewportTop = scroller.getBoundingClientRect().top;
+    const viewportTop = viewTop();
     const headerEdge = Math.max(toolbar?.getBoundingClientRect().bottom ?? viewportTop, topBlur?.getBoundingClientRect().bottom ?? viewportTop);
     const halo = parseFloat(getComputedStyle(hint, '::before').top) || 0;
     const waTop = whatsApp?.getClientRects().length ? whatsApp.getBoundingClientRect().top : viewportTop + height;
@@ -494,26 +548,28 @@ function mount(root, options) {
   const skipEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
   skipEvents.forEach(ev => window.addEventListener(ev, skip, { passive: true, capture: true }));
 
-  // entradas: um observador avisa quando o bloco passa da linha de 90% da tela (ou já ficou acima dela)
+  // entradas: um observador avisa quando o bloco passa da linha de disparo (ou já ficou acima dela)
   let revealIO = null;
-  if (!reduce) {
-    reveals.forEach(el => { el.style.opacity = '0'; el.style.transform = 'translate3d(0,40px,0)'; });
+  const revealAll = () => { for (const el of reveals) if (!el.__shown) showReveal(el, false); if (revealIO) revealIO.disconnect(); };
+  if (!reduce && quality.tier !== 'c') {
+    reveals.forEach(el => { el.style.opacity = '0'; el.style.transform = `translate3d(0,${IN_FX.y}px,0)`; });
     revealIO = new IntersectionObserver(entries => {
       for (const en of entries) {
         const top = en.rootBounds ? en.rootBounds.top : 0;
         if (!en.target.__shown && (en.isIntersecting || en.boundingClientRect.bottom <= top)) showReveal(en.target, en.isIntersecting);
         if (en.target.__shown) revealIO.unobserve(en.target);
       }
-    }, { root: scroller === document.scrollingElement ? null : scroller, rootMargin: '0px 0px -10% 0px' });
+    }, { root: docScroll ? null : scroller, rootMargin: IN_FX.margin });
     reveals.forEach(el => revealIO.observe(el));
   }
+  qualityHooks.tier = t => { if (t === 'c') revealAll(); };
   const revealFocus = event => {
     const reveal = event.target.closest('[data-sk-reveal]');
     if (!reduce && reveal && getComputedStyle(reveal).opacity !== '1') showReveal(reveal, false);
   };
   scroller.addEventListener('focusin', revealFocus);
 
-  function topOf(el) { return el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop; }
+  function topOf(el) { return el.getBoundingClientRect().top - viewTop() + scroller.scrollTop; }
 
   function placeRings() {
     if (!rings || dead) return;
@@ -640,7 +696,7 @@ function mount(root, options) {
     last.p = p; last.intro = introLive;
 
     // ---------------- manifesto: palavras desalinhadas que assentam
-    if (!reduce && words.length) {
+    if (!reduce && !timeline && words.length) {
       const m = clamp((st - geo.wordsTop + vh * 0.6) / Math.max(1, geo.wordsH - vh * 0.4), 0, 1);
       if (m !== last.m) words.forEach((el, n) => {
         // só aparece na segunda metade do caminho, já quase no lugar; a saída sobe o bloco todo junto
@@ -651,13 +707,14 @@ function mount(root, options) {
       last.m = m;
     }
 
-    // ---------------- colunas com velocidades diferentes (posição sem transform, em cache)
+    // ---------------- colunas com velocidades diferentes (posição sem transform, em cache). No compositor, a animação
+    // move a coluna; aqui fica só a posição calculada, que a conta do papel usa.
     const single = singleColumn.matches;
     for (const c of geo.cols) {
       const y = single ? 0 : -((c.top - st) + (c.h - vh) / 2) * c.speed / (1 + c.speed);
       if (Math.abs(y - c.y) < 0.05) continue;
       c.y = y;
-      c.el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+      if (!timeline) c.el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
     }
 
     // ---------------- papel cobrindo a tela: o fundo desacelera (≥ 50%) ou espera (≥ 80%)
@@ -669,9 +726,14 @@ function mount(root, options) {
     }
     engine.setCover(zooming || introLive ? 0 : covered / Math.max(1, vw * vh));
 
-    // "Scroll": fica enquanto houver o que rolar abaixo; no fim da página some e deixa de ser clicável
+    // "Scroll": fica enquanto houver o que rolar abaixo; no fim da página some e deixa de ser clicável. No toque, só
+    // aparece no hero e some de vez no primeiro gesto (a primeira rolagem), para nunca ficar sobre o texto.
     if (hint) {
-      const more = st + vh < geo.scrollH - 1;
+      if (touchUI.matches && st > vh * 0.05) hintGone = true;
+      // rolando o documento no celular, a barra de endereço recolhida deixa a área visível (innerHeight) maior que o
+      // clientHeight: o fim da página é medido com a maior das duas
+      const seen = docScroll ? Math.max(vh, window.innerHeight) : vh;
+      const more = st + seen < geo.scrollH - 1 && !(touchUI.matches && hintGone);
       if (more !== last.hint) {
         hint.style.opacity = more ? '1' : '0';
         hint.style.pointerEvents = more ? '' : 'none';
@@ -688,7 +750,7 @@ function mount(root, options) {
     update(n) { Object.assign(o, n); engine.setOptions({ preset: o.preset, kanji: o.kanji, wind: o.wind }); },
     destroy() {
       dead = true; cancelAnimationFrame(raf); unmountMenu(); unmountColumns(); unmountLang(); unmountTheme(); glass.destroy(); engine.destroy();
-      if (layoutRO) layoutRO.disconnect(); if (revealIO) revealIO.disconnect(); quality.destroy();
+      if (layoutRO) layoutRO.disconnect(); if (revealIO) revealIO.disconnect(); if (liveIO) liveIO.disconnect(); quality.destroy();
       window.removeEventListener('resize', relayout); scrollEvents.removeEventListener('scroll', wake);
       skipEvents.forEach(ev => window.removeEventListener(ev, skip, true));
       scroller.removeEventListener('focusin', revealFocus);

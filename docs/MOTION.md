@@ -38,13 +38,24 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
 ## Estrutura
 
 ```
-[data-sk-root]                 tela cheia (100vh), overflow hidden
-├─ svg[data-sk-rings]          anéis concêntricos, seguem o foco da câmera
-├─ canvas[data-sk-canvas]      sakura em ASCII (fica fixa atrás de tudo)
-├─ [data-sk-scroller]          o scroll acontece aqui dentro
+[data-sk-root][data-sk-doc]    a página rola o próprio documento
+├─ svg[data-sk-rings]          anéis concêntricos, seguem o foco da câmera (fixos)
+├─ canvas[data-sk-canvas]      sakura em ASCII, fixa atrás de tudo, com 100lvh de altura
+├─ header (nav fixa)
+├─ main
 │   └─ section[data-sk-view=hero|manifesto|about|work|areas|path|me|contact]
-├─ header (nav fixa) · [data-sk-hint] "SCROLL ↓"   [data-sk-ui]: entram depois da abertura
+├─ [data-sk-hint] "SCROLL ↓" · WhatsApp (fixos)    [data-sk-ui]: entram depois da abertura
 ```
+
+- **Rolagem do documento.** No celular, a barra de endereço recolhe e a tela útil cresce. Tocar na barra de status volta
+  ao topo, e o puxar para atualizar funciona.
+- **Canvas.** Tem a altura da tela com a barra recolhida (`100lvh`), então a barra aparece e some sem redimensionar o
+  fundo. O motor só gera a árvore de novo quando a largura muda; a altura mudando refaz só o canvas.
+- **Telas cheias.** Hero, contato, topo dos projetos e cenas fixadas usam `svh`, que não muda com a barra.
+- **Posição da rolagem.** Fica com o controlador (`history.scrollRestoration = 'manual'`): o F5 recomeça do topo e o
+  voltar devolve a posição guardada.
+- **Artboard.** O do canvas de Design (`--dc`) mantém a estrutura antiga: uma raiz de `100vh` com um
+  `[data-sk-scroller]` interno. O controlador aceita os dois modos.
 
 `SakuraSite.mount(root, { preset, kanji, wind })` liga tudo e devolve `{ engine, ascii, update(), destroy() }`.
 
@@ -54,16 +65,16 @@ Arquivos gerados: `dist/index.html` (marcação + CSS, de `src/page/build_page.p
 |---|---|---|---|
 | 1 | Abertura (substitui o loader "T." da referência) | Tudo desenhado pelo motor, na grade. **Semente** (0,15–1,15 s): "桜 開花" e contador 000→100 em células; a barra de progresso é uma linha de células com o gradiente das flores (azul → rosa → amarelo), preenchida da esquerda para a direita, com a ponta embaralhando. Cheia, ela "vibra" até 1,3 s. **Explosão** (1,3 s): cada célula vira faíscas (uma por flor visível + 70 decorativas) lançadas em todas as direções, com amortecimento (caractere pela velocidade: `* + : .`, rastro de uma célula). **Florescer** (1,5–3,1 s): ao mesmo tempo, a árvore cresce a partir do tronco (ordem = distância ao longo dos galhos); cada faísca é atraída até a sua flor e chega na ordem do crescimento; a flor abre (0,35 s, embaralhando) quando a faísca pousa, e a cor da faísca passa da cor da barra para a cor da flor. As decorativas viram kana e somem. Título aos 2,3 s; nav, legenda e "SCROLL" logo depois. F5 sempre mostra a versão completa, do topo (a âncora da URL é descartada). Ao voltar à home navegando dentro do site: só um recuo curto de câmera (zoom 2,6 → 1 em 0,95 s) com a árvore crescendo. Clique, rolagem ou tecla pulam a abertura. `?intro=full` força a versão completa. Custo: ~2,8 ms por quadro (mediana) durante a abertura | `INTRO`, `BUD_AT` e `band()` no controlador; `growthOrder`, `burst`, `stepSparks`, `pickBud`, `setOverlay`, `gradAt` no motor; `data-sk-intro`, `data-sk-ui` |
 | 2 | Letras do título se montam a partir de posições espalhadas | Cada letra começa deslocada (±420/±260 px, ±50°) e assenta em 1,1 s, com atraso aleatório de até 0,5 s | `data-sk-letter` |
-| 3 | No scroll, as letras se dispersam em tempos diferentes ("A P CH") | Progresso = scroll / 0,9·viewport; cada letra sobe com deslocamento próprio e some num limiar próprio (0,05–0,6) | `data-sk-letter` |
+| 3 | No scroll, as letras se dispersam em tempos diferentes ("A P CH") | Progresso = scroll / 0,9·viewport; cada letra sobe com deslocamento próprio e some num limiar próprio (0,05–0,6). Fica no quadro (ver "Efeitos no compositor") | `data-sk-letter` |
 | 4 | A esfera cresce e vai para a direita, ficando de fundo | Câmera da sakura com zoom e foco por seção, interpolada entre seções (`smooth(0.55→1)`) e suavizada no motor (5/s) | tabela `VIEWS` no controlador |
-| 5 | Manifesto com palavras desalinhadas que se alinham | Seção fixada (sticky, 1700px); cada palavra começa ±28–96px fora da linha e assenta em sequência | `data-sk-word` |
+| 5 | Manifesto com palavras desalinhadas que se alinham | Seção fixada (sticky, 1700px; 130svh no celular); cada palavra começa ±28–96px fora da linha e assenta em sequência. No compositor | `data-sk-word`, `.sk-manifesto` |
 | 6 | Texto legível sobre o objeto | Zona de respiro elíptica por seção: as células da sakura esmaecem ali | `safe` em `VIEWS` |
 | 7 | Grade 2×5 com linhas finas | Grid com `gap: 1px` sobre fundo `#bfbebe`; hover inverte tinta e papel | `.sk-cell` |
-| 8 | Duas colunas de cards em velocidades diferentes | A coluna 2 tem parallax (`translateY = −distância ao centro × 0,16`) e começa 180px abaixo | `data-sk-parallax="0.16"` |
-| 9 | Cards entram ao aparecer | Fade + 40px para cima em 1s, uma vez | `data-sk-reveal` |
-| 10 | Nuvem de miniaturas orbitando a esfera, que depois explode | Chips em órbita elíptica com profundidade (escala/opacidade/z-index pelo seno do ângulo). A partir de 58% da seção, se afastam (×1,8–3,4) e somem enquanto a câmera mergulha (zoom → 2,7) | `data-sk-orbit`, `data-sk-chip`, `data-sk-orbit-label` |
+| 8 | Duas colunas de cards em velocidades diferentes | A coluna 2 tem parallax (`translateY = −distância ao centro × 0,16`) e começa 180px abaixo. No compositor | `data-sk-parallax="0.16"` |
+| 9 | Cards entram ao aparecer | Fade + 40px para cima em 1s, uma vez, ao passar da linha de 90% da tela. No celular, 16px em 0,5s, começando a 20% da tela antes de o bloco entrar. No nível C, nada fica escondido | `data-sk-reveal` |
+| 10 | Nuvem de miniaturas orbitando a esfera, que depois explode | Seção fixada (2600px; 170svh no celular). Chips em órbita elíptica com profundidade (escala/opacidade/z-index pelo seno do ângulo). A partir de 58% da seção, se afastam (×1,8–3,4) e somem enquanto a câmera mergulha (zoom → 2,7) | `data-sk-orbit`, `data-sk-chip`, `data-sk-orbit-label` |
 | 11 | Anéis finos ao redor do objeto | SVG com 3 círculos em `#bfbebe`, transladado para o foco da câmera e escalado com o zoom | `data-sk-rings` |
-| 12 | "SCROLL" avança a leitura | Cada clique desce até o próximo bloco que cabe entre a barra superior e os controles da base. Blocos altos continuam em paradas por parágrafo ou linha. As cenas fixas param com os textos já montados. O botão some no fim da página | `data-sk-hint`, `data-sk-read` |
+| 12 | "SCROLL" avança a leitura | Cada clique desce até o próximo bloco que cabe entre a barra superior e os controles da base. Blocos altos continuam em paradas por parágrafo ou linha. As cenas fixas param com os textos já montados. O botão some no fim da página. No toque, só aparece no hero e some de vez no primeiro gesto | `data-sk-hint`, `data-sk-read` |
 | 13 | Lista de prêmios com linhas finas | Lista com hairlines; no hover o título desliza 19px | `.sk-row` |
 | 14 | Navegação em vidro líquido (segmented control com lente) | A lente desliza em 0,62 s, estica dentro do trilho por 170 ms e gira o reflexo iridescente da borda (`--rim`). Ao retirar o cursor, ela volta ao item com foco de teclado. Sem foco ou cursor, segue a seção que cruza 40% da tela na navegação e descansa no primeiro link no contato | `data-sk-glass`, `.sk-lens`, `.sk-seg`, `.sk-lens-btn`, `src/js/glass.js` |
 | 15 | Página de cada projeto | Card da home vira link (a área toda é clicável; "Ver projeto +"). A navegação usa View Transitions entre documentos: o palco ASCII e o título do card voam até a página (0,6 s); sem suporte, troca normal. A página tem a própria sakura (preset `sakura` do projeto) e só a árvore crescendo na entrada (1,1 s). Câmera: `proj` (hero), `projbody` (vídeo e texto, árvore mais fraca, alpha 0,5) e `projnext`. Vídeo 16:9 com botão de vidro; "Próximo projeto" leva o kanji do seguinte. "Voltar" restaura a rolagem da home; âncoras (`#projetos`) chegam sem abertura | `src/content/projetos/*.md`, `project_body()` no gerador, `src/js/video.js`, `view-transition-name: sk-glyph-*` / `sk-title-*` |
@@ -88,7 +99,19 @@ blocos de glitch nas flores e caracteres que se embaralham perto do cursor.
   cai para meia velocidade. A partir de 80%, espera.
 - **Controlador:** o tick só roda quando há rolagem, redimensionamento, abertura ou órbita na tela. A geometria
   (topos das seções, colunas, superfícies de papel) fica em cache e é medida de novo quando o layout muda. As entradas
-  usam `IntersectionObserver`.
+  usam `IntersectionObserver` e uma transição CSS, que roda no compositor.
+- **Efeitos no compositor:** as palavras do manifesto e o parallax são animações CSS presas à rolagem
+  (`animation-timeline: scroll(root)`). Elas andam junto com o conteúdo mesmo quando a thread principal está ocupada
+  com o fundo.
+  - O controlador liga `data-sk-timeline` na raiz e escreve as faixas de rolagem em px (`--w0/--w1`, `--x0/--x1`,
+    `--y0/--y1`), só quando o layout muda. As curvas são as mesmas do quadro.
+  - O Chrome atualiza cada animação dessas a cada quadro, mesmo com a página parada: cerca de 0,25% da thread principal
+    por animação, com CPU 6×. Por isso elas são poucas e só ligam perto da tela.
+    - As palavras têm uma animação cada e só ficam ligadas com o manifesto perto da tela (`data-sk-live`).
+    - O parallax é uma animação só.
+    - As letras do título (80) ficam no quadro: no compositor, custariam ~20% da thread principal parado no hero.
+  - Sem suporte (Firefox, Safari antes do 26) ou no artboard, o controlador anima no quadro, com as mesmas contas.
+- **Toque:** não embaralha os glifos nem empurra as pétalas, como o cursor faz.
 - **Níveis de qualidade** (`TIERS` no controlador, `data-sk-tier` na raiz):
 
   | Nível | Motor | Cards | Vidro |
