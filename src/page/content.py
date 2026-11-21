@@ -5,13 +5,18 @@ parágrafos, `## seções`, listas com `-`, **negrito**, *itálico*, `código` e
 O texto antes da primeira seção vira o lead. A seção "Em números" (em inglês, "Key figures") vira uma grade de
 destaques (cada item: **valor** rótulo).
 
+Endereço (slug): sempre o nome do projeto (titulo), em minúsculas e com hífens: "News Portal" → projetos/news-portal/.
+Se o nome mudar, ponha o endereço anterior em enderecos_antigos (separados por vírgula): ele vira uma página que leva
+ao novo, para os links já compartilhados continuarem funcionando.
+
 Inglês: src/content/projetos/en/<mesmo nome>.md, só com os campos que mudam de idioma (categoria, card, tags, papel,
-periodo, status) e o corpo inteiro traduzido; o resto (slug, kanji, stack, repo, site...) vem do arquivo em português.
+periodo, status) e o corpo inteiro traduzido; o resto (titulo, kanji, stack, repo, site...) vem do arquivo em português.
 Vídeo e poster em inglês, quando existirem: apresentacao.en.mp4 e poster.en.jpg (senão, os em português).
 """
 import html
 import os
 import re
+import unicodedata
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
 CONTENT = os.path.join(ROOT, 'src', 'content', 'projetos')
@@ -24,6 +29,12 @@ PENDING = '[preencher]'
 
 def esc(s):
     return html.escape(s, quote=False)
+
+
+def slugify(text):
+    """Nome do projeto → endereço: 'Local AI Provider' → 'local-ai-provider' (sem acento, minúsculas, hífens)."""
+    t = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode().lower()
+    return re.sub(r'[^a-z0-9]+', '-', t).strip('-')
 
 
 def inline(text):
@@ -98,6 +109,9 @@ def split(path):
 
 def parse(path, lang='pt'):
     meta, body, raw = split(path)
+    slug = slugify(meta.get('titulo', ''))  # do nome em português: o mesmo endereço nos dois idiomas
+    if not slug:
+        raise ValueError(f'{path}: falta o titulo, que dá o endereço do projeto')
     translated = lang == 'pt'
     if not translated:
         tr = os.path.join(os.path.dirname(path), lang, os.path.basename(path))
@@ -115,6 +129,8 @@ def parse(path, lang='pt'):
         else:
             cur['lines'].append(line)
     p = dict(meta)
+    p['slug'] = slug
+    p['antigos'] = [s.strip() for s in meta.get('enderecos_antigos', '').split(',') if s.strip()]
     p['ordem'] = int(meta.get('ordem', '99'))
     p['stack'] = [s.strip() for s in meta.get('stack', '').split(',') if s.strip()]
     p['lead'] = blocks(lead)
@@ -124,7 +140,6 @@ def parse(path, lang='pt'):
             p['sections'].append({'title': s['title'], 'stats': stats(s['lines'])})
         else:
             p['sections'].append({'title': s['title'], 'html': blocks(s['lines'])})
-    slug = p['slug']
     folder = os.path.join(ASSETS, 'projetos', slug)
 
     def find(name, exts):
@@ -146,6 +161,10 @@ def parse(path, lang='pt'):
 def load_projects(lang='pt'):
     files = sorted(f for f in os.listdir(CONTENT) if f.endswith('.md'))
     projects = sorted((parse(os.path.join(CONTENT, f), lang) for f in files), key=lambda p: p['ordem'])
+    used = [s for p in projects for s in [p['slug'], *p['antigos']]]
+    dup = sorted({s for s in used if used.count(s) > 1})
+    if dup:
+        raise ValueError(f'endereço de projeto repetido: {", ".join(dup)}')
     for i, p in enumerate(projects):
         p['num'] = f'{i + 1:02d}'
         p['cap'] = f"{p['num']} — {p['categoria']}"

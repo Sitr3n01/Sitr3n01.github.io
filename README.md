@@ -74,10 +74,15 @@ português ou se houver texto em português no inglês. Tom e glossário: [docs/
 ## Projetos
 
 Cada projeto é um arquivo em `src/content/projetos/` (a ordem vem do campo `ordem`). Ele gera o card da home e a
-página `projetos/<slug>/`. O front matter tem `slug`, `ordem`, `kanji`, `sakura` (preset da árvore da página),
+página `projetos/<slug>/`. O front matter tem `ordem`, `kanji`, `sakura` (preset da árvore da página),
 `categoria`, `titulo`, `card` (texto curto do card), `tags`, `papel`, `periodo`, `status`, `stack` (separada por
 vírgulas), `repo`, `site` (um ou mais endereços, separados por vírgula) e, opcionalmente, `youtube` (ID do vídeo). O corpo é Markdown: o texto antes da primeira
 `## seção` vira o lead; a seção `## Em números` vira uma grade de destaques (`- **valor** rótulo`).
+
+**Endereço:** o `<slug>` é sempre o `titulo` em minúsculas, sem acento e com hífens ("News Portal" →
+`projetos/news-portal/`), nos dois idiomas; a pasta de vídeos e o arquivo `.md` seguem o mesmo nome. Se o nome mudar,
+liste o endereço anterior em `enderecos_antigos` (separados por vírgula): o build gera uma página que leva ao novo, e o
+`npm run check` confere os dois lados.
 
 **Vídeo de apresentação:** coloque `src/assets/projetos/<slug>/apresentacao.mp4` (ou `.webm`) e, se quiser, uma capa
 `poster.jpg`. Sem arquivo, a página mostra um quadro "em produção". Para usar o YouTube, preencha `youtube:` no front

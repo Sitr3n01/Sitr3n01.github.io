@@ -1,5 +1,4 @@
 ---
-slug: exobeast
 ordem: 5
 kanji: 獣
 sakura: ogi

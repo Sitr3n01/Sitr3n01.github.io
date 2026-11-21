@@ -1,5 +1,4 @@
 ---
-slug: xgb
 ordem: 3
 kanji: 遊
 sakura: kosa

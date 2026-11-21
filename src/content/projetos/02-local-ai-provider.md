@@ -1,5 +1,5 @@
 ---
-slug: ia-local-server
+enderecos_antigos: ia-local-server
 ordem: 2
 kanji: 知
 sakura: koeda

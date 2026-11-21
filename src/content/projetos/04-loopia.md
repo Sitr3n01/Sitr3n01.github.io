@@ -1,5 +1,4 @@
 ---
-slug: loopia
 ordem: 4
 kanji: 輪
 sakura: itozakura

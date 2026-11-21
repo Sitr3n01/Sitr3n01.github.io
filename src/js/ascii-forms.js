@@ -557,8 +557,8 @@ function ascCube(env) { const m = ascMesh(); m.part((x, y, z) => fract((x + y + 
 function ascBall(env) { const m = ascMesh(); m.part((x, y) => fract(y * 5) < 0.15 ? 0.95 : 0.45); ascSphere(m, [0, 0, 0], 0.6, 16); return ascShape(ascSampleMesh(m, env.N, env.rnd), env.rnd, {}); }
 
 const ASC_PROJECTS = {
-  'kelly-sys': { shapes: [ascMic, ascEarth, ascTsuru], trans: ['wave', 'scatter', 'scatter'] },
-  'ia-local-server': { shapes: [ascCase, ascGpu, ascLock], trans: ['contain', 'contain', 'contain'] },
+  'news-portal': { shapes: [ascMic, ascEarth, ascTsuru], trans: ['wave', 'scatter', 'scatter'] },
+  'local-ai-provider': { shapes: [ascCase, ascGpu, ascLock], trans: ['contain', 'contain', 'contain'] },
   'xgb': { shapes: [ascMonitor, ascPad, ascSymbols], trans: ['scatter', 'wave', 'scatter'] },
   'loopia': { shapes: [ascCard, env => (env.ring = env.ring || ascRingMaker(env))(), env => env.ring()], trans: ['drop', 'seq', 'scatter'] },
   'exobeast': { shapes: [ascPlayers, ascNet, ascTower], trans: ['sync', 'implode', 'scatter'] },

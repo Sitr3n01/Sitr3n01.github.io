@@ -4,7 +4,7 @@
 //   3. a marcação tem as seções e os ganchos data-sk-* que o controlador espera;
 //   4. o inglês (en/) tem as mesmas páginas e a mesma estrutura do português, sem texto em português vazando;
 //   5. o build é determinístico (dois builds seguidos geram os mesmos bytes).
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
 import { build, DIST } from './build.mjs';
@@ -78,6 +78,10 @@ for (const slug of slugs) {
   if (page.includes('class="sk-video-empty"')) pend.push(`${slug}: sem vídeo (src/assets/projetos/${slug}/apresentacao.mp4)`);
   if (page.includes('class="sk-pending"')) pend.push(`${slug}: texto com [preencher]`);
 }
+// o endereço de cada projeto é o nome dele (content.py, slugify)
+const slugOf = (t) => t.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+for (const [, slug, title] of html1.matchAll(/data-sk-project="([a-z0-9-]+)"><span[^>]*>([^<]+)<\/span>/g))
+  ok(slug === slugOf(title.replace(/&amp;/g, '&')), `projetos/${slug}/: endereço igual ao nome do projeto ("${title}")`);
 
 // ---- inglês: mesma home e mesmas páginas de projeto em en/, com o seletor de idioma e hreflang nos dois lados
 let htmlEn = '';
@@ -118,6 +122,14 @@ for (const [ptPath, enPath, slug] of pages) {
   }
   const l = leak(en);
   ok(!l, `${enPath}: sem texto em português${l ? ` ("${l}")` : ''}`);
+}
+
+// endereços antigos (enderecos_antigos): toda pasta de projeto sem card leva a um projeto que existe
+for (const [dir, list] of [['projetos', slugs], ['en/projects', slugsEn]]) {
+  for (const old of readdirSync(join(DIST, dir)).filter((d) => !list.includes(d))) {
+    let m = null; try { m = read(`${dir}/${old}/index.html`).match(/http-equiv="refresh" content="0; url=\.\.\/([a-z0-9-]+)\/"/); } catch { /* falta */ }
+    ok(!!m && list.includes(m[1]), `${dir}/${old}/ (endereço antigo) leva a ${m ? `${dir}/${m[1]}/` : 'um projeto que existe'}`);
+  }
 }
 
 for (const f of ['rca44-geometry.glb', 'tsuru.glb', 'land-mask-640x320.bin']) {

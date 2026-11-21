@@ -1075,6 +1075,26 @@ def build_standalone(L, script_src, body_html, title, desc=None, opts="{ preset:
 '''
 
 
+def build_redirect(L, p):
+    """Endereço antigo de um projeto (o endereço segue o nome, ver content.py): leva à página atual, com a mesma âncora."""
+    href = f"../{p['slug']}/"
+    return f'''<!DOCTYPE html>
+<html lang="{L['html_lang']}">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>{E(p['titulo'])} — Sitr3n</title>
+<link rel="canonical" href="{SITE}{L.path(p['slug'])}">
+<meta http-equiv="refresh" content="0; url={href}">
+<script>location.replace('{href}' + location.search + location.hash)</script>
+</head>
+<body>
+<a href="{href}">{E(p['titulo'])}</a>
+</body>
+</html>
+'''
+
+
 def write(path, text):
     # newline='\n' garante LF também no Windows (saída idêntica em qualquer SO)
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
@@ -1104,6 +1124,10 @@ if __name__ == '__main__':
             write(os.path.join(folder, 'index.html'),
                   build_standalone(L, proot + 'sakura-site.js', project_root(L, p, nxt, proot), f"{p['titulo']} — Sitr3n",
                                    p['card'], opts, p['slug']))
+            for old in p['antigos']:
+                folder = os.path.join(args.out, L.path(old))
+                os.makedirs(folder, exist_ok=True)
+                write(os.path.join(folder, 'index.html'), build_redirect(L, p))
     if args.dc:
         write(os.path.join(args.out, 'Main.dc.html'), build_dc(args.dc))
     print('ok')

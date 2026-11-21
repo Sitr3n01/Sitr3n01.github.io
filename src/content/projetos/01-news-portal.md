@@ -1,5 +1,5 @@
 ---
-slug: kelly-sys
+enderecos_antigos: kelly-sys
 ordem: 1
 kanji: 報
 sakura: sanbon
