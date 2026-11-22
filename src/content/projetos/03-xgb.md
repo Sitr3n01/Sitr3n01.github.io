@@ -48,4 +48,4 @@ O modo de tela cheia do Windows 11 aproxima o PC da experiência de um console, 
 
 ## Status
 
-Candidata v3.0.0, com a validação física pendente. As funções estão implementadas, passaram no gate local e o aplicativo está em uso diário no meu computador, mas ainda não há release publicada. Foi feito para uma configuração e testado em um computador. Próximos passos: a matriz física no modo Xbox (Steam, DSX, jogos reais, TV) e a CI no GitHub.
+Candidata v3.0.0, com a validação física pendente. As funções estão implementadas, passaram no gate local e na CI do GitHub, e o aplicativo está em uso diário no meu computador, mas ainda não há release publicada. Foi feito para uma configuração e testado em um computador. Próximo passo: a matriz física no modo Xbox (Steam, DSX, jogos reais, TV).
