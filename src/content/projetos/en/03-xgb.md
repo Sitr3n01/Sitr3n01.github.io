@@ -42,4 +42,4 @@ The full screen experience on Windows 11 brings the PC closer to a console, but 
 
 ## Status
 
-Release candidate v3.0.0, with physical validation pending. The features are implemented and have passed the local gate, and the application is in daily use on my computer, but no release has been published yet. It was built for one setup and tested on one computer. Next steps: the physical test matrix in Xbox mode (Steam, DSX, real games, TV) and CI on GitHub.
+Release candidate v3.0.0, with physical validation pending. The features are implemented and have passed both the local gate and CI on GitHub, and the application is in daily use on my computer, but no release has been published yet. It was built for one setup and tested on one computer. Next step: the physical test matrix in Xbox mode (Steam, DSX, real games, TV).
