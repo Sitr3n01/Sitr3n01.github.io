@@ -60,12 +60,12 @@ T = {
     'about_intro': ('Desenvolvedor full-stack e formado em Jogos Digitais no IESB, em Brasília.',
                     'Full-stack developer with a degree in Digital Games from IESB, in Brasília, Brazil.'),
     'about_text': ('Da lógica que sustenta um sistema à interface que o torna intuitivo, desenvolvo produtos digitais com '
-                   'atenção à técnica e à experiência. Atuo com web, desktop e jogos e, durante seis meses no Brasília Game '
+                   'atenção à técnica e à experiência. Atuo com web, desktop e jogos e, durante sete meses no Brasília Game '
                    'Hub, participei dos projetos Loopia e ExoBeast. A fotografia amplia minha perspectiva sobre estética, '
                    'composição e comunicação visual.',
                    'From the logic that supports a system to the interface that makes it intuitive, I develop digital '
                    'products with attention to both engineering and user experience. I work across web, desktop, and games, '
-                   'and during six months at Brasília Game Hub I took part in the Loopia and ExoBeast projects. Photography '
+                   'and during seven months at Brasília Game Hub I took part in the Loopia and ExoBeast projects. Photography '
                    'broadens my perspective on aesthetics, composition, and visual communication.'),
     'stack_title': (['Stack', 'de trabalho'], ['Tech', 'stack']),
     'work_title': ('Projetos em destaque', 'Featured projects'),
@@ -156,7 +156,7 @@ AREA_LABELS = [((['Full-', 'stack'], ['Full-', 'stack']), 'left: 18%; top: 24%')
 # "Tecnólogo" é um diploma de graduação brasileiro sem equivalente direto; "Technology degree" evita sugerir
 # um bacharelado
 PATH_ROWS = [
-    ('01', ('Brasília Game Hub', 'Brasília Game Hub'), (['6 meses', 'Loopia', 'ExoBeast'], ['6 months', 'Loopia', 'ExoBeast'])),
+    ('01', ('Brasília Game Hub', 'Brasília Game Hub'), (['7 meses', 'Loopia', 'ExoBeast'], ['7 months', 'Loopia', 'ExoBeast'])),
     ('02', ('IESB', 'IESB'), (['Tecnólogo em Jogos Digitais', 'Concluído em 2026'],
                               ['Technology degree in Digital Games', 'Completed in 2026'])),
     ('03', ('Game jams', 'Game jams'), (['2 participações'], ['Participated in 2'])),
@@ -167,5 +167,5 @@ PATH_ROWS = [
 
 ME_NAME = ('José Gilberto', 'Farias Souza')
 ME_FACTS = [(('Cidade', 'City'), (['Brasília'], ['Brasília, Brazil'])),
-            (('Línguas', 'Languages'), (['Português · fluente', 'Inglês · intermediário'],
+            (('Línguas', 'Languages'), (['Português · nativo', 'Inglês · intermediário'],
                                         ['Portuguese · native', 'English · intermediate']))]
