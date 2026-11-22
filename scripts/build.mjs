@@ -3,6 +3,7 @@
 //   dist/sakura-site.js  ← src/js/{core,engine,glass,video,ascii,ascii-forms,controller}.js num IIFE que expõe window.SakuraSite
 //   dist/sakura-ascii-worker.js ← amostragem da geometria dos cards fora da thread principal
 //   dist/assets/         ← cópia de src/assets/ (se existir)
+//   dist/favicon.*, ...  ← cópia de src/public/ (arquivos da raiz do site)
 // Uso: node scripts/build.mjs [--dc <script_url>]
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -52,6 +53,9 @@ export function buildHtml(dcUrl) {
 export function buildAssets() {
   const from = join(SRC, 'assets');
   if (existsSync(from)) cpSync(from, join(DIST, 'assets'), { recursive: true });
+  // src/public/ vai para a raiz do site: favicon e o que o navegador procura direto na raiz
+  const pub = join(SRC, 'public');
+  if (existsSync(pub)) cpSync(pub, DIST, { recursive: true });
 }
 
 export function build({ clean = false, dcUrl } = {}) {

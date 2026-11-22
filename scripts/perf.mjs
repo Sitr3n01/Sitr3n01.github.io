@@ -6,12 +6,10 @@
 //   Chrome: variável CHROME, ou o instalado no lugar de sempre (Chrome, Edge ou Chromium).
 // Limites: a GPU não é emulada e o headless não tem vsync (o rAF passa de 60 Hz). Compare cenários entre si e o mesmo
 // cenário antes e depois; não leia os fps como os de um aparelho.
-import { spawn, spawnSync } from 'node:child_process';
-import { createServer } from 'node:http';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { extname, join, normalize, sep } from 'node:path';
+import { writeFileSync } from 'node:fs';
 import { build, DIST } from './build.mjs';
+import { findChrome, launchChrome, sleep } from './lib/chrome.mjs';
+import { serve } from './lib/serve.mjs';
 
 const MOBILE_UA = 'Mozilla/5.0 (Linux; Android 13; SM-A135F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
 const SCENARIOS = {
@@ -31,73 +29,11 @@ const opt = f => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : null
 const names = flag('--all') ? Object.keys(SCENARIOS) : (args.find(a => !a.startsWith('--') && a !== opt('--json') && a !== opt('--tier'))?.split(',') || DEFAULT);
 const tier = opt('--tier');
 for (const n of names) if (!SCENARIOS[n]) { console.error(`cenário desconhecido: ${n} (${Object.keys(SCENARIOS).join(', ')})`); process.exit(1); }
-const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-function findChrome() {
-  if (process.env.CHROME) return process.env.CHROME;
-  const L = process.env.LOCALAPPDATA || '', P = process.env.PROGRAMFILES || 'C:/Program Files', P86 = process.env['PROGRAMFILES(X86)'] || 'C:/Program Files (x86)';
-  const paths = process.platform === 'win32'
-    ? [`${P}/Google/Chrome/Application/chrome.exe`, `${P86}/Google/Chrome/Application/chrome.exe`, `${L}/Google/Chrome/Application/chrome.exe`, `${P86}/Microsoft/Edge/Application/msedge.exe`, `${P}/Microsoft/Edge/Application/msedge.exe`]
-    : process.platform === 'darwin'
-      ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge']
-      : [];
-  for (const p of paths) if (existsSync(p)) return p;
-  for (const bin of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']) {
-    const r = spawnSync('which', [bin], { encoding: 'utf8' });
-    if (r.status === 0 && r.stdout.trim()) return r.stdout.trim();
-  }
-  return null;
-}
-
-// servidor estático mínimo do dist/
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.jpg': 'image/jpeg', '.png': 'image/png',
-  '.glb': 'model/gltf-binary', '.bin': 'application/octet-stream', '.mp4': 'video/mp4', '.webm': 'video/webm', '.svg': 'image/svg+xml' };
-function serve() {
-  const server = createServer((req, res) => {
-    let file = normalize(join(DIST, decodeURIComponent(new URL(req.url, 'http://x').pathname)));
-    if (file !== DIST && !file.startsWith(DIST + sep)) { res.writeHead(403).end(); return; }
-    try {
-      if (statSync(file).isDirectory()) file = join(file, 'index.html');
-      res.writeHead(200, { 'Content-Type': TYPES[extname(file).toLowerCase()] || 'application/octet-stream' }).end(readFileSync(file));
-    } catch { res.writeHead(404).end(); }
-  });
-  return new Promise(r => server.listen(0, '127.0.0.1', () => r(server)));
-}
-
+// um Chrome por cenário, com uma aba
 async function launch(chrome) {
-  const dir = mkdtempSync(join(tmpdir(), 'sakura-perf-'));
-  const proc = spawn(chrome, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${dir}`, '--no-first-run',
-    '--no-default-browser-check', '--disable-extensions', '--hide-scrollbars', '--mute-audio', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
-  const wsUrl = await new Promise((resolve, reject) => {
-    let buf = '';
-    const t = setTimeout(() => reject(new Error('o Chrome não abriu a porta de depuração')), 15000);
-    proc.stderr.on('data', d => { buf += d; const m = /DevTools listening on (ws:\/\/\S+)/.exec(buf); if (m) { clearTimeout(t); resolve(m[1]); } });
-    proc.on('exit', () => reject(new Error('o Chrome fechou ao abrir')));
-  });
-  const browser = new WebSocket(wsUrl);
-  await new Promise(r => browser.addEventListener('open', r, { once: true }));
-  let id = 0; const pending = new Map(), handlers = new Map();
-  browser.addEventListener('message', ev => {
-    const m = JSON.parse(ev.data);
-    if (m.id && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); m.error ? p.rej(new Error(m.error.message)) : p.res(m.result); }
-    else if (m.method) (handlers.get(m.method) || []).forEach(f => f(m.params));
-  });
-  const raw = (method, params = {}, sessionId) => new Promise((res, rej) => {
-    const i = ++id; pending.set(i, { res, rej }); browser.send(JSON.stringify({ id: i, method, params, sessionId }));
-  });
-  const { targetInfos } = await raw('Target.getTargets');
-  const target = targetInfos.find(t => t.type === 'page');
-  const { sessionId } = await raw('Target.attachToTarget', { targetId: target.targetId, flatten: true });
-  const send = (method, params) => raw(method, params, sessionId);
-  const evaluate = async expr => {
-    const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
-    if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
-    return r.result.value;
-  };
-  return {
-    send, evaluate,
-    close() { try { browser.close(); } catch { /* já fechado */ } proc.kill(); setTimeout(() => rmSync(dir, { recursive: true, force: true }), 500).unref(); },
-  };
+  const browser = await launchChrome(chrome), page = await browser.page();
+  return { send: page.send, evaluate: page.evaluate, close: () => browser.close() };
 }
 
 // intervalos de rAF, long animation frames e quadros desenhados por canvas (um clearRect ou putImageData da área inteira
@@ -226,8 +162,7 @@ ${r.label}  [${r.name}]${r.tier ? ` · nível ${r.tier.toUpperCase()}${tier ? ' 
 const chrome = findChrome();
 if (!chrome) { console.error('Chrome não encontrado. Defina CHROME com o caminho do executável.'); process.exit(1); }
 build({ clean: true });
-const server = await serve();
-const base = `http://127.0.0.1:${server.address().port}/`;
+const { server, url: base } = await serve(DIST);
 console.log(`dist/ em ${base} · ${chrome}`);
 const results = [];
 try {

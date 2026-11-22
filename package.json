@@ -5,12 +5,14 @@
   "description": "Portfólio Sitr3n — site estático com fundo de sakura em ASCII e dinâmicas de scroll (sem dependências).",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
     "check": "node scripts/check.mjs",
-    "perf": "node scripts/perf.mjs"
+    "perf": "node scripts/perf.mjs",
+    "e2e": "node scripts/e2e.mjs",
+    "images": "node scripts/images.mjs"
   }
 }

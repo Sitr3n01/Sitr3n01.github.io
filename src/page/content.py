@@ -21,6 +21,10 @@ import unicodedata
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
 CONTENT = os.path.join(ROOT, 'src', 'content', 'projetos')
 STATS_TITLES = ('em números', 'key figures')
+# campos do front matter: um campo fora destas listas é erro (pega erro de digitação, que seria ignorado em silêncio)
+REQUIRED = ('titulo', 'ordem', 'kanji', 'sakura', 'categoria', 'card', 'tags')
+OPTIONAL = ('papel', 'periodo', 'status', 'stack', 'repo', 'site', 'youtube', 'video', 'poster', 'enderecos_antigos')
+TRANSLATED = ('categoria', 'card', 'tags', 'papel', 'periodo', 'status')  # os únicos que o arquivo em inglês traz
 ASSETS = os.path.join(ROOT, 'src', 'assets')
 VIDEO_EXT = ('.mp4', '.webm')
 POSTER_EXT = ('.jpg', '.jpeg', '.png', '.webp', '.avif')
@@ -29,6 +33,11 @@ PENDING = '[preencher]'
 
 def esc(s):
     return html.escape(s, quote=False)
+
+
+def relpath(path):
+    """Caminho a partir da raiz do repositório, com barras: como aparece nas mensagens de erro."""
+    return os.path.relpath(path, ROOT).replace('\\', '/')
 
 
 def slugify(text):
@@ -44,7 +53,8 @@ def inline(text):
     t = re.sub(r'(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])', r'<em>\1</em>', t)
 
     def link(m):
-        label, url = m.group(1), m.group(2)
+        # o texto já passou por esc(): o endereço volta ao original antes de virar atributo (senão & sairia &amp;amp;)
+        label, url = m.group(1), html.unescape(m.group(2))
         ext = url.startswith('http')
         attrs = ' rel="noopener"' if ext else ''
         return f'<a class="sk-link" href="{html.escape(url)}"{attrs}>{label}{" ↗" if ext else ""}</a>'
@@ -98,7 +108,9 @@ def split(path):
     raw = open(path, encoding='utf-8').read().replace('\r\n', '\n')
     meta, body = {}, raw
     if raw.startswith('---\n'):
-        end = raw.index('\n---', 4)
+        end = raw.find('\n---', 4)
+        if end < 0:
+            raise ValueError(f'{relpath(path)}: o front matter abre com --- e não fecha')
         for line in raw[4:end].splitlines():
             if ':' in line:
                 k, v = line.split(':', 1)
@@ -107,16 +119,34 @@ def split(path):
     return meta, body, raw
 
 
+def validate(path, meta, allowed, required=()):
+    """Front matter de um projeto: campos conhecidos, obrigatórios preenchidos e valores no formato esperado."""
+    problems = [f'campo desconhecido "{k}"' for k in meta if k not in allowed]
+    problems += [f'falta o campo "{k}"' for k in required if not meta.get(k)]
+    if meta.get('ordem') and not meta['ordem'].isdigit():
+        problems.append(f'"ordem" precisa ser um número inteiro (está "{meta["ordem"]}")')
+    if meta.get('kanji') and len(meta['kanji']) != 1:
+        problems.append(f'"kanji" precisa ser um caractere só (está "{meta["kanji"]}")')
+    for k in ('repo', 'site'):
+        for u in (s.strip() for s in meta.get(k, '').split(',') if s.strip()):
+            if not u.startswith(('https://', 'http://')):
+                problems.append(f'"{k}" precisa de endereços completos, com https:// (está "{u}")')
+    if problems:
+        raise ValueError(f'{relpath(path)}: ' + '; '.join(problems))
+
+
 def parse(path, lang='pt'):
     meta, body, raw = split(path)
-    slug = slugify(meta.get('titulo', ''))  # do nome em português: o mesmo endereço nos dois idiomas
+    validate(path, meta, REQUIRED + OPTIONAL, REQUIRED)
+    slug = slugify(meta['titulo'])  # do nome em português: o mesmo endereço nos dois idiomas
     if not slug:
-        raise ValueError(f'{path}: falta o titulo, que dá o endereço do projeto')
+        raise ValueError(f'{relpath(path)}: o titulo precisa ter letras ou números, que dão o endereço do projeto')
     translated = lang == 'pt'
     if not translated:
         tr = os.path.join(os.path.dirname(path), lang, os.path.basename(path))
         if os.path.exists(tr):  # sem tradução, a página sai em português e o check acusa
             tmeta, body, raw = split(tr)
+            validate(tr, tmeta, TRANSLATED)
             meta = {**meta, **tmeta}
             translated = True
     lead, sections, cur = [], [], None
@@ -131,7 +161,7 @@ def parse(path, lang='pt'):
     p = dict(meta)
     p['slug'] = slug
     p['antigos'] = [s.strip() for s in meta.get('enderecos_antigos', '').split(',') if s.strip()]
-    p['ordem'] = int(meta.get('ordem', '99'))
+    p['ordem'] = int(meta['ordem'])
     p['stack'] = [s.strip() for s in meta.get('stack', '').split(',') if s.strip()]
     p['lead'] = blocks(lead)
     p['sections'] = []
@@ -154,7 +184,7 @@ def parse(path, lang='pt'):
     p['translated'] = translated
     p['youtube'] = meta.get('youtube') or None
     p['pending'] = PENDING in raw
-    p['source'] = os.path.relpath(path, ROOT).replace('\\', '/')
+    p['source'] = relpath(path)
     return p
 
 
@@ -165,6 +195,14 @@ def load_projects(lang='pt'):
     dup = sorted({s for s in used if used.count(s) > 1})
     if dup:
         raise ValueError(f'endereço de projeto repetido: {", ".join(dup)}')
+    orders = [p['ordem'] for p in projects]
+    dup = sorted({o for o in orders if orders.count(o) > 1})
+    if dup:
+        raise ValueError(f'"ordem" repetida entre projetos: {", ".join(map(str, dup))}')
+    if lang != 'pt':  # tradução sem o arquivo em português ao lado (nome trocado): ela nunca seria usada
+        orphans = sorted(set(f for f in os.listdir(os.path.join(CONTENT, lang)) if f.endswith('.md')) - set(files))
+        if orphans:
+            raise ValueError(f'src/content/projetos/{lang}/: tradução sem o projeto em português: {", ".join(orphans)}')
     for i, p in enumerate(projects):
         p['num'] = f'{i + 1:02d}'
         p['cap'] = f"{p['num']} — {p['categoria']}"

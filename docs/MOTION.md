@@ -154,6 +154,11 @@ blocos de glitch nas flores e caracteres que se embaralham perto do cursor.
 - **Aba oculta:** a animação pausa. Ao voltar, o quadro é refeito inteiro.
 - **`prefers-reduced-motion`:** sem abertura (a cena já aparece pronta), sem animação de letras e palavras, sakura parada (a câmera ainda acompanha as seções).
 - **Leitores de tela:** canvas, anéis, chips e loader têm `aria-hidden`. O título tem `aria-label` com o texto inteiro.
+- **Teclado:** o primeiro Tab mostra "Pular para o conteúdo" (vidro, no canto de cima), que leva o foco ao `<main>`.
+- **Toque:** todo controle tem pelo menos 44 × 44 px de área de toque. Os links pequenos (seletor de idioma, "GitHub ↗",
+  "← Todos os projetos", "Vamos conversar ↗") ganham a área com um `::after` invisível (`.sk-hit`), sem mudar o desenho.
+  O navegador não pinta o bloco de destaque do toque (azul no Android): `-webkit-tap-highlight-color: transparent` no
+  `html`. A resposta ao toque é a de cada controle: o vidro incha e a lente desliza, o card gira o "+", o link sublinha.
 
 ## Pendências
 

@@ -4,8 +4,8 @@
    - Main.dc.html                                                 (artboard do canvas de Design, opcional, em português)
 Os textos da interface ficam em textos.py, em pares (português, inglês); os dos projetos, nos .md.
 """
-import html, json, urllib.parse
-from content import inline, load_projects
+import html, json, os, urllib.parse
+from content import ASSETS, ROOT, inline, load_projects
 from textos import AREA_LABELS, CHIPS, IDS, LANGS, ME_FACTS, ME_NAME, MENU, PATH_ROWS, SITE, STACK, T
 
 # Cores em tokens CSS: a marcação usa var(--sk-*) e cada tema só troca os valores (THEMES). No claro, os valores são
@@ -31,11 +31,14 @@ THEMES = {
 }
 
 
+def hex_color(c):
+    return '#' + ''.join(f'{v:02x}' for v in c)
+
+
 def theme_vars(name):
     t = THEMES[name]
-    hexc = lambda c: '#' + ''.join(f'{v:02x}' for v in c)
     rgb = lambda c: ','.join(map(str, c))
-    out = [f'--sk-{k}:{hexc(t[k])};--sk-{k}-rgb:{rgb(t[k])}' for k in ('ink', 'parch', 'paper', 'ash', 'mute')]
+    out = [f'--sk-{k}:{hex_color(t[k])};--sk-{k}-rgb:{rgb(t[k])}' for k in ('ink', 'parch', 'paper', 'ash', 'mute')]
     out.append(f'--sk-petal-ink-rgb:{rgb(t["petal_ink"])};--sk-petal-a:{t["petal_a"]}')
     out.append('--sk-tones:' + ' '.join(rgb(c) for c in t['tones']))
     out.append(f'color-scheme:{name}')
@@ -195,7 +198,7 @@ def about(L):
 <div data-sk-read data-sk-reveal="1" style="max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-start">
 <div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 19px">
 <p style="margin: 0; font-size: var(--sk-small, 15px); line-height: 1.4; letter-spacing: 0.013em; text-transform: uppercase; max-width: 26em">{E(L['about_intro'])}</p>
-<a class="sk-link" href="https://github.com/Sitr3n01" style="align-self: flex-start; font-size: var(--sk-small, 15px); color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">GitHub ↗</a>
+<a class="sk-link sk-hit" href="https://github.com/Sitr3n01" style="align-self: flex-start; font-size: var(--sk-small, 15px); color: {INK}; text-decoration: none; border-radius: 10px; padding: 5px 0">GitHub ↗</a>
 </div>
 <div style="flex: 1 1 420px; max-width: 640px">
 <p style="margin: 0; font-size: 18px; line-height: 1.4; letter-spacing: 0.013em">{E(L['about_text'])}</p>
@@ -406,8 +409,12 @@ def frame(L, nav_html, main_html, doc=True, ref='', main_attrs=''):
     (data-sk-doc, ver o CSS), e o canvas tem a altura da tela com a barra de endereço recolhida (100lvh): a barra do
     celular aparece e some sem redimensionar o fundo. doc=False (artboard do canvas de Design): uma caixa da altura da
     tela com um scroller interno (data-sk-scroller)."""
+    # "pular para o conteúdo": o primeiro Tab da página; o <main> recebe o foco (tabindex -1) e o próximo Tab já está nele
+    skip = f'<a class="sk-lens-btn sk-skip" href="#{L["main_id"]}">{L["skip"]}</a>'
+    main_attrs = f' id="{L["main_id"]}" tabindex="-1"{main_attrs}'
     if doc:
         return f'''<div data-sk-root="1" data-sk-doc="1"{ref} style="position: relative; background-color: {PARCH}; color: {INK}; font-family: {SANS}">
+{skip}
 {RINGS}
 <canvas data-sk-canvas="1" aria-hidden="true" style="left: 0; top: 0; width: 100%; height: 100vh; height: 100lvh; display: block"></canvas>
 {nav_html}
@@ -418,6 +425,7 @@ def frame(L, nav_html, main_html, doc=True, ref='', main_attrs=''):
 {wa(L)}
 </div>'''
     return f'''<div data-sk-root="1"{ref} style="position: relative; height: 100vh; overflow: hidden; background-color: {PARCH}; color: {INK}; font-family: {SANS}">
+{skip}
 {RINGS}
 <canvas data-sk-canvas="1" aria-hidden="true" style="inset: 0; width: 100%; height: 100%; display: block"></canvas>
 {nav_html}
@@ -513,7 +521,7 @@ def project_body(L, p, nxt, root):
 <section id="{L.id('proj')}" data-sk-view="proj" style="position: relative; min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end; padding: var(--sk-project-top,184px) {PADX} 150px; box-sizing: border-box">
 <div class="sk-project-hero" style="max-width: 1400px; width: 100%; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 46px 19px; align-items: flex-end; justify-content: space-between">
 <div class="sk-project-copy" data-sk-read style="flex: 1 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 30px">
-<a class="sk-link sk-project-back" href="{home}#{L.id('work')}" style="align-self: flex-start; {CAP}; color: {INK}; text-decoration: none; padding: 5px 0">{L['back']}</a>
+<a class="sk-link sk-hit sk-project-back" href="{home}#{L.id('work')}" style="align-self: flex-start; {CAP}; color: {INK}; text-decoration: none; padding: 5px 0">{L['back']}</a>
 <p style="margin: 0; {CAP}">{E(p['cap'])} · {inline(p.get('status', ''))}</p>
 <h1 style="margin: 0; font-weight: 400; font-size: clamp(44px, 7.4vw, 120px); line-height: 0.9; letter-spacing: -0.015em; overflow-wrap: anywhere"><span style="display: inline-block; view-transition-name: sk-title-{slug}">{E(p['titulo'])}</span></h1>
 <div class="sk-lead">{p['lead']}</div>
@@ -540,7 +548,7 @@ def project_body(L, p, nxt, root):
 <footer class="sk-footblur">
 <div class="sk-blurfx" aria-hidden="true"><i></i><i></i></div>
 <span style="{CAP}">© 2026 Sitr3n</span>
-<a class="sk-link" href="{home}#{L.id('contact')}" style="{CAP}; text-decoration: none">{L['talk']}</a>
+<a class="sk-link sk-hit" href="{home}#{L.id('contact')}" style="{CAP}; text-decoration: none">{L['talk']}</a>
 </footer>
 </section>'''
 
@@ -592,8 +600,10 @@ CSS = f''':root{{{theme_vars('light')}}}
 body{{margin:0;background:{PARCH}}}
 a{{color:{INK}}}a:hover{{color:{INK}}}
 a:focus-visible{{outline:2px solid {INK};outline-offset:3px}}
-/* a página rola o documento (data-sk-doc); o artboard de Design rola o [data-sk-scroller] */
-html{{background:{PARCH};scroll-behavior:smooth;scrollbar-gutter:stable}}
+/* a página rola o documento (data-sk-doc); o artboard de Design rola o [data-sk-scroller]. No toque, nada do bloco
+   azul (Android) ou cinza (iPhone) que o navegador pinta sobre o que foi tocado: cada controle tem a própria resposta
+   (o vidro incha e a lente desliza, o "+" do card gira e o link sublinha pelo :hover do toque, o Scroll rola) */
+html{{background:{PARCH};scroll-behavior:smooth;scrollbar-gutter:stable;-webkit-tap-highlight-color:transparent}}
 html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}}
 /* com o menu aberto, a página atrás dele não rola */
 :root:has(.sk-menu[open]){{overflow:hidden}}
@@ -662,9 +672,26 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
   .sk-track-lg .sk-seg{padding:14px 20px}}
 @media (prefers-reduced-motion:reduce){.sk-lens,.sk-lens-btn,.sk-seg{transition:none!important}}
 
+/* ---- pular para o conteúdo: fora da tela até receber o foco do teclado; então aparece em vidro no canto de cima,
+   acima da toolbar ---- */
+.sk-skip:not(:focus){position:absolute;left:0;top:0;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.sk-skip:focus{position:fixed;left:clamp(19px,4vw,76px);top:12px;z-index:40}
+main:focus{outline:none}
+
+/* ---- área de toque: no toque, os links pequenos ganham uma margem invisível que também recebe o dedo, sem mudar o
+   desenho (seletor de idioma, "GitHub ↗" da visão geral, "← Todos os projetos" e "Vamos conversar ↗"), e o botão
+   "Todos no GitHub" ganha a altura mínima de 44 px ---- */
+@media (pointer:coarse){
+  .sk-lang .sk-seg::after{content:"";position:absolute;inset:-5px -3px}
+  .sk-hit{position:relative}.sk-hit::after{content:"";position:absolute;inset:-15px -8px}
+}
+@media (max-width:720px),(pointer:coarse){
+  [data-sk-view="work"] .sk-lens-btn{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
+}
+
 /* ---- tema: botão de vidro redondo depois do idioma, sempre visível (com o menu aberto, também no cabeçalho dele);
    a lua gira e vira sol ---- */
-.sk-lens-btn.sk-theme{display:inline-flex;flex:0 0 auto;width:44px;height:44px;padding:0;border:0;font:inherit;cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent}
+.sk-lens-btn.sk-theme{display:inline-flex;flex:0 0 auto;width:44px;height:44px;padding:0;border:0;font:inherit;cursor:pointer;pointer-events:auto}
 .sk-theme svg{position:absolute;left:50%;top:50%;margin:-9px 0 0 -9px;transition:opacity .4s ease,transform .6s cubic-bezier(.3,1.5,.5,1)}
 .sk-theme .sk-i-sun,[data-theme="dark"] .sk-theme .sk-i-moon{opacity:0;transform:rotate(-70deg) scale(.5)}
 [data-theme="dark"] .sk-theme .sk-i-sun{opacity:1;transform:none}
@@ -870,7 +897,7 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
   [data-sk-root]:not([data-sk-menu-ready]) .sk-navlinks{display:none}
   [data-sk-menu-ready] .sk-desktop-nav,[data-sk-menu-ready] .sk-wa-wrap{display:none!important}
   [data-sk-menu-ready] .sk-menu-toggle,.sk-menu-close{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;
-    gap:10px;min-height:44px;padding:0 15px;border:0;font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    gap:10px;min-height:44px;padding:0 15px;border:0;font-family:inherit;cursor:pointer}
   .sk-menu-toggle[aria-expanded="true"]{opacity:0}
   .sk-menu[open]{display:block;pointer-events:auto;position:fixed;inset:12px var(--sk-mobile-edge) auto auto;
     width:min(420px,calc(100% - 2 * var(--sk-mobile-edge)));max-width:none;max-height:calc(100dvh - 24px);
@@ -904,7 +931,6 @@ html,[data-sk-scroller]{{scrollbar-width:thin;scrollbar-color:{ASH} transparent}
   [data-sk-view="hero"]{padding-bottom:max(92px,12svh)!important}
   [data-sk-view="hero"] h1{font-size:clamp(27px,9.2vw,60px)!important}
   [data-sk-view="about"],[data-sk-view="work"],[data-sk-view="stack"],[data-sk-view="path"],[data-sk-view="me"]{padding-block:84px!important}
-  [data-sk-view="work"] .sk-lens-btn{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
   /* toolbar em pé: logo + idioma + tema + Menu cabem em 320 px com o Menu redondo, só com o ícone (o nome vem do
      aria-label), redondo como o tema e o botão de fechar do menu */
   .sk-toolbar{gap:12px!important}
@@ -1062,26 +1088,61 @@ def alternates(slug=None):
 # data-sk-boot: até o script do site montar (fim do <body>), a interface, os anéis e o título ficam escondidos como na
 # abertura; sem isso, o navegador pinta um quadro com tudo à vista antes dela. O controlador tira a marca ao montar; se
 # o script falhar, o load tira. Com movimento reduzido não há abertura, então a página já começa à vista.
+# A cor da barra do navegador (theme-color) também já sai no tema certo; depois o controlador a mantém em dia.
 THEME_SCRIPT = ('<script>(function(d){var t=(/[?&]theme=(dark|light)\\b/.exec(location.search)||[])[1];'
                 "if(!t)try{t=localStorage.getItem('sk-theme')}catch(e){}"
                 "d.setAttribute('data-theme',t==='dark'?'dark':'light');"
+                f"if(t==='dark')d.querySelector('meta[name=\"theme-color\"]').setAttribute('content','{hex_color(THEMES['dark']['parch'])}');"
                 "if(!matchMedia('(prefers-reduced-motion: reduce)').matches){d.setAttribute('data-sk-boot','');"
                 "addEventListener('load',function(){d.removeAttribute('data-sk-boot')})}})(document.documentElement)</script>")
 
 
-def build_standalone(L, script_src, body_html, title, desc=None, opts="{ preset: 'kosa' }", slug=None):
-    sc = f'<script src="{script_src}"></script>'
+PUBLIC = os.path.join(ROOT, 'src', 'public')
+
+
+def icons(root):
+    """Favicon (svg, com o .ico de reserva) e ícone da tela inicial do iPhone, os que existirem em src/public/."""
+    tags = (('favicon.ico', 'rel="icon" sizes="32x32"'), ('favicon.svg', 'rel="icon" type="image/svg+xml"'),
+            ('apple-touch-icon.png', 'rel="apple-touch-icon"'))
+    return '\n'.join(f'<link {attrs} href="{root}{f}">' for f, attrs in tags if os.path.exists(os.path.join(PUBLIC, f)))
+
+
+def og_image(L, slug=None):
+    """Imagem de prévia (Open Graph) da página, gerada por npm run images: assets/og/<idioma>-<home|slug>.jpg."""
+    name = f"{L.code}-{slug or 'home'}.jpg"
+    return f'assets/og/{name}' if os.path.exists(os.path.join(ASSETS, 'og', name)) else None
+
+
+def social(L, title, desc, slug=None):
+    """Prévia do link no WhatsApp, LinkedIn, X etc. (Open Graph e Twitter Card), no idioma da página."""
+    tags = [('og:type', 'website'), ('og:site_name', 'Sitr3n'), ('og:title', title), ('og:description', desc),
+            ('og:url', SITE + L.path(slug)), ('og:locale', L['og_locale']), ('og:locale:alternate', L.other['og_locale'])]
+    img = og_image(L, slug)
+    if img:
+        tags += [('og:image', SITE + img), ('og:image:width', '1200'), ('og:image:height', '630'), ('og:image:alt', title)]
+    out = [f'<meta property="{k}" content="{E(v)}">' for k, v in tags]
+    out.append(f'<meta name="twitter:card" content="{"summary_large_image" if img else "summary"}">')
+    return '\n'.join(out)
+
+
+def build_standalone(L, root, body_html, title, desc=None, opts="{ preset: 'kosa' }", slug=None, index=True):
+    """Página completa. root: caminho até a raiz do site (script, assets, ícones). index=False (a 404): fora dos
+    buscadores, sem endereço canônico nem prévia de compartilhamento."""
     meta = f'\n<meta name="description" content="{E(desc)}">' if desc else ''
+    if index:
+        head = f'<link rel="canonical" href="{SITE}{L.path(slug)}">\n{alternates(slug)}\n{social(L, title, desc or "", slug)}'
+    else:
+        head = '<meta name="robots" content="noindex">'
     return f'''<!DOCTYPE html>
 <html lang="{L['html_lang']}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#{''.join(f'{v:02x}' for v in THEMES['light']['parch'])}">
+<meta name="theme-color" content="{hex_color(THEMES['light']['parch'])}">
 {THEME_SCRIPT}
 <title>{E(title)}</title>{meta}
-<link rel="canonical" href="{SITE}{L.path(slug)}">
-{alternates(slug)}
+{head}
+{icons(root)}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 {FONTS}
@@ -1091,11 +1152,37 @@ def build_standalone(L, script_src, body_html, title, desc=None, opts="{ preset:
 </head>
 <body>
 {body_html}
-{sc}
+<script src="{root}sakura-site.js"></script>
 <script>window.__site = SakuraSite.mount(document.querySelector('[data-sk-root]'), {opts});</script>
 </body>
 </html>
 '''
+
+
+def notfound(L):
+    """Corpo da 404. O GitHub Pages serve o mesmo 404.html para qualquer endereço que não existe, em qualquer pasta:
+    por isso os caminhos são absolutos (a partir da raiz do domínio) e o texto vem nos dois idiomas. A seção usa a
+    câmera do hero (data-sk-view sem vista própria em VIEWS cai na do hero)."""
+    return f'''
+<section data-sk-view="notfound" style="position: relative; min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end; gap: 30px; padding: 96px {PADX}; box-sizing: border-box">
+<p style="margin: 0; {CAP}">404</p>
+<h1 style="margin: 0; font-weight: 400; font-size: clamp(40px, 7.4vw, 112px); line-height: 0.9; letter-spacing: -0.015em; text-transform: uppercase; color: {INK}">{E(T['nf_title'][0])}</h1>
+<div data-sk-read style="display: flex; flex-direction: column; gap: 8px">
+<p class="sk-lead">{E(T['nf_text'][0])}</p>
+<p class="sk-lead" lang="en" style="color: {MUTE}">{E(T['nf_title'][1])}. {E(T['nf_text'][1])}</p>
+</div>
+<div class="sk-glass sk-track sk-track-lg" data-sk-glass="links" data-sk-glass-rest="0" style="align-self: flex-start">
+<span class="sk-lens" aria-hidden="true"></span>
+<a class="sk-seg" href="/">{E(T['nf_home'][0])}</a>
+<a class="sk-seg" href="/en/" hreflang="en" lang="en">{E(T['nf_home'][1])}</a>
+</div>
+</section>'''
+
+
+def build_404():
+    root = '/'
+    return build_standalone(PT, root, frame(PT, nav(PT, root, root), notfound(PT)), f"{PT['nf_title']} — Sitr3n",
+                            opts="{ preset: 'kosa', intro: 'page' }", index=False)
 
 
 def build_redirect(L, p):
@@ -1125,7 +1212,7 @@ def write(path, text):
 
 
 if __name__ == '__main__':
-    import argparse, os
+    import argparse
     ap = argparse.ArgumentParser(description='Gera a home e as páginas de projeto em português e inglês e, opcionalmente, Main.dc.html.')
     ap.add_argument('--out', default='.', help='diretório de saída (padrão: diretório atual)')
     ap.add_argument('--dc', metavar='SCRIPT_URL', help='também gera Main.dc.html apontando para SCRIPT_URL')
@@ -1136,7 +1223,7 @@ if __name__ == '__main__':
         out = os.path.join(args.out, L.dir)
         os.makedirs(out, exist_ok=True)
         write(os.path.join(out, 'index.html'),
-              build_standalone(L, root + 'sakura-site.js', body(L, root), L['title'], L['desc']))
+              build_standalone(L, root, body(L, root), L['title'], L['desc']))
         projects = PROJECTS[L.code]
         for i, p in enumerate(projects):
             nxt = projects[(i + 1) % len(projects)]
@@ -1145,12 +1232,13 @@ if __name__ == '__main__':
             os.makedirs(folder, exist_ok=True)
             opts = "{ preset: '%s', intro: 'page' }" % p.get('sakura', 'kosa')
             write(os.path.join(folder, 'index.html'),
-                  build_standalone(L, proot + 'sakura-site.js', project_root(L, p, nxt, proot), f"{p['titulo']} — Sitr3n",
+                  build_standalone(L, proot, project_root(L, p, nxt, proot), f"{p['titulo']} — Sitr3n",
                                    p['card'], opts, p['slug']))
             for old in p['antigos']:
                 folder = os.path.join(args.out, L.path(old))
                 os.makedirs(folder, exist_ok=True)
                 write(os.path.join(folder, 'index.html'), build_redirect(L, p))
+    write(os.path.join(args.out, '404.html'), build_404())
     if args.dc:
         write(os.path.join(args.out, 'Main.dc.html'), build_dc(args.dc))
     print('ok')

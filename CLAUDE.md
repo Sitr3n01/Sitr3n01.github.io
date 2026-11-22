@@ -7,6 +7,10 @@ Portfólio estático (pt-BR) com fundo de sakura em ASCII. Sem dependências de 
 - `npm run dev` — servidor em http://localhost:5500 com rebuild + live reload ao salvar em `src/`
 - `npm run build` — gera `dist/`
 - `npm run check` — rode depois de qualquer mudança; precisa terminar em "tudo certo"
+- `npm run e2e` — testes de ponta a ponta no Chrome headless (todas as páginas, desktop e celular, dois temas, e os
+  fluxos de interação); rode depois de mexer na marcação, no CSS ou no JS. `-- --quick` para a versão curta
+- `npm run images` — refaz o favicon raster e as prévias de link (`src/assets/og/`); rode ao trocar o favicon, um título
+  ou acrescentar um projeto (as imagens são versionadas)
 - `npm run perf` — régua de desempenho (Chrome headless, CPU lenta, celular); rode antes e depois de mexer no motor, nos cards
   ou no controlador
 

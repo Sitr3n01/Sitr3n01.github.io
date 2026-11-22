@@ -8,3 +8,7 @@
 *.ico binary
 *.woff2 binary
 *.zip binary
+*.mp4 binary
+*.webm binary
+*.glb binary
+*.bin binary

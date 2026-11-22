@@ -107,6 +107,16 @@ T = {
     'site': ('Site', 'Website'),
     'next': ('Próximo projeto · ', 'Next project · '),
     'talk': ('Vamos conversar ↗', "Let's talk ↗"),
+
+    # acessibilidade e compartilhamento
+    'skip': ('Pular para o conteúdo', 'Skip to content'),
+    'main_id': ('conteudo', 'content'),
+    'og_locale': ('pt_BR', 'en_US'),
+
+    # página 404 (uma só para o site inteiro, em português com a versão em inglês logo abaixo)
+    'nf_title': ('Página não encontrada', 'Page not found'),
+    'nf_text': ('Esta página não existe ou mudou de endereço.', 'This page does not exist or has moved.'),
+    'nf_home': ('Voltar ao início', 'Back to the home page'),
 }
 
 # menu: (data-sk-view, rótulo, ícone). A nav do desktop usa todos menos o contato, que vira o botão "Contato +".

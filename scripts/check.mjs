@@ -55,6 +55,14 @@ ok(!html1.includes('\r\n') && !js1.includes('\r\n'), 'saída só com LF');
 ok(/<head>[\s\S]*setAttribute\('data-sk-boot'[\s\S]*<\/head>/.test(html1) && html1.includes('[data-sk-boot] [data-sk-ui]') &&
   js1.includes("removeAttribute('data-sk-boot')"), 'interface escondida desde o <head> até a abertura (data-sk-boot)');
 ok(html1.includes('[data-sk-doc]{overflow-x:clip}'), 'página sem vazamento horizontal na abertura (overflow-x: clip)');
+ok(/\nhtml\{[^}]*-webkit-tap-highlight-color:transparent/.test(html1), 'toque sem o bloco de destaque do navegador (tap highlight transparente no html)');
+// breakpoints de layout (menu do celular e cards em coluna única): o JS (matchMedia) e o CSS precisam da mesma query
+{
+  const css = q => '@media ' + q.replace(/:\s+/g, ':').replace(/,\s+/g, ',');
+  const qs = [...new Set([...js1.matchAll(/matchMedia\('([^']*(?:935|950)px[^']*)'\)/g)].map(m => m[1]))];
+  const off = qs.filter(q => !html1.includes(css(q)));
+  ok(qs.length === 2 && !off.length, `breakpoints de layout iguais no JS e no CSS (menu e coluna única)${off.length ? ` — sem par no CSS: ${off.join(' | ')}` : ''}`);
+}
 // tema: o <head> escolhe antes da pintura, os dois temas definem os mesmos tokens e há botão no toolbar e no menu
 {
   const vars = sel => { const m = html1.match(new RegExp(sel.replace(/[[\]"]/g, '\\$&') + '\\{([^}]*)\\}')); return m ? m[1].split(';').map(d => d.split(':')[0]).sort().join() : ''; };
@@ -62,6 +70,7 @@ ok(html1.includes('[data-sk-doc]{overflow-x:clip}'), 'página sem vazamento hori
   ok(light.includes('--sk-ink-rgb') && light.includes('--sk-tones') && light === dark, 'tema claro e escuro com os mesmos tokens --sk-*');
   ok(/<head>[\s\S]*setAttribute\('data-theme',t==='dark'\?'dark':'light'\)[\s\S]*<\/head>/.test(html1) && !html1.includes('prefers-color-scheme'),
     'tema escolhido no <head>, antes da pintura: a escolha guardada ou o claro (padrão)');
+  ok(/<meta name="theme-color"[\s\S]*<script>[^<]*theme-color[^<]*<\/script>[\s\S]*<\/head>/.test(html1), 'cor da barra do navegador (theme-color) no tema certo desde o <head>');
   ok(/function mountTheme[\s\S]*'pageshow'/.test(js1), 'página restaurada pelo voltar/avançar segue a escolha guardada (pageshow)');
   ok((html1.match(/data-sk-theme /g) || []).length === 2 && js1.includes('[data-sk-theme]'), 'botão de tema [data-sk-theme] no toolbar e no menu');
 }
@@ -76,6 +85,8 @@ for (const slug of slugs) {
   ok(page.includes('data-sk-view="proj"') && page.includes('data-sk-view="projbody"') && page.includes('data-sk-video'),
     `projetos/${slug}/ existe e tem hero, corpo e vídeo`);
   ok(page.includes('data-sk-read') && page.includes('data-sk-hint'), `projetos/${slug}/ tem paradas de leitura`);
+  const preset = (/SakuraSite\.mount\(.*?\{ preset: '([a-z]+)'/.exec(page) || [])[1];
+  ok(!!preset && preset in (S.PRESETS || {}), `projetos/${slug}/: árvore "${preset}" (campo sakura) existe em PRESETS`);
   ok(page.includes(`view-transition-name: sk-glyph-${slug}`) && html1.includes(`view-transition-name: sk-glyph-${slug}`),
     `transição do palco ASCII de ${slug} nos dois lados`);
   ok(html1.includes(`data-sk-ascii="${slug}"`) && page.includes(`data-sk-ascii="${slug}"`) && js1.includes(`'${slug}': {`),
@@ -135,6 +146,31 @@ for (const [dir, list] of [['projetos', slugs], ['en/projects', slugsEn]]) {
     let m = null; try { m = read(`${dir}/${old}/index.html`).match(/http-equiv="refresh" content="0; url=\.\.\/([a-z0-9-]+)\/"/); } catch { /* falta */ }
     ok(!!m && list.includes(m[1]), `${dir}/${old}/ (endereço antigo) leva a ${m ? `${dir}/${m[1]}/` : 'um projeto que existe'}`);
   }
+}
+
+// cabeçalho de cada página indexável: favicon, "pular para o conteúdo" e a prévia de compartilhamento (Open Graph) com
+// o mesmo endereço do canônico; sem a imagem de prévia, só avisa (npm run images gera)
+const exists = f => { try { readFileSync(join(DIST, f)); return true; } catch { return false; } };
+ok(['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'].every(exists), 'favicon na raiz (svg, ico e o ícone do iPhone)');
+for (const [ptPath, enPath] of pages) for (const path of [ptPath, enPath]) {
+  let h = ''; try { h = read(path + 'index.html'); } catch { continue; }
+  const meta = p => (new RegExp(`<meta property="${p}" content="([^"]*)"`).exec(h) || [])[1];
+  const canonical = (/<link rel="canonical" href="([^"]*)"/.exec(h) || [])[1];
+  const icons = [...h.matchAll(/<link rel="(?:icon|apple-touch-icon)"[^>]*href="([^"]+)"/g)].map(m => m[1]);
+  const mainId = (/<main id="([^"]+)" tabindex="-1"/.exec(h) || [])[1];
+  ok(icons.length === 3 && icons.every(i => exists(join(path, i))), `${path || '/'}: favicon`);
+  ok(!!mainId && h.includes(`class="sk-lens-btn sk-skip" href="#${mainId}"`), `${path || '/'}: "pular para o conteúdo" leva ao <main>`);
+  ok(!!meta('og:title') && !!meta('og:description') && meta('og:url') === canonical && h.includes('name="twitter:card"'),
+    `${path || '/'}: prévia de compartilhamento (Open Graph) com o endereço canônico`);
+  const img = meta('og:image');
+  if (!img) pend.push(`${path || '/'}: sem imagem de prévia (npm run images)`);
+  else ok(img.startsWith('https://sitr3n01.github.io/') && exists(img.slice('https://sitr3n01.github.io/'.length)), `${path || '/'}: imagem de prévia existe`);
+}
+// 404: uma página para qualquer endereço, em qualquer pasta (GitHub Pages): caminhos absolutos e fora dos buscadores
+{
+  let nf = ''; try { nf = read('404.html'); } catch { /* falta */ }
+  ok(nf.includes('<meta name="robots" content="noindex">') && nf.includes('src="/sakura-site.js"') && !/(?:src|href)="\.\.?\//.test(nf) &&
+    nf.includes('href="/"') && nf.includes('href="/en/"'), '404.html com caminhos absolutos, fora dos buscadores e com volta ao início nos dois idiomas');
 }
 
 for (const f of ['rca44-geometry.glb', 'tsuru.glb', 'land-mask-640x320.bin']) {

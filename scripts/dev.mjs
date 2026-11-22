@@ -2,19 +2,11 @@
 // serve dist/, observa src/, refaz o build a cada alteração e recarrega o navegador (SSE).
 // Uso: node scripts/dev.mjs   (porta: PORT, padrão 5500)
 import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
 import { watch } from 'node:fs';
-import { extname, join, normalize, sep } from 'node:path';
 import { build, DIST, SRC } from './build.mjs';
+import { staticHandler } from './lib/serve.mjs';
 
 const PORT = Number(process.env.PORT) || 5500;
-const TYPES = {
-  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif',
-  '.gif': 'image/gif', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
-  '.mp4': 'video/mp4', '.webm': 'video/webm', '.vtt': 'text/vtt; charset=utf-8',
-};
 const RELOAD = `<script>(()=>{const es=new EventSource('/__reload');es.onmessage=e=>{if(e.data==='reload')location.reload();else console.error('[dev] '+JSON.parse(e.data))}})();</script>`;
 
 const clients = new Set();
@@ -31,38 +23,17 @@ function rebuild(reason) {
   }
 }
 
-const server = createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://localhost');
-  if (url.pathname === '/__reload') {
+// as páginas ganham o script do live reload; nada fica em cache, para o rebuild valer no próximo F5
+const files = staticHandler(DIST, { html: page => page.replace('</body>', `${RELOAD}\n</body>`), headers: { 'Cache-Control': 'no-store' } });
+const server = createServer((req, res) => {
+  if (req.url.split('?')[0] === '/__reload') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
     res.write(': ok\n\n');
     clients.add(res);
     req.on('close', () => clients.delete(res));
     return;
   }
-  let file = normalize(join(DIST, decodeURIComponent(url.pathname)));
-  if (file !== DIST && !file.startsWith(DIST + sep)) { res.writeHead(403).end(); return; }
-  try {
-    let info = await stat(file);
-    if (info.isDirectory()) {
-      if (!url.pathname.endsWith('/')) { res.writeHead(301, { Location: url.pathname + '/' + url.search }).end(); return; }
-      file = join(file, 'index.html'); info = await stat(file);
-    }
-    const type = TYPES[extname(file).toLowerCase()] || 'application/octet-stream';
-    // vídeo: suporte a Range para o player poder avançar/voltar
-    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
-    if (range && type.startsWith('video/')) {
-      const start = range[1] ? Number(range[1]) : 0, end = range[2] ? Number(range[2]) : info.size - 1;
-      const buf = (await readFile(file)).subarray(start, end + 1);
-      res.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${info.size}`, 'Accept-Ranges': 'bytes', 'Content-Length': buf.length, 'Cache-Control': 'no-store' }).end(buf);
-      return;
-    }
-    let body = await readFile(file);
-    if (type.startsWith('text/html')) body = body.toString('utf8').replace('</body>', `${RELOAD}\n</body>`);
-    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' }).end(body);
-  } catch {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('404');
-  }
+  files(req, res);
 });
 
 rebuild('início');
